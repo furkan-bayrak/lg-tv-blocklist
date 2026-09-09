@@ -28,7 +28,7 @@ tier, then `pihole -g`.
 
 **Rooted webOS**: use the `-hosts.txt` entries in `/etc/hosts`. Advanced:
 webosbrew init.d hook that rewrites the (tmpfs) hosts file at every boot —
-see [docs](https://github.com/webosbrew/initrd-patches) for the init.d
+see [docs](https://www.webosbrew.org/pages/filesystem-overlays) for the init.d
 mechanism; the domain set to mirror is `safe.txt` (or `strict.txt` for the
 full lockdown).
 

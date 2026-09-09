@@ -36,8 +36,11 @@ dot, no wildcards — this list is exact-name (see README "Format
 semantics"). Weak-evidence entries are tagged `weak` and belong in
 strict.txt by policy.
 
-CI runs `python3 scripts/build.py check` and the test suite on every PR —
-malformed, duplicate, non-LG, or tier-misplaced lines fail the build.
+CI validates every PR that touches `src/` or `scripts/` — structural
+violations (malformed, duplicate, or non-LG hostnames) fail the build;
+semantic tier placement is reviewed by maintainers. The generated `lists/`
+directory is off-limits to PRs (CI rejects changes to it) — edit `src/`
+instead.
 
 ## Workflow
 
