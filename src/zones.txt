@@ -1,0 +1,13 @@
+# LG TV Blocklist — STRICT-only zone anchors. Apex domains whose FULL subdomain
+# space we do not enumerate. In the adblock output these become ||zone^ (whole
+# zone); in domains/hosts outputs they block the apex only (exact-name
+# semantics) — documented in README.
+# License: CC BY 4.0.
+
+lge.com # ZONE: umbrella zone — kills all lge.com subdomains in adblock format
+lgeapi.com # ZONE: region API umbrella
+wiselg.com # ZONE: TV/wiselg telemetry umbrella
+lgthinq.com # ZONE: ThinQ umbrella
+lgtviot.com # ZONE: IoT umbrella
+nextlgsdp.com # ZONE: SDP umbrella
+lgunifiedsmart.com # ZONE: smart-family umbrella

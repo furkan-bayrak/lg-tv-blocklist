@@ -1,0 +1,33 @@
+# LG TV Blocklist — STRICT tier DELTA (compiled as safe + this file).
+# Rooted/privacy-max users: zero LG communication intended. Breaks BY DESIGN:
+# firmware OTA updates, ThinQ cloud sync, LG Channels. Store may degrade.
+# Weak-evidence entries are kept here by policy (never risk SAFE on a guess).
+# License: CC BY 4.0.
+
+snu.lge.com # STRICT: firmware OTA check server
+su.lge.com # STRICT: OTA update server
+su-dev.lge.com # STRICT: OTA update server (dev channel)
+su-ssl.lge.com # STRICT: OTA update server (SSL)
+ngfts.lge.com # STRICT: firmware/content file transfer
+gfts.lge.com # STRICT: file transfer service
+eic-ngfts.lge.com # STRICT: update-check/file-transfer telemetry (boot burst)
+eic-gfts.lge.com # STRICT: file-transfer telemetry
+ngfts.nextlgsdp.com # STRICT: update transfer on SDP family
+eic-ngfts.tv.wiselg.com # STRICT: update transfer (wiselg family)
+lss.lgthinq.com # STRICT: ThinQ cloud sync backend
+eic-op-lss.lgthinq.com # STRICT: ThinQ operations telemetry
+bss.lgechannel.com # STRICT: LG Channels (FAST) backend — feature kill by design
+lgechannel.com # STRICT: LG Channels apex — feature kill by design
+lgtvonline.lge.com # STRICT: weak — post-boot only, function unproven
+am.lge.com # STRICT: weak — observed, function unproven
+ig.lge.com # STRICT: weak — observed, function unproven
+service.lgtvcommon.com # STRICT: weak — common-services endpoint, store interplay unproven
+a.lgappstv.com # STRICT: weak — store-CDN-adjacent, app-update function unproven
+lgappstv.com # STRICT: weak — store CDN apex (blocking apex = exact-name only in hosts/domains)
+fms.lgunifiedsmart.com # STRICT: weak — smart-family messaging service
+de.lgeapi.com # STRICT: weak — region API, store/billing interplay unproven
+de.ibs.nextlgsdp.com # STRICT: weak — possible in-app billing path (store risk)
+eic-ocp.lgtviot.com # STRICT: weak — unknown (DNS only; unrelated to the local panel-compensation daemon)
+eic.cdplauncher.lgtvcommon.com # STRICT: weak — content-launcher/CDP service
+eic.lgchhomeapp.lgtvcommon.com # STRICT: weak — home-app service
+rdx2.lgtvsdp.com # STRICT: weak — unknown

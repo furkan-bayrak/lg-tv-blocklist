@@ -1,0 +1,26 @@
+# LG TV Blocklist — SAFE tier (stock-TV-safe: store, app updates, logins,
+# Netflix/Prime/HBO/YouTube keep working). Blocks proven telemetry/ad/ACR/promo
+# hostnames only. Subdomain-level; exact-name semantics.
+# Evidence basis: G1 (webOS) audit — 44.8k-packet capture, 267k-query AdGuard
+# log, live blocking verified against Netflix/Prime/HBO/YouTube playback.
+# License: CC BY 4.0. Additions require an inline annotation + evidence.
+
+cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (6-min heartbeat pattern observed)
+ads.lgtvcommon.com # SAFE: ad delivery (querylog family)
+homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos
+eic.nudge.lgtvcommon.com # SAFE: nudge/notification telemetry
+recommend.lgtvcommon.com # SAFE: recommendations/promos
+eic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry (blocked live, apps fine)
+eic.lgtviot.com # SAFE: IoT telemetry (largest observed family, ~5.1k queries)
+eic.api.lgtviot.com # SAFE: IoT telemetry API
+eic.tv.wiselg.com # SAFE: TV telemetry (blocked live, apps fine)
+de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry
+lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
+de.info.lgsmartad.com # SAFE: ad info endpoint
+de.emp.lgsmartplatform.com # SAFE: smart-platform telemetry
+smart.adtvc.app # SAFE: ad serving (adtvc.app family)
+adsdtvc.com # SAFE: ad zone
+ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected)
+us.lgtvsdp.com # SAFE: SDP telemetry, region endpoint
+lgtvsdp.com # SAFE: SDP telemetry apex (service delivery platform beacons)
+initscr.lge.com # SAFE: initial-setup telemetry (boot-time only)
