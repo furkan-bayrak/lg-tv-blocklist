@@ -9,6 +9,10 @@ Not affiliated with LG Electronics. LG is a trademark of LG Corp.
 
 ## Lists
 
+> **Quick Summary:**
+> * **Just want to stop ads, ACR, and telemetry without breaking your TV?** Use **SAFE**. Netflix, Disney+, Prime, and the LG App Store keep working normally.
+> * **Want the TV to fully shut up — no firmware updates, no ThinQ cloud sync, no LG Channels?** Use **STRICT**. Those services are blocked on purpose — expect them to stop working.
+
 | List | Domains (Pi-hole/NextDNS) | Hosts (/etc/hosts) | AdBlock (AdGuard Home/uBO) |
 |---|---|---|---|
 | **SAFE** — blocks telemetry/ads/ACR; store, app updates, Netflix/Prime/HBO/YouTube keep working | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) |
@@ -74,6 +78,14 @@ and the evidence behind it. The tier table above summarizes the trade-offs.
 See [CONTRIBUTING.md](CONTRIBUTING.md) — evidence required, edit `src/`
 only, CI does the rest. Issue templates: [new domain](.github/ISSUE_TEMPLATE/01_new_domain.md) /
 [breakage](.github/ISSUE_TEMPLATE/02_breakage.md).
+
+## Join as a Maintainer / Contributor
+
+I built this from empirical packet captures and query logs on an LG G1, but
+LG maintains dozens of webOS versions and regional endpoints. If you have
+captures or query logs from a C-series, G-series, or other webOS model and
+want to co-maintain this list, [open an issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues)
+or submit a PR.
 
 ## License
 
