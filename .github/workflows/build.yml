@@ -1,0 +1,44 @@
+name: Build blocklists
+
+on:
+  pull_request:
+    paths: ['src/**', 'scripts/**']
+  push:
+    branches: [main]
+    paths: ['src/**', 'scripts/**']
+  workflow_dispatch:
+
+concurrency:
+  group: lists
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source + compile dry-run
+        run: python3 scripts/build.py check
+      - name: Run test suite
+        run: python3 scripts/test_build.py
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile lists
+        run: python3 scripts/build.py build
+      - name: Commit generated lists
+        run: |
+          if ! git diff --quiet -- lists; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add lists/
+            git commit -m "chore: regenerate blocklists [skip ci]"
+            git push
+          fi
