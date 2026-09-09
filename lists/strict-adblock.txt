@@ -1,5 +1,5 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-09-09 20:03 UTC
+# Updated: 2026-09-09 20:16 UTC
 # Entries: 53
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
