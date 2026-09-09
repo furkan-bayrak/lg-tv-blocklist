@@ -2,7 +2,7 @@ name: Build blocklists
 
 on:
   pull_request:
-    paths: ['src/**', 'scripts/**']
+    paths: ['src/**', 'scripts/**', 'lists/**']
   push:
     branches: [main]
     paths: ['src/**', 'scripts/**']
