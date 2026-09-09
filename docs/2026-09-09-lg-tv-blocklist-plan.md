@@ -184,7 +184,7 @@ lgunifiedsmart.com # ZONE: smart-family umbrella
 - [ ] **Step 4: Sanity-check the seed**
 
 Run: `Select-String -Path src\*.txt -Pattern '^([a-z0-9.-]+) # (SAFE|STRICT|ZONE):' | Measure-Object`
-Expected: 19 SAFE lines, 26 STRICT lines, 7 ZONE lines. No duplicate hostnames across safe.txt and strict.txt (check by eye: every strict entry differs from every safe entry).
+Expected: 19 SAFE lines, 27 STRICT lines, 7 ZONE lines. No duplicate hostnames across safe.txt and strict.txt (check by eye: every strict entry differs from every safe entry).
 
 - [ ] **Step 5: Commit**
 
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: Run `check` — expect OK and no files written**
 
 Run: `python scripts/build.py check`
-Expected: `check OK: safe=19 strict=52 zone-anchors=7 outputs=6` (52 = 19 safe + 26 strict-delta + 7 zones) and exit code 0. Confirm no `lists/` directory appeared: `Test-Path lists` → False.
+Expected: `check OK: safe=19 strict=53 zone-anchors=7 outputs=6` (53 = 19 safe + 27 strict-delta + 7 zones) and exit code 0. Confirm no `lists/` directory appeared: `Test-Path lists` → False.
 
 - [ ] **Step 3: Verify the delta rule fails loudly**
 
@@ -839,7 +839,7 @@ Expected: latest run `success` (the publish job on initial push; if the auto-com
 ## Self-review notes
 
 - Spec §3.1/3.2 → Task 2 (delta-only strict, zones) + Task 3 validation (overlap checks in `load_all`).
-- Spec §3.3 seed tables → Task 2 Step 1–3 (all 19 SAFE + 26 STRICT + 7 ZONE rows; `service.lgtvcommon.com` moved to STRICT as weak per annotation contract; `lgtvcommon.com` intentionally not a zone — note in README caveats stays as-is because the FAQ link covers enumeration; strict rows are never duplicated in safe).
+- Spec §3.3 seed tables → Task 2 Step 1–3 (all 19 SAFE + 27 STRICT + 7 ZONE rows; `service.lgtvcommon.com` moved to STRICT as weak per annotation contract — hosts-47 audit coverage; `lgtvcommon.com` intentionally not a zone — note in README caveats stays as-is because the FAQ link covers enumeration; strict rows are never duplicated in safe).
 - Spec §5 → Task 3 (`build`/`check` modes, in-memory check, per-build header timestamp, no artifact diffing).
 - Spec §6 → Task 5 Step 2 workflow (PR check job, merge publish job, `[skip ci]`, concurrency group, no secrets).
 - Spec §7 → Task 5 Step 6 README.
