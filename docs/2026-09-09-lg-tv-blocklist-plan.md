@@ -685,10 +685,13 @@ Every line needs an inline annotation:
 
     snu.lge.com # STRICT: firmware OTA check server
 
-Line format: hostname, space, `#`, space, `TAG: function — evidence`. Tags:
-`SAFE`, `STRICT`, `ZONE`. Lowercase only, no trailing dot, no wildcards —
-this list is exact-name (see README "Format semantics"). Weak-evidence
-entries are tagged `weak` and belong in strict.txt by policy.
+Line format: hostname, space, `#`, space, `TAG: short description`. The
+description names the function; entries with hard evidence add it after an
+em-dash (`cdpbeacon.lgtvcommon.com # SAFE: ... (6-min heartbeat pattern
+observed)`). Tags: `SAFE`, `STRICT`, `ZONE`. Lowercase only, no trailing
+dot, no wildcards — this list is exact-name (see README "Format
+semantics"). Weak-evidence entries are tagged `weak` and belong in
+strict.txt by policy.
 
 CI runs `python3 scripts/build.py check` and the test suite on every PR —
 malformed, duplicate, non-LG, or tier-misplaced lines fail the build.
