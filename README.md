@@ -13,6 +13,8 @@ Not affiliated with LG Electronics. LG is a trademark of LG Corp.
 > * **Just want to stop ads, ACR, and telemetry without breaking your TV?** Use **SAFE**. Netflix, Disney+, Prime, and the LG App Store keep working normally.
 > * **Want the TV to fully shut up — no firmware updates, no ThinQ cloud sync, no LG Channels?** Use **STRICT**. Those services are blocked on purpose — expect them to stop working.
 
+Questions? See the [FAQ](docs/faq.md) — tier choice, keeping the Content Store on STRICT, and resolver troubleshooting.
+
 | List | Domains (Pi-hole/NextDNS) | Hosts (/etc/hosts) | AdBlock (AdGuard Home/uBO) |
 |---|---|---|---|
 | **SAFE** — blocks telemetry/ads/ACR; store, app updates, Netflix/Prime/HBO/YouTube keep working | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) |
@@ -41,7 +43,7 @@ full lockdown).
 | Feature | SAFE | STRICT |
 |---|---|---|
 | Netflix / Prime / HBO / YouTube | works | works |
-| LG Content Store | works | may degrade |
+| LG Content Store | works | may degrade ([carve-out recipe](docs/faq.md#i-want-strict-but-keep-the-lg-content-store)) |
 | Firmware OTA updates | works | blocked |
 | ThinQ app / voice assistant cloud sync | works | blocked |
 | LG Channels | works | blocked |
