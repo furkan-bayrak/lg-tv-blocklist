@@ -18,12 +18,13 @@
 # Hardening: after apply, every expected rule is re-verified with `-C`; a
 # missing rule logs an ERROR and the hook exits 1 instead of printing success
 # unconditionally (a boot-time failure would silently reopen the leak).
-# IPv6 guard: logs a WARNING when a v6 default route exists, and applies
-# idempotent v6 DROPs (udp/tcp 53+853, ::1 excluded) only when ip6tables is
-# actually usable.
+# IPv6 guard: when ip6tables is usable it applies idempotent v6 DROPs
+# (udp/tcp 53+853, ::1 excluded) and logs that v6 DNS egress is blocked;
+# otherwise, if a v6 default route exists, it warns that unfiltered IPv6 DNS
+# could bypass enforcement.
 # CAVEAT: `-C || -A` does NOT reconcile a *changed* rule. If the DNAT target
 # is ever edited, delete the stale rule first (first match wins), then re-run.
-IPT=/usr/sbin/iptables
+IPTABLES="${IPTABLES:-$(command -v iptables 2>/dev/null || echo /usr/sbin/iptables)}"
 IPT6=/usr/sbin/ip6tables
 LOG=/var/log/02-block-dns-egress.log
 [ -d /var/log ] || LOG=/tmp/02-block-dns-egress.log
@@ -43,16 +44,16 @@ log() {
 
 # ensure_* : add the rule only if absent (idempotent), then verify with -C.
 ensure_v4_nat() {
-    if ! $IPT -t nat -C OUTPUT "$@" 2>/dev/null; then
-        $IPT -t nat -A OUTPUT "$@" 2>/dev/null && log "INFO: added nat-OUTPUT rule: $*"
+    if ! "$IPTABLES" -t nat -C OUTPUT "$@" 2>/dev/null; then
+        "$IPTABLES" -t nat -A OUTPUT "$@" 2>/dev/null && log "INFO: added nat-OUTPUT rule: $*"
     fi
-    $IPT -t nat -C OUTPUT "$@" 2>/dev/null || { log "ERROR: nat-OUTPUT rule missing after apply: $*"; FAIL=1; }
+    "$IPTABLES" -t nat -C OUTPUT "$@" 2>/dev/null || { log "ERROR: nat-OUTPUT rule missing after apply: $*"; FAIL=1; }
 }
 ensure_v4_out() {
-    if ! $IPT -C OUTPUT "$@" 2>/dev/null; then
-        $IPT -A OUTPUT "$@" 2>/dev/null && log "INFO: added OUTPUT rule: $*"
+    if ! "$IPTABLES" -C OUTPUT "$@" 2>/dev/null; then
+        "$IPTABLES" -A OUTPUT "$@" 2>/dev/null && log "INFO: added OUTPUT rule: $*"
     fi
-    $IPT -C OUTPUT "$@" 2>/dev/null || { log "ERROR: OUTPUT rule missing after apply: $*"; FAIL=1; }
+    "$IPTABLES" -C OUTPUT "$@" 2>/dev/null || { log "ERROR: OUTPUT rule missing after apply: $*"; FAIL=1; }
 }
 ensure_v6_out() {
     if ! $IPT6 -C OUTPUT "$@" 2>/dev/null; then
@@ -61,8 +62,8 @@ ensure_v6_out() {
     $IPT6 -C OUTPUT "$@" 2>/dev/null || { log "ERROR: ip6tables OUTPUT rule missing after apply: $*"; FAIL=1; }
 }
 
-if [ ! -x "$IPT" ]; then
-    log "ERROR: $IPT missing or not executable - DNS-egress rules NOT applied (DNS leak open!)"
+if [ ! -x "$IPTABLES" ]; then
+    log "ERROR: $IPTABLES missing or not executable - DNS-egress rules NOT applied (DNS leak open!)"
     exit 1
 fi
 
@@ -83,16 +84,14 @@ ensure_v4_out -p udp --dport 853 -j DROP
 
 # --- IPv6 guard (state-dependent) ---
 V6_DEFAULT="$(ip -6 route show default 2>/dev/null | head -n 1)"
-if [ -n "$V6_DEFAULT" ]; then
-    log "WARNING: IPv6 default route present ($V6_DEFAULT) - public IPv6 DNS may bypass the IPv4 DNAT"
-fi
 if [ -x "$IPT6" ] && $IPT6 -L -n >/dev/null 2>&1; then
     ensure_v6_out ! -d ::1/128 -p udp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p tcp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p udp --dport 853 -j DROP
     ensure_v6_out ! -d ::1/128 -p tcp --dport 853 -j DROP
+    log "INFO: IPv6 DNS egress blocked (udp/tcp 53+853 DROP); IPv4 DNS unaffected"
 elif [ -n "$V6_DEFAULT" ]; then
-    log "WARNING: ip6tables unusable (kernel lacks ip6_tables) - IPv6 udp/tcp 53+853 NOT filtered"
+    log "WARNING: IPv6 default route present ($V6_DEFAULT), ip6tables unusable (kernel lacks ip6_tables) - IPv6 udp/tcp 53+853 NOT filtered; a future global IPv6 prefix could bypass enforcement"
 fi
 
 # --- result: success line only when every expected rule verified present ---

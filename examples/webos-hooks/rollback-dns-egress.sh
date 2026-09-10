@@ -9,20 +9,20 @@
 # post-check: iptables -t nat -D OUTPUT <line-number>
 # Permanent removal: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot
 # License: MIT — see LICENSE-MIT.
-IPT=/usr/sbin/iptables
+IPTABLES="${IPTABLES:-$(command -v iptables 2>/dev/null || echo /usr/sbin/iptables)}"
 IPT6=/usr/sbin/ip6tables
-[ -x "$IPT" ] || exit 0
+[ -x "$IPTABLES" ] || exit 0
 
 RESOLVER_IP="${RESOLVER_IP:-}"
 [ -n "$RESOLVER_IP" ] || RESOLVER_IP="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
 if [ -n "$RESOLVER_IP" ]; then
-    while $IPT -t nat -D OUTPUT ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
-    while $IPT -t nat -D OUTPUT ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
+    while "$IPTABLES" -t nat -D OUTPUT ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
+    while "$IPTABLES" -t nat -D OUTPUT ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
 else
     echo "WARNING: resolver not detected - DNAT rules (if any) not removed; see the nat post-check below"
 fi
-while $IPT -D OUTPUT -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
-while $IPT -D OUTPUT -p udp --dport 853 -j DROP 2>/dev/null; do :; done
+while "$IPTABLES" -D OUTPUT -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
+while "$IPTABLES" -D OUTPUT -p udp --dport 853 -j DROP 2>/dev/null; do :; done
 
 # v6 rules (present only if the hook found a usable ip6tables)
 if [ -x "$IPT6" ] && $IPT6 -L -n >/dev/null 2>&1; then
@@ -36,7 +36,7 @@ fi
 
 echo "$(date) rollback-dns-egress: rules removed (all duplicates)"
 echo "--- iptables -S ---"
-$IPT -S
+"$IPTABLES" -S
 echo "--- iptables -t nat -S ---"
-$IPT -t nat -S
+"$IPTABLES" -t nat -S
 echo "Permanent: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot"
