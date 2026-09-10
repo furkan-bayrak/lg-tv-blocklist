@@ -61,9 +61,10 @@ full lockdown).
 
 1. **LG hardcodes public resolvers.** webOS daemons have been observed using
    8.8.8.8 / 1.1.1.1 directly, bypassing your router's DNS entirely. A DNS
-   blocklist alone is not a guarantee: block outbound port 53 and 853
-   (DoT) at the firewall for the TV, or run the hosts-file approach on a
-   rooted TV, where `0.0.0.0` entries win over any remote resolver.
+   blocklist alone is not a guarantee: block/redirect outbound port 53 and
+   853 (DoT) at the firewall for the TV. A hosts file on a rooted TV only
+   helps NSS-based lookups — daemons that query the local stub directly
+   still escape it.
 2. **Exact-name vs wildcard.** Because we curate subdomain-level entries,
    whole-family coverage depends on enumeration. If your TV shows traffic to
    an LG domain not on the list, open a `new-domain` issue — that's exactly

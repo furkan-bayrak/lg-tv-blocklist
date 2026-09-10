@@ -1,7 +1,7 @@
 # Methodology — how this list was built (and how to replicate it)
 
 This list is the output of a two-week root-level audit of an LG G1 running
-webOS: a 44,826-packet capture, a 267,000-query DNS log, and per-service
+webOS: a ~44,800-packet capture, a 267,000-query DNS log, and per-service
 investigation (root access, service kills, iptables, hosts hooks). Every
 entry in `src/` traces back to that data — it was authored from audit data,
 not scraped from other lists.
@@ -35,8 +35,10 @@ Fix:
 
 - Redirect the TV's outbound port 53 to your resolver at the firewall.
 - Block outbound port 853 (DoT) — and known DoH endpoints if you can.
-- On a rooted TV, a hosts hook is defense-in-depth: `0.0.0.0` entries win
-  locally no matter which upstream a daemon asks.
+- On a rooted TV, a hosts hook is defense-in-depth, not a substitute for
+  DNS-layer interception: only libc/NSS lookups (`getent hosts ...`) read
+  `/etc/hosts`, so daemons that query the local stub directly still get
+  real upstream answers and escape the hook.
 
 ## Setup options
 
