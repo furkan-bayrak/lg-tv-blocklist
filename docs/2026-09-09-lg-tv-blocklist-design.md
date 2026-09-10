@@ -164,8 +164,8 @@ Determinism: sorted input and a fixed header format. Header timestamp = generati
 
 ## 10. Local mirror & first release
 
-- Local working copy: `C:\Users\furka\projects\lg-tv-blocklist` (git repo already initialized, branch `main`).
-- Seed content derived from audit mirrors in `C:\wezterm_temp\opencode\lg-rollback\` (00-block-lg-hosts.sh DOMAINS + agh_lg.py RULES + runbook evidence).
+- Local working copy: `<local-repo-dir>` (git repo already initialized, branch `main`).
+- Seed content derived from local audit mirrors in `<local-artifact-dir>` (00-block-lg-hosts.sh DOMAINS + agh_lg.py RULES + runbook evidence).
 - Repository created on user's GitHub account (name `lg-tv-blocklist`; username/org requested at creation time). Public.
 - First commit: spec + scaffold + seed + generated lists + docs, single coherent commit or small logical commits (scaffold → content → build → CI → docs).
 

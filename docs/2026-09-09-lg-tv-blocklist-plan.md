@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Local repo: `C:\Users\furka\projects\lg-tv-blocklist`, branch `main`, owner `furkan-bayrak`, email `<gh-id>+furkan-bayrak@users.noreply.github.com` (already configured repo-local).
+- Local repo: `<local-repo-dir>`, branch `main`, owner `furkan-bayrak`, email `<gh-id>+furkan-bayrak@users.noreply.github.com` (already configured repo-local).
 - Every `src/` line MUST carry an inline comment: `domain # <TAG>: <function> — <evidence>`. Tags: `SAFE`, `STRICT`, `ZONE`. Weak-evidence entries say `weak`.
 - `strict.txt` = DELTA ONLY. Compile: strict = safe ∪ strict.txt. Never duplicate safe content in strict.txt.
 - `zones.txt` = strict-only apex domains; emitted as apex lines in domains/hosts outputs and as `||zone^` in adblock output. Never merged into safe.
@@ -819,7 +819,7 @@ Verify commit contains `lists/` with six files + SHA256SUMS.
 
 - [ ] **Step 1: Create and push the repository**
 
-Run: `gh repo create furkan-bayrak/lg-tv-blocklist --public --source C:\Users\furka\projects\lg-tv-blocklist --push --description "Curated DNS blocklist for LG webOS TV telemetry, ads and phone-home traffic (safe + strict tiers)"`
+Run: `gh repo create furkan-bayrak/lg-tv-blocklist --public --source . --push --description "Curated DNS blocklist for LG webOS TV telemetry, ads and phone-home traffic (safe + strict tiers)"`
 Expected: prints `https://github.com/furkan-bayrak/lg-tv-blocklist`.
 
 - [ ] **Step 2: Add topics and verify**
