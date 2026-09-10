@@ -38,6 +38,22 @@ see [docs](https://www.webosbrew.org/pages/filesystem-overlays) for the init.d
 mechanism; the domain set to mirror is `safe.txt` (or `strict.txt` for the
 full lockdown).
 
+## Rooted webOS (DNS-egress hook)
+
+Rooted via webosbrew/HBC? [`examples/webos-hooks/`](examples/webos-hooks/)
+ships a ready-made `init.d` hook that DNATs all TV DNS to your resolver and
+drops DoT/DoQ (853) — closing the hardcoded-`8.8.8.8` bypass
+([caveat 1](#the-two-caveats-every-lg-owner-should-know)).
+
+1. Copy `02-block-dns-egress.sh` to `/var/lib/webosbrew/init.d/02-block-dns-egress`
+   (**no `.sh` extension** — `run-parts` skips dotted names), then `chmod +x`.
+2. Run it once or reboot — it auto-detects your gateway as the resolver.
+3. Verify from the TV: a blocked domain queried against `8.8.8.8` must no
+   longer return a public IP; Netflix/YouTube must still work.
+
+One-command rollback and the caveats (no DNS fallback, DoH) are documented in
+[`examples/webos-hooks/README.md`](examples/webos-hooks/README.md).
+
 ## What breaks in STRICT (read this)
 
 | Feature | SAFE | STRICT |

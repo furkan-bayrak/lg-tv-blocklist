@@ -40,6 +40,10 @@ Fix:
   `/etc/hosts`, so daemons that query the local stub directly still get
   real upstream answers and escape the hook.
 
+Rooted via webosbrew? [`examples/webos-hooks/`](../examples/webos-hooks/)
+ships a ready-made `init.d` hook that performs the port-53 redirect and the
+853 drop on the TV itself.
+
 ## Setup options
 
 Three tiers of effort:

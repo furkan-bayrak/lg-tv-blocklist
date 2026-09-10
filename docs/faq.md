@@ -61,7 +61,7 @@ Because `lge.com` is an umbrella zone: blocking it kills the Content Store, firm
 
 ## My TV ignores my Pi-hole / AdGuard. Why?
 
-webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` / `1.1.1.1`), so they can bypass your LAN DNS. Packet captures on our G1 confirmed the stub ignoring LAN DNS. Fix it at the router, not the TV: NAT-redirect outbound port 53 to your DNS server, and block outbound 853 (DNS-over-TLS) — optionally known DoH endpoints too. See the README's resolver caveats.
+webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` / `1.1.1.1`), so they can bypass your LAN DNS. Packet captures on our G1 confirmed the stub ignoring LAN DNS. Fix it at the router, not the TV: NAT-redirect outbound port 53 to your DNS server, and block outbound 853 (DNS-over-TLS) — optionally known DoH endpoints too. On a rooted TV (webosbrew), [`examples/webos-hooks/`](../examples/webos-hooks/) has a ready-made hook that applies the port-53 redirect and the 853 drop on-device. See the README's resolver caveats.
 
 ## Do exceptions work with the hosts-format lists?
 
