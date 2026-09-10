@@ -11,7 +11,7 @@ Root is only required for the `/etc/hosts` install path on the TV itself. DNS-le
 
 ## Will this break Netflix / Prime / HBO / YouTube?
 
-No. SAFE's promise — verified on an LG G1 — is that these keep working while ads, ACR, and telemetry die. STRICT keeps streaming working too; what it breaks by design is firmware OTA updates, ThinQ cloud sync, and LG Channels. The one functional risk in STRICT is the Content Store (below).
+No. SAFE's promise — verified on an LG G1 — is that these keep working while ads, ACR, and telemetry die. STRICT keeps streaming working too; what it breaks by design is firmware OTA updates, ThinQ cloud sync, and LG Channels. The functional risks in STRICT are the Content Store and LG account login (see the README breakage matrix); the carve-out below addresses the store.
 
 ## I want STRICT but keep the LG Content Store
 
@@ -22,6 +22,7 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 **Starting point (community-testing — not yet G1-verified; trim it with your own query log):**
 
 ```text
+# de.lgtvsdp.com is not blocked by our lists — keep it only if your other lists block SDP:
 @@||de.lgtvsdp.com^
 @@||de.lgeapi.com^
 @@||de.ibs.nextlgsdp.com^
@@ -32,14 +33,16 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 # @@||aic-updr.lge.com^
 # @@||snsu.lge.com^
 # @@||service.lgtvcommon.com^
-# @@||lgappstv.com^          (store thumbnails/CDN across subdomains)
+# Thumbnails: whitelist the EXACT lgappstv.com host from your log — never the
+# lgappstv.com umbrella (it also carries ad.lgappstv.com, an ad host):
+# @@||<exact-host>.lgappstv.com^
 # Unblock only if the TV shows offline / "no internet" UI quirks:
 # @@||lgtvonline.lge.com^
 ```
 
-Why these candidates: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki); `nextlgsdp.com` may carry in-app billing; `lgappstv.com` is store-CDN-adjacent. STRICT annotates all of them as *store interplay unproven* — that is why this is a starting point, not gospel.
+Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki), though `de.lgtvsdp.com` is not blocked by our lists at all — keep it only if your other lists block SDP; `nextlgsdp.com` may carry in-app billing; `lgappstv.com` is the store CDN apex.
 
-**Keep these blocked** even if the store keeps working (they are not needed for store/updates): the `snu`/`su`/`ngfts`/`gfts` firmware family, `lss.lgthinq.com`, `bss.lgechannel.com`, and — if you also run SAFE — `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` promos/telemetry family.
+**Keep these blocked** even if the store keeps working: the `snu`/`su`/`su-ssl`/`ngfts`/`gfts` firmware-OTA and file-transfer family (not required for store function — if store thumbnails ever break, whitelist only the exact host from your log), `lss.lgthinq.com`, `bss.lgechannel.com`, plus the ad/telemetry hosts that STRICT already includes from SAFE: `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` family.
 
 **How to verify on your network (AdGuard Home):**
 
