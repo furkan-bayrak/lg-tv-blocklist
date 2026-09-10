@@ -81,6 +81,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) — evidence required, edit `src/`
 only, CI does the rest. Issue templates: [new domain](.github/ISSUE_TEMPLATE/01_new_domain.md) /
 [breakage](.github/ISSUE_TEMPLATE/02_breakage.md).
 
+- **Methodology** — how the data was collected and how to replicate it (including a firmware-diff recipe): [`docs/methodology.md`](docs/methodology.md)
+
 ## Join as a Maintainer / Contributor
 
 I built this from empirical packet captures and query logs on an LG G1, but
