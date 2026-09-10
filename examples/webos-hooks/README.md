@@ -46,11 +46,15 @@ reboot.
   TV at its default gateway — if that is not your resolver, hardcode it.
 - **Changed gateway/resolver:** the hook appends rules and never reconciles an
   edited target — if your gateway or resolver changes, the old DNAT rule still
-  wins. Run the rollback script first, then reinstall (or flush the nat OUTPUT
-  rules manually).
-- **IPv6:** outbound IPv6 DNS is DROPped, not redirected — on a dual-stack LAN
-  the TV falls back to IPv4 DNS. If your resolver is IPv6-only, this hook
-  won't work for you.
+  wins. The rollback auto-detects the *current* gateway, so it will not match
+  the old rule; remove it explicitly with
+  `RESOLVER_IP=<old-gateway> sh rollback-dns-egress.sh`, or delete the nat
+  OUTPUT rules by hand, then reinstall.
+- **IPv6:** outbound IPv6 DNS (53/853) is DROPped only where `ip6tables`
+  actually works — some kernels lack `ip6_tables`. Where it does not, the hook
+  only logs a WARNING and IPv6 DNS stays **unfiltered**, so a global IPv6
+  prefix can bypass enforcement. Check `/var/log/02-block-dns-egress.log`
+  (the IPv6 line) to see which case you are in.
 - **Portability:** needs an `iptables` that supports `-C` (very old builds
   re-add duplicates on every boot and the hook exits 1); if `iptables` isn't
   found, the hook exits without applying anything.

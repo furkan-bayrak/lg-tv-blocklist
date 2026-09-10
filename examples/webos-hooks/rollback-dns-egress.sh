@@ -9,7 +9,12 @@
 # post-check: iptables -t nat -D OUTPUT <line-number>
 # Permanent removal: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot
 # License: MIT — see LICENSE-MIT.
-IPTABLES="${IPTABLES:-$(command -v iptables 2>/dev/null || echo /usr/sbin/iptables)}"
+# IPTABLES may be an env override; resolve bare names via PATH, keep paths as-is.
+IPTABLES="${IPTABLES:-iptables}"
+case "$IPTABLES" in
+    */*) ;;
+    *) IPTABLES="$(command -v "$IPTABLES" 2>/dev/null || echo "/usr/sbin/$IPTABLES")" ;;
+esac
 IPT6=/usr/sbin/ip6tables
 [ -x "$IPTABLES" ] || exit 0
 

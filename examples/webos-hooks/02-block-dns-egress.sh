@@ -24,7 +24,12 @@
 # could bypass enforcement.
 # CAVEAT: `-C || -A` does NOT reconcile a *changed* rule. If the DNAT target
 # is ever edited, delete the stale rule first (first match wins), then re-run.
-IPTABLES="${IPTABLES:-$(command -v iptables 2>/dev/null || echo /usr/sbin/iptables)}"
+# IPTABLES may be an env override; resolve bare names via PATH, keep paths as-is.
+IPTABLES="${IPTABLES:-iptables}"
+case "$IPTABLES" in
+    */*) ;;
+    *) IPTABLES="$(command -v "$IPTABLES" 2>/dev/null || echo "/usr/sbin/$IPTABLES")" ;;
+esac
 IPT6=/usr/sbin/ip6tables
 LOG=/var/log/02-block-dns-egress.log
 [ -d /var/log ] || LOG=/tmp/02-block-dns-egress.log
