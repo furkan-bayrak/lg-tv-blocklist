@@ -22,7 +22,7 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 **Starting point (community-testing — not yet G1-verified; trim it with your own query log):**
 
 ```text
-# de.lgtvsdp.com is not blocked by our lists — keep it only if your other lists block SDP:
+# SDP/store comms — needed with the adblock lists (our ||lgtvsdp.com^ covers de.); domains/hosts users can drop it:
 @@||de.lgtvsdp.com^
 @@||de.lgeapi.com^
 @@||de.ibs.nextlgsdp.com^
@@ -40,7 +40,7 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 # @@||lgtvonline.lge.com^
 ```
 
-Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki), though `de.lgtvsdp.com` is not blocked by our lists at all — keep it only if your other lists block SDP; `nextlgsdp.com` may carry in-app billing; `lgappstv.com` is the store CDN apex.
+Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki) — our SAFE tier blocks its apex, so with the adblock lists `||lgtvsdp.com^` covers `de.lgtvsdp.com` and this exception is needed for store comms; with domains/hosts lists (exact-name) it is unnecessary; `nextlgsdp.com` may carry in-app billing; `lgappstv.com` is the store CDN apex.
 
 **Keep these blocked** even if the store keeps working: the `snu`/`su`/`su-ssl`/`ngfts`/`gfts` firmware-OTA and file-transfer family (not required for store function — if store thumbnails ever break, whitelist only the exact host from your log), `lss.lgthinq.com`, `bss.lgechannel.com`, plus the ad/telemetry hosts that STRICT already includes from SAFE: `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` family.
 
