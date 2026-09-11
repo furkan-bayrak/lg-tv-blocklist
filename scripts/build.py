@@ -41,10 +41,12 @@ def parse_src(filename: str) -> list[str]:
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
-        host = line.lower().rstrip(".")
+        host = line.lower()
+        if host.endswith("."):
+            host = host[:-1]
         if not HOSTNAME_RE.match(host):
             raise ValueError(f"{filename}:{lineno}: malformed hostname: {line!r}")
-        if not host.endswith(LG_SUFFIXES):
+        if not any(host == suffix or host.endswith("." + suffix) for suffix in LG_SUFFIXES):
             raise ValueError(f"{filename}:{lineno}: not an LG family hostname: {host}")
         if host in seen:
             raise ValueError(f"{filename}:{lineno}: duplicate of {host} (first at line {seen[host]})")
@@ -129,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
             build()
         else:
             check()
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     return 0

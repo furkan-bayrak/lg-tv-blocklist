@@ -51,6 +51,22 @@ class TestParseSrc(unittest.TestCase):
         with self.assertRaises(ValueError):
             build.parse_src("safe.txt")
 
+    def test_suffix_lookalike_rejected(self):
+        # "evillge.com" string-ends with "lge.com" but is not in the LG family.
+        self.write("safe.txt", "evillge.com # lookalike suffix\n")
+        with self.assertRaises(ValueError) as ctx:
+            build.parse_src("safe.txt")
+        self.assertIn("not an LG family hostname", str(ctx.exception))
+
+    def test_single_trailing_dot_stripped(self):
+        self.write("safe.txt", "snu.lge.com. # exactly one trailing dot\n")
+        self.assertEqual(build.parse_src("safe.txt"), ["snu.lge.com"])
+
+    def test_multiple_trailing_dots_rejected(self):
+        self.write("safe.txt", "snu.lge.com.. # two trailing dots\n")
+        with self.assertRaises(ValueError):
+            build.parse_src("safe.txt")
+
     def test_duplicate_rejected_with_line_numbers(self):
         self.write("safe.txt", "snu.lge.com # one\nsnu.lge.com # two\n")
         with self.assertRaises(ValueError) as ctx:
@@ -118,6 +134,20 @@ class TestDryRunAndCheck(unittest.TestCase):
         with redirect_stdout(buf):
             build.check()
         self.assertIn("check OK", buf.getvalue())
+
+    def test_check_missing_source_file_reports_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            old = build.SRC
+            build.SRC = Path(td)
+            try:
+                err = io.StringIO()
+                with redirect_stderr(err):
+                    rc = build.main(["check"])
+                self.assertEqual(rc, 1)
+                self.assertIn("ERROR", err.getvalue())
+                self.assertIn("safe.txt", err.getvalue())
+            finally:
+                build.SRC = old
 
     def test_check_exit_code_one_on_error(self):
         with tempfile.TemporaryDirectory() as td:
