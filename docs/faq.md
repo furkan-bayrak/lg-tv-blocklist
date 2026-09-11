@@ -69,9 +69,13 @@ AdGuard Home evaluates `@@` exceptions at the engine level, but the official doc
 
 ## I'm not in Germany — do the lists still work for me?
 
-Mostly yes, with one format caveat. The **adblock lists are largely region-agnostic**: zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, `||lgtvsdp.com^`) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com`. The **domains/hosts formats are exact-name**: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists.
+Depends on your tier and format. In **adblock** format, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, `||lgtvsdp.com^`) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`.
 
-For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — regional endpoints were never observed in our German audit, so verify against your own query log before relying on them.
+**SAFE's adblock list only covers region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` and `lgtvsdp.com` families wholesale (`||lgsmartad.com^`, `||lgtvsdp.com^`), so `fr.info.lgsmartad.com` and `fr.lgtvsdp.com` are caught. But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock list.
+
+The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
+
+For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
 
 If you have that query log, it is exactly the evidence needed to extend the `de.*`/`us.*` entries upstream — see [CONTRIBUTING](../CONTRIBUTING.md).
 

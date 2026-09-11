@@ -22,7 +22,7 @@ Questions? See the [FAQ](docs/faq.md) — tier choice, keeping the Content Store
 
 Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/SHA256SUMS)
 
-Not in Germany? The adblock lists still cover you; for the exact-name hosts/domains formats see [region support in the FAQ](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me) and the `scripts/localize.py` helper.
+Not in Germany? The STRICT adblock list is region-complete, SAFE's is not, and the hosts/domains formats are exact-name — see [region support in the FAQ](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me) and the `scripts/localize.py` helper.
 
 ## Install
 

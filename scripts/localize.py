@@ -91,6 +91,8 @@ def localize(lists_dir: Path, out_dir: Path, region: str) -> dict[str, int]:
     if missing:
         raise FileNotFoundError(
             f"missing built list files in {lists_dir}: {', '.join(missing)}")
+    if out_dir.exists() and not out_dir.is_dir():
+        raise ValueError(f"output path exists and is not a directory: {out_dir}")
     out_dir.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}
     for name in EXPECTED_FILES:
@@ -122,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = args.out if args.out is not None else DEFAULT_OUT_ROOT / args.region
     try:
         counts = localize(LISTS, out_dir, args.region)
-    except (FileNotFoundError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
     for name in sorted(counts):

@@ -19,6 +19,9 @@ instead of a PR — maintainers can verify from their own probes.
 **Regional query logs welcome:** include the region, timestamp, and client
 (TV model/name). Region-prefixed entries (`de.`, `us.`) can be extended with
 evidence from your region — regional coverage is the main gap in this list.
+New region prefixes must also be added to `SOURCE_REGION_LABELS` in
+`scripts/localize.py`; otherwise `localize.py` silently leaves those entries
+untouched.
 
 ## 2. Edit src/, never lists/
 

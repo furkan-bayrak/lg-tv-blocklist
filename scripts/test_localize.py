@@ -5,7 +5,7 @@ import io
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -43,13 +43,23 @@ ALL_FILES = (
     "strict-hosts.txt",
 )
 
+# Real per-file output formats, so file-level tests exercise format routing.
+FORMATS = {
+    "safe-adblock.txt": "||{e}^",
+    "safe-domains.txt": "{e}",
+    "safe-hosts.txt": "0.0.0.0 {e}",
+    "strict-adblock.txt": "||{e}^",
+    "strict-domains.txt": "{e}",
+    "strict-hosts.txt": "0.0.0.0 {e}",
+}
+
 
 def make_lists_dir(parent, entries=()):
-    """Create the six built list files in parent; return the parent Path."""
+    """Create the six built list files in parent, each in its real format."""
     d = Path(parent)
     d.mkdir(parents=True, exist_ok=True)
-    body = "".join(f"{e}\n" for e in entries)
     for name in ALL_FILES:
+        body = "".join(FORMATS[name].format(e=e) + "\n" for e in entries)
         (d / name).write_text(HEADER + body, encoding="utf-8")
     return d
 
@@ -92,6 +102,16 @@ class TestRewriteContent(unittest.TestCase):
             self.assertIn(want + "\n", out)
             self.assertNotIn(host + "\n", out)
 
+    def test_only_first_label_is_rewritten(self):
+        # Later region-like labels must survive: only the first hostname label
+        # is ever rewritten.
+        text = HEADER + "de.us.lge.com\nwww.de.lge.com\n"
+        out, count = localize.rewrite_content(text, "fr")
+        self.assertEqual(count, 1)
+        self.assertIn("fr.us.lge.com\n", out)
+        self.assertIn("www.de.lge.com\n", out)
+        self.assertNotIn("fr.fr.lge.com\n", out)
+
     def test_target_equal_to_source_label_is_noop(self):
         text = HEADER + "de.nextlgsdp.com\n"
         out, count = localize.rewrite_content(text, "de")
@@ -126,6 +146,59 @@ class TestCli(unittest.TestCase):
             finally:
                 localize.LISTS = old
 
+    def test_default_out_is_repo_relative_lists_regions(self):
+        # Documented default: <repo>/lists-regions/<cc>.
+        self.assertEqual(localize.DEFAULT_OUT_ROOT, localize.ROOT / "lists-regions")
+        with tempfile.TemporaryDirectory() as td:
+            src = make_lists_dir(Path(td) / "lists", entries=("de.nextlgsdp.com",))
+            old_lists, old_root = localize.LISTS, localize.DEFAULT_OUT_ROOT
+            localize.LISTS = src
+            localize.DEFAULT_OUT_ROOT = Path(td) / "lists-regions"
+            try:
+                with redirect_stdout(io.StringIO()):
+                    rc = localize.main(["--region", "fr"])
+            finally:
+                localize.LISTS, localize.DEFAULT_OUT_ROOT = old_lists, old_root
+            self.assertEqual(rc, 0)
+            out = Path(td) / "lists-regions" / "fr"
+            self.assertTrue((out / "SHA256SUMS").is_file())
+            self.assertEqual(
+                (out / "safe-domains.txt").read_text(encoding="utf-8").count("# Localized: fr"), 1)
+
+    def test_out_path_is_file_exits_2(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = make_lists_dir(Path(td) / "lists", entries=("de.nextlgsdp.com",))
+            blocker = Path(td) / "out-file"
+            blocker.write_text("not a directory", encoding="utf-8")
+            old = localize.LISTS
+            localize.LISTS = src
+            try:
+                err = io.StringIO()
+                with redirect_stderr(err):
+                    rc = localize.main(["--region", "fr", "--out", str(blocker)])
+            finally:
+                localize.LISTS = old
+            self.assertEqual(rc, 2)
+            self.assertIn("not a directory", err.getvalue())
+            self.assertEqual(blocker.read_text(encoding="utf-8"), "not a directory")
+
+    def test_unwritable_out_path_exits_2(self):
+        # A path nested under an existing file makes mkdir raise OSError.
+        with tempfile.TemporaryDirectory() as td:
+            src = make_lists_dir(Path(td) / "lists", entries=("de.nextlgsdp.com",))
+            blocker = Path(td) / "out-file"
+            blocker.write_text("not a directory", encoding="utf-8")
+            old = localize.LISTS
+            localize.LISTS = src
+            try:
+                err = io.StringIO()
+                with redirect_stderr(err):
+                    rc = localize.main(["--region", "fr", "--out", str(blocker / "sub")])
+            finally:
+                localize.LISTS = old
+            self.assertEqual(rc, 2)
+            self.assertIn("ERROR", err.getvalue())
+
 
 class TestLocalizeFiles(unittest.TestCase):
     def test_output_sha256sums_match_written_files(self):
@@ -145,6 +218,27 @@ class TestLocalizeFiles(unittest.TestCase):
                 self.assertEqual(digest, hashlib.sha256((out / name).read_bytes()).hexdigest())
             self.assertEqual(names, sorted(ALL_FILES))
             self.assertTrue(sums.endswith("\n"))
+
+    def test_localize_preserves_per_file_format(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = make_lists_dir(Path(td) / "lists", entries=("de.nextlgsdp.com",))
+            out = Path(td) / "out"
+            localize.localize(src, out, "fr")
+            expected = {
+                "safe-domains.txt": "fr.nextlgsdp.com",
+                "strict-domains.txt": "fr.nextlgsdp.com",
+                "safe-hosts.txt": "0.0.0.0 fr.nextlgsdp.com",
+                "strict-hosts.txt": "0.0.0.0 fr.nextlgsdp.com",
+                "safe-adblock.txt": "||fr.nextlgsdp.com^",
+                "strict-adblock.txt": "||fr.nextlgsdp.com^",
+            }
+            for name, want in expected.items():
+                with self.subTest(name=name):
+                    lines = [
+                        line for line in (out / name).read_text(encoding="utf-8").splitlines()
+                        if line and not line.startswith("#")
+                    ]
+                    self.assertEqual(lines, [want])
 
     def test_refuses_to_write_into_source_lists_dir(self):
         with tempfile.TemporaryDirectory() as td:
