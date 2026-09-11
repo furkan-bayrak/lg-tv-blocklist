@@ -32,6 +32,15 @@ class TestParseSrc(unittest.TestCase):
         ))
         self.assertEqual(build.parse_src("safe.txt"), ["lgsmartad.com", "snu.lge.com"])
 
+    def test_new_lg_apexes_accepted(self):
+        # lggalleryplus.com / lgsmartweb.com allowlisted 2026-09-11.
+        self.write("strict.txt", (
+            "lggalleryplus.com # STRICT: weak\n"
+            "lgsmartweb.com # STRICT: weak\n"
+        ))
+        self.assertEqual(build.parse_src("strict.txt"),
+                         ["lggalleryplus.com", "lgsmartweb.com"])
+
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
         with self.assertRaises(ValueError):

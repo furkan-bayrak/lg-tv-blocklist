@@ -31,3 +31,5 @@ eic-ocp.lgtviot.com # STRICT: weak — unknown (DNS only; unrelated to the local
 eic.cdplauncher.lgtvcommon.com # STRICT: weak — content-launcher/CDP service
 eic.lgchhomeapp.lgtvcommon.com # STRICT: weak — home-app service
 rdx2.lgtvsdp.com # STRICT: weak — unknown
+lggalleryplus.com # STRICT: weak — Gallery+/SDX endpoint; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
+lgsmartweb.com # STRICT: weak — voice search backend; blocking breaks remote voice search; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
