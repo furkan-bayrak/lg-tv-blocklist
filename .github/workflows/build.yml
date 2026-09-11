@@ -12,6 +12,10 @@ concurrency:
   group: lists
   cancel-in-progress: false
 
+# Workflow-file edits are covered by the paths filters above. publish is gated
+# on actual src/ or scripts/ changes so workflow-only pushes don't churn lists
+# (the Updated timestamp would otherwise create a bot commit every run).
+
 permissions:
   contents: read
 

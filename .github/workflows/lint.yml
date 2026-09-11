@@ -8,6 +8,9 @@ on:
     paths: ['examples/**', 'scripts/**', '.github/workflows/lint.yml']
   workflow_dispatch:
 
+# This workflow's own file is in the paths filters above, so edits to it are
+# re-linted without a manual dispatch.
+
 permissions:
   contents: read
 
