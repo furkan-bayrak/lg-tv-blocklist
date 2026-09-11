@@ -63,9 +63,12 @@ class TestParseSrc(unittest.TestCase):
         self.assertEqual(build.parse_src("safe.txt"), ["snu.lge.com"])
 
     def test_multiple_trailing_dots_rejected(self):
-        self.write("safe.txt", "snu.lge.com.. # two trailing dots\n")
-        with self.assertRaises(ValueError):
-            build.parse_src("safe.txt")
+        for host in ("snu.lge.com..", "snu.lge.com..."):
+            with self.subTest(host=host):
+                self.write("safe.txt", f"{host} # extra trailing dots\n")
+                with self.assertRaises(ValueError) as ctx:
+                    build.parse_src("safe.txt")
+                self.assertIn("safe.txt:1: malformed hostname", str(ctx.exception))
 
     def test_duplicate_rejected_with_line_numbers(self):
         self.write("safe.txt", "snu.lge.com # one\nsnu.lge.com # two\n")

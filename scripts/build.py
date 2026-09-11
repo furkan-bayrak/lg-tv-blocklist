@@ -15,7 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 LISTS = ROOT / "lists"
-HOSTNAME_RE = re.compile(r"^(?=.{1,253}\.?$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.?$")
+# parse_src strips exactly one trailing dot (FQDN root) before matching, so
+# anything still ending in "." here (e.g. "host..") is malformed.
+HOSTNAME_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$")
 LG_SUFFIXES = ("lge.com", "lgappstv.com", "lgtvsdp.com", "lgtvcommon.com",
                "lgtviot.com", "lgthinq.com", "nextlgsdp.com", "lgsmartad.com",
                "lgsmartplatform.com", "lgeapi.com", "wiselg.com",
