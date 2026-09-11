@@ -2,10 +2,10 @@ name: Lint example hooks
 
 on:
   pull_request:
-    paths: ['examples/**', 'scripts/**']
+    paths: ['examples/**', 'scripts/**', '.github/workflows/lint.yml']
   push:
     branches: [main]
-    paths: ['examples/**', 'scripts/**']
+    paths: ['examples/**', 'scripts/**', '.github/workflows/lint.yml']
   workflow_dispatch:
 
 permissions:
