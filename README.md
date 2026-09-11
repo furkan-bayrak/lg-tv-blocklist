@@ -10,7 +10,7 @@ Not affiliated with LG Electronics. LG is a trademark of LG Corp.
 ## Lists
 
 > **Quick Summary:**
-> * **Just want to stop ads, ACR, and telemetry without breaking your TV?** Use **SAFE**. Netflix, Disney+, Prime, and the LG App Store keep working normally.
+> * **Just want to stop ads, ACR, and telemetry without breaking your TV?** Use **SAFE**. Netflix, Prime, HBO, YouTube, and the LG App Store keep working normally (verified on an LG G1).
 > * **Want the TV to fully shut up — no firmware updates, no ThinQ cloud sync, no LG Channels?** Use **STRICT**. Those services are blocked on purpose — expect them to stop working.
 
 Questions? See the [FAQ](docs/faq.md) — tier choice, keeping the Content Store on STRICT, and resolver troubleshooting.

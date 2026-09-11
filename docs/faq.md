@@ -13,6 +13,8 @@ Root is only required for the `/etc/hosts` install path on the TV itself. DNS-le
 
 No. SAFE's promise — verified on an LG G1 — is that these keep working while ads, ACR, and telemetry die. STRICT keeps streaming working too; what it breaks by design is firmware OTA updates, ThinQ cloud sync, and LG Channels. The functional risks in STRICT are the Content Store and LG account login (see the README breakage matrix); the carve-out below addresses the store.
 
+Disney+ and other streaming apps were not part of the G1 smoke test: SAFE is expected to leave them working (they use their own infrastructure, none of which is on the list), but that is inference, not tested evidence.
+
 ## I want STRICT but keep the LG Content Store
 
 STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ...) because store, update, telemetry, and account services all live inside those trees. To keep the store, carve out exceptions for the specific hosts it needs.

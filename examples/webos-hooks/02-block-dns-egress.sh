@@ -24,13 +24,18 @@
 # could bypass enforcement.
 # CAVEAT: `-C || -A` does NOT reconcile a *changed* rule. If the DNAT target
 # is ever edited, delete the stale rule first (first match wins), then re-run.
-# IPTABLES may be an env override; resolve bare names via PATH, keep paths as-is.
+# IPTABLES / IP6TABLES may be env overrides; resolve bare names via PATH,
+# keep explicit paths as-is (busybox installs differ across webOS builds).
 IPTABLES="${IPTABLES:-iptables}"
 case "$IPTABLES" in
     */*) ;;
     *) IPTABLES="$(command -v "$IPTABLES" 2>/dev/null || echo "/usr/sbin/$IPTABLES")" ;;
 esac
-IPT6=/usr/sbin/ip6tables
+IP6TABLES="${IP6TABLES:-ip6tables}"
+case "$IP6TABLES" in
+    */*) ;;
+    *) IP6TABLES="$(command -v "$IP6TABLES" 2>/dev/null || echo "/usr/sbin/$IP6TABLES")" ;;
+esac
 LOG=/var/log/02-block-dns-egress.log
 [ -d /var/log ] || LOG=/tmp/02-block-dns-egress.log
 FAIL=0
@@ -61,10 +66,10 @@ ensure_v4_out() {
     "$IPTABLES" -C OUTPUT "$@" 2>/dev/null || { log "ERROR: OUTPUT rule missing after apply: $*"; FAIL=1; }
 }
 ensure_v6_out() {
-    if ! $IPT6 -C OUTPUT "$@" 2>/dev/null; then
-        $IPT6 -A OUTPUT "$@" 2>/dev/null && log "INFO: added ip6tables OUTPUT rule: $*"
+    if ! "$IP6TABLES" -C OUTPUT "$@" 2>/dev/null; then
+        "$IP6TABLES" -A OUTPUT "$@" 2>/dev/null && log "INFO: added ip6tables OUTPUT rule: $*"
     fi
-    $IPT6 -C OUTPUT "$@" 2>/dev/null || { log "ERROR: ip6tables OUTPUT rule missing after apply: $*"; FAIL=1; }
+    "$IP6TABLES" -C OUTPUT "$@" 2>/dev/null || { log "ERROR: ip6tables OUTPUT rule missing after apply: $*"; FAIL=1; }
 }
 
 if [ ! -x "$IPTABLES" ]; then
@@ -89,7 +94,7 @@ ensure_v4_out -p udp --dport 853 -j DROP
 
 # --- IPv6 guard (state-dependent) ---
 V6_DEFAULT="$(ip -6 route show default 2>/dev/null | head -n 1)"
-if [ -x "$IPT6" ] && $IPT6 -L -n >/dev/null 2>&1; then
+if [ -x "$IP6TABLES" ] && "$IP6TABLES" -L -n >/dev/null 2>&1; then
     ensure_v6_out ! -d ::1/128 -p udp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p tcp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p udp --dport 853 -j DROP

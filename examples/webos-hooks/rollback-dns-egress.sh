@@ -9,13 +9,18 @@
 # post-check: iptables -t nat -D OUTPUT <line-number>
 # Permanent removal: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot
 # License: MIT — see LICENSE-MIT.
-# IPTABLES may be an env override; resolve bare names via PATH, keep paths as-is.
+# IPTABLES / IP6TABLES may be env overrides; resolve bare names via PATH,
+# keep explicit paths as-is (busybox installs differ across webOS builds).
 IPTABLES="${IPTABLES:-iptables}"
 case "$IPTABLES" in
     */*) ;;
     *) IPTABLES="$(command -v "$IPTABLES" 2>/dev/null || echo "/usr/sbin/$IPTABLES")" ;;
 esac
-IPT6=/usr/sbin/ip6tables
+IP6TABLES="${IP6TABLES:-ip6tables}"
+case "$IP6TABLES" in
+    */*) ;;
+    *) IP6TABLES="$(command -v "$IP6TABLES" 2>/dev/null || echo "/usr/sbin/$IP6TABLES")" ;;
+esac
 [ -x "$IPTABLES" ] || exit 0
 
 RESOLVER_IP="${RESOLVER_IP:-}"
@@ -30,13 +35,13 @@ while "$IPTABLES" -D OUTPUT -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
 while "$IPTABLES" -D OUTPUT -p udp --dport 853 -j DROP 2>/dev/null; do :; done
 
 # v6 rules (present only if the hook found a usable ip6tables)
-if [ -x "$IPT6" ] && $IPT6 -L -n >/dev/null 2>&1; then
-    while $IPT6 -D OUTPUT ! -d ::1/128 -p udp --dport 53 -j DROP 2>/dev/null; do :; done
-    while $IPT6 -D OUTPUT ! -d ::1/128 -p tcp --dport 53 -j DROP 2>/dev/null; do :; done
-    while $IPT6 -D OUTPUT ! -d ::1/128 -p udp --dport 853 -j DROP 2>/dev/null; do :; done
-    while $IPT6 -D OUTPUT ! -d ::1/128 -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
+if [ -x "$IP6TABLES" ] && "$IP6TABLES" -L -n >/dev/null 2>&1; then
+    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p udp --dport 53 -j DROP 2>/dev/null; do :; done
+    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p tcp --dport 53 -j DROP 2>/dev/null; do :; done
+    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p udp --dport 853 -j DROP 2>/dev/null; do :; done
+    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
     echo "--- ip6tables -S OUTPUT ---"
-    $IPT6 -S OUTPUT
+    "$IP6TABLES" -S OUTPUT
 fi
 
 echo "$(date) rollback-dns-egress: rules removed (all duplicates)"
