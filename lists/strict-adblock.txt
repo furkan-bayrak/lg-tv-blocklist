@@ -1,6 +1,6 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-09-11 14:05 UTC
-# Entries: 57
+# Updated: 2026-09-11 14:22 UTC
+# Entries: 59
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 ||a.lgappstv.com^
@@ -58,5 +58,7 @@
 ||su-dev.lge.com^
 ||su-ssl.lge.com^
 ||su.lge.com^
+||ueiwsp.com^
 ||us.lgtvsdp.com^
 ||wiselg.com^
+||www.ueiwsp.com^
