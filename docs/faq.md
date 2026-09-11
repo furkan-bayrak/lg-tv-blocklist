@@ -75,7 +75,7 @@ Depends on your tier and format. In **adblock** format, **STRICT is region-compl
 
 The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
 
-For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
+For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — most endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
 
 If you have that query log, it is exactly the evidence needed to extend the `de.*`/`us.*` entries upstream — see [CONTRIBUTING](../CONTRIBUTING.md).
 
