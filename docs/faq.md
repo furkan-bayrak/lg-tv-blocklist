@@ -67,6 +67,14 @@ webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` 
 
 AdGuard Home evaluates `@@` exceptions at the engine level, but the official docs only guarantee modifier semantics (`$important`, `$badfilter`) for rule-style filters — modifiers do not work with `/etc/hosts`-style entries. Our lists use no modifiers, so a plain `@@` exception works; still, for AdGuard Home we recommend the `-adblock.txt` URL anyway, because only the adblock format gives whole-zone semantics for STRICT's zone anchors.
 
+## I'm not in Germany — do the lists still work for me?
+
+Mostly yes, with one format caveat. The **adblock lists are largely region-agnostic**: zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, `||lgtvsdp.com^`) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com`. The **domains/hosts formats are exact-name**: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists.
+
+For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — regional endpoints were never observed in our German audit, so verify against your own query log before relying on them.
+
+If you have that query log, it is exactly the evidence needed to extend the `de.*`/`us.*` entries upstream — see [CONTRIBUTING](../CONTRIBUTING.md).
+
 ## Why is a domain missing / how do I report a false positive?
 
 See [CONTRIBUTING](../CONTRIBUTING.md) — the evidence bar is the point of this project. Use the issue templates.

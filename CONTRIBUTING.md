@@ -16,6 +16,10 @@ a domain, collect evidence:
 If you only have a hunch, open an issue with the `new-domain` template
 instead of a PR — maintainers can verify from their own probes.
 
+**Regional query logs welcome:** include the region, timestamp, and client
+(TV model/name). Region-prefixed entries (`de.`, `us.`) can be extended with
+evidence from your region — regional coverage is the main gap in this list.
+
 ## 2. Edit src/, never lists/
 
 - `src/safe.txt` — telemetry/ad hostnames that are safe for stock TVs.
