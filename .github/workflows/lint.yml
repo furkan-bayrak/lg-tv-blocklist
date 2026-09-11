@@ -20,5 +20,11 @@ jobs:
         run: shellcheck --version
       - name: ShellCheck example hooks (POSIX sh)
         run: |
-          find examples -type f -name '*.sh' -print0 \
-            | xargs -0 --no-run-if-empty shellcheck -s sh
+          shopt -s globstar
+          files=(examples/**/*.sh)
+          if [ ! -f "${files[0]}" ]; then
+            echo "::error::no shell scripts found under examples/"
+            exit 1
+          fi
+          echo "checking: ${files[*]}"
+          shellcheck -s sh "${files[@]}"
