@@ -53,7 +53,8 @@ instead.
 
 1. Fork, branch off `main`.
 2. Edit one or more files under `src/`.
-3. Run `python3 scripts/build.py check && python3 scripts/test_build.py` locally.
+3. Run `python3 scripts/build.py check && python3 scripts/test_build.py` locally
+   (requires Python 3.10+ — the scripts use modern union type syntax).
 4. Open the PR. The merge job regenerates `lists/` automatically — never
    commit generated files yourself.
 

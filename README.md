@@ -72,6 +72,10 @@ One-command rollback and the caveats (no DNS fallback, DoH) are documented in
 - `-domains.txt` / `-hosts.txt`: **exact-name** — `snu.lge.com` blocks that
   host only, not the whole zone.
 - `-adblock.txt`: `||snu.lge.com^` also matches subdomains of that name.
+- Generated `-adblock.txt` files start with `#` metadata headers (title,
+  date, entry count, license). AdGuard Home and uBlock Origin both treat
+  those lines as comments; `!` is the canonical adblock comment prefix, so
+  use `!` for comments when you extend a list in a custom filter.
 - STRICT zone anchors (see `src/zones.txt`) only achieve whole-zone blocking
   in the adblock format; in domains/hosts they block the apex domain.
 

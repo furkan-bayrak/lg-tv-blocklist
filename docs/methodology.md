@@ -167,6 +167,11 @@ What counts as evidence:
 - A querylog line with domain + client + timestamp. Boot-burst or heartbeat
   beats a single hit.
 - A capture line with `dns.qry.name` or TLS SNI.
+- **A live domain.** Verify the hostname still resolves before submitting:
+  `dig +short <domain> @1.1.1.1` (or `nslookup <domain> 1.1.1.1`). Dead
+  names return NXDOMAIN — or only an empty delegated apex — and upstream
+  lists reject them, so a query-log line for a domain that no longer exists
+  is not evidence for a new entry.
 - Repro steps: what you did to trigger it.
 - Device + webOS version (include your firmware build if you have it — see
   limitations).
