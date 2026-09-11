@@ -11,3 +11,4 @@ lgthinq.com # ZONE: ThinQ umbrella
 lgtviot.com # ZONE: IoT umbrella
 nextlgsdp.com # ZONE: SDP umbrella
 lgunifiedsmart.com # ZONE: smart-family umbrella
+lgsmartplatform.com # ZONE: smart-platform telemetry umbrella — de.emp.lgsmartplatform.com observed; regional siblings otherwise uncovered
