@@ -41,6 +41,15 @@ class TestParseSrc(unittest.TestCase):
         self.assertEqual(build.parse_src("strict.txt"),
                          ["lggalleryplus.com", "lgsmartweb.com"])
 
+    def test_ueiwsp_accepted(self):
+        # ueiwsp.com (QuickSet Cloud / UEI) allowlisted 2026-09-11, issue #3.
+        self.write("strict.txt", (
+            "ueiwsp.com # STRICT: interop\n"
+            "www.ueiwsp.com # STRICT: interop\n"
+        ))
+        self.assertEqual(build.parse_src("strict.txt"),
+                         ["ueiwsp.com", "www.ueiwsp.com"])
+
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
         with self.assertRaises(ValueError):
