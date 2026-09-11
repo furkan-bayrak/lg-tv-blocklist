@@ -44,11 +44,25 @@ class TestParseSrc(unittest.TestCase):
     def test_ueiwsp_accepted(self):
         # ueiwsp.com (QuickSet Cloud / UEI) allowlisted 2026-09-11, issue #3.
         self.write("strict.txt", (
-            "ueiwsp.com # STRICT: interop\n"
-            "www.ueiwsp.com # STRICT: interop\n"
+            "ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
+            "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
+            "not observed on G1); breakage untested\n"
+            "www.ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
+            "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
+            "not observed on G1); breakage untested\n"
         ))
         self.assertEqual(build.parse_src("strict.txt"),
                          ["ueiwsp.com", "www.ueiwsp.com"])
+
+    def test_ueiwsp_near_misses_rejected(self):
+        # Suffix matching must be label-boundary exact: neither a string prefix
+        # ("notueiwsp.com") nor a suffix at a deeper label ("ueiwsp.com.evil.example").
+        for host in ("notueiwsp.com", "ueiwsp.com.evil.example"):
+            with self.subTest(host=host):
+                self.write("strict.txt", f"{host} # STRICT: weak — near-miss fixture\n")
+                with self.assertRaises(ValueError) as ctx:
+                    build.parse_src("strict.txt")
+                self.assertIn("not an LG family hostname", str(ctx.exception))
 
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")

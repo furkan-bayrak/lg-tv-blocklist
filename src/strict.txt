@@ -33,5 +33,5 @@ eic.lgchhomeapp.lgtvcommon.com # STRICT: weak — home-app service
 rdx2.lgtvsdp.com # STRICT: weak — unknown
 lggalleryplus.com # STRICT: weak — Gallery+/SDX endpoint; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
 lgsmartweb.com # STRICT: weak — voice search backend; blocking breaks remote voice search; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
-ueiwsp.com # STRICT: interop — QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3, LG webOS query log); breakage untested
-www.ueiwsp.com # STRICT: interop — QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3, LG webOS query log); breakage untested
+ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog; device unstated; not observed on G1); breakage untested
+www.ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog; device unstated; not observed on G1); breakage untested
