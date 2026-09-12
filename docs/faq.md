@@ -1,6 +1,6 @@
 # FAQ
 
-Answers to the questions that come up most often. See the [README](../README.md) for install instructions, tier descriptions, and format semantics.
+Answers to the questions that come up most often. See the [README](../README.md) for install instructions and tier descriptions, and [CONTRIBUTING.md](../CONTRIBUTING.md#format-semantics) for format semantics.
 
 ## Which tier should I use?
 

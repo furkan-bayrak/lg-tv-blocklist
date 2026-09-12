@@ -126,7 +126,7 @@ For each observed domain:
    - **ZONE** — family apexes for whole-zone blocking where we haven't
      enumerated the whole family. Note: whole-zone blocking only works in
      the adblock format — `-domains.txt` / `-hosts.txt` block the apex name
-     only (see [Format semantics](../README.md#format-semantics)).
+     only (see [Format semantics](../CONTRIBUTING.md#format-semantics)).
 
 ## Firmware diff: "what's new in this update"
 
@@ -187,6 +187,6 @@ What counts as evidence:
   list can correlate changes over time.
 - **Exact-name semantics.** `-domains.txt` and `-hosts.txt` block exact
   names only — no subdomain coverage. Use `-adblock.txt` for zone coverage
-  (see [Format semantics](../README.md#format-semantics)).
+  (see [Format semantics](../CONTRIBUTING.md#format-semantics)).
 - **Region endpoints are enumerated only where observed.** If your region's
   endpoint is missing, it wasn't seen in the audit — submit it.

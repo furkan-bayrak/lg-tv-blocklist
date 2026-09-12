@@ -1,62 +1,22 @@
 # LG TV Blocklist
 
-Curated, evidence-based DNS blocklist for LG webOS TV telemetry, ads, and
-phone-home traffic. Born from a two-week root-level audit of an LG G1:
-44,800-packet captures, 267,000-query DNS logs, per-service investigation.
-Every entry carries an annotation explaining what it blocks and the evidence.
+An evidence-annotated DNS blocklist for LG webOS TV telemetry — the data your TV sends home about what you watch and do — plus ads and phone-home traffic. It is for LG TV owners who run a DNS blocker (Pi-hole, AdGuard Home, NextDNS) and want the TV to stop reporting home without breaking the apps they use.
 
 Not affiliated with LG Electronics. LG is a trademark of LG Corp.
 
-## Lists
+## Why trust this list
 
-> **Quick Summary:**
-> * **Just want to stop ads, ACR, and telemetry without breaking your TV?** Use **SAFE**. Netflix, Prime, HBO, YouTube, and the LG App Store keep working normally (verified on an LG G1).
-> * **Want the TV to fully shut up — no firmware updates, no ThinQ cloud sync, no LG Channels?** Use **STRICT**. Those services are blocked on purpose — expect them to stop working.
+Built by watching a real LG G1's network traffic and DNS logs, cross-checked against public reports. Every entry notes what it blocks and the evidence behind it — observation, not speculation. Method and replication steps: [docs/methodology.md](docs/methodology.md).
 
-Questions? See the [FAQ](docs/faq.md) — tier choice, keeping the Content Store on STRICT, and resolver troubleshooting.
+## Which list should I use?
 
-| List | Domains (Pi-hole/NextDNS) | Hosts (/etc/hosts) | AdBlock (AdGuard Home/uBO) |
-|---|---|---|---|
-| **SAFE** — blocks telemetry/ads/ACR; store, app updates, Netflix/Prime/HBO/YouTube keep working | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) |
-| **STRICT** — everything in SAFE plus OTA updates, ThinQ cloud, LG Channels. Rooted/privacy-max users only. **Things break on purpose.** | [strict-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) | [strict-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) | [strict-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
+| | SAFE | STRICT |
+|---|---|---|
+| **Blocks** | Telemetry, ads, and ACR (Automatic Content Recognition — the TV's "what are you watching" reporting) | Everything in SAFE, plus firmware OTA (over-the-air) updates, ThinQ cloud sync, and LG Channels |
+| **For** | Almost everyone | Privacy-focused users who want the TV to fully stop talking to LG |
+| **Cost** | Streaming apps, Content Store, and app updates keep working (verified on an LG G1) | Those services stop working on purpose |
 
-Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/SHA256SUMS)
-
-Not in Germany? In **adblock** format the STRICT list is region-complete (zone anchors match region-prefixed subdomains); SAFE's is not, and the hosts/domains formats are exact-name — see [region support in the FAQ](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me) and the `scripts/localize.py` helper.
-
-## Install
-
-**Pi-hole** (v5/v6): Adlists → Add — paste the `-domains.txt` URL of your
-tier, then `pihole -g`.
-
-**AdGuard Home**: Filters → DNS blocklists → Add blocklist — paste the
-`-adblock.txt` URL.
-
-**NextDNS / Unbound / Technitium**: import the `-domains.txt` URL.
-
-**Rooted webOS**: use the `-hosts.txt` entries in `/etc/hosts`. Advanced:
-webosbrew init.d hook that rewrites the (tmpfs) hosts file at every boot —
-see [docs](https://www.webosbrew.org/pages/filesystem-overlays) for the init.d
-mechanism; the domain set to mirror is `safe.txt` (or `strict.txt` for the
-full lockdown).
-
-## Rooted webOS (DNS-egress hook)
-
-Rooted via webosbrew/HBC? [`examples/webos-hooks/`](examples/webos-hooks/)
-ships a ready-made `init.d` hook that DNATs all TV DNS to your resolver and
-drops DoT/DoQ (853) — closing the hardcoded-`8.8.8.8` bypass
-([caveat 1](#the-two-caveats-every-lg-owner-should-know)).
-
-1. Copy `02-block-dns-egress.sh` to `/var/lib/webosbrew/init.d/02-block-dns-egress`
-   (**no `.sh` extension** — `run-parts` skips dotted names), then `chmod +x`.
-2. Run it once or reboot — it auto-detects your gateway as the resolver.
-3. Verify from the TV: a blocked domain queried against `8.8.8.8` must no
-   longer return a public IP; Netflix/YouTube must still work.
-
-One-command rollback and the caveats (no DNS fallback, DoH) are documented in
-[`examples/webos-hooks/README.md`](examples/webos-hooks/README.md).
-
-## What breaks in STRICT (read this)
+**What breaks in STRICT (read this):**
 
 | Feature | SAFE | STRICT |
 |---|---|---|
@@ -67,54 +27,44 @@ One-command rollback and the caveats (no DNS fallback, DoH) are documented in
 | LG Channels | works | blocked |
 | LG account login | works | may fail |
 
-## Format semantics
+## Install
 
-- `-domains.txt` / `-hosts.txt`: **exact-name** — `snu.lge.com` blocks that
-  host only, not the whole zone.
-- `-adblock.txt`: `||snu.lge.com^` also matches subdomains of that name.
-- Generated `-adblock.txt` files start with `#` metadata headers (title,
-  date, entry count, license). AdGuard Home and uBlock Origin both treat
-  those lines as comments; `!` is the canonical adblock comment prefix, so
-  use `!` for comments when you extend a list in a custom filter.
-- STRICT zone anchors (see `src/zones.txt`) only achieve whole-zone blocking
-  in the adblock format; in domains/hosts they block the apex domain.
+Pick a tier above, then load the matching file into your blocker:
 
-## The two caveats every LG owner should know
+| Your blocker | SAFE | STRICT |
+|---|---|---|
+| Pi-hole, NextDNS, Unbound | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [strict-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) |
+| AdGuard Home, uBlock Origin | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) | [strict-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
+| Rooted TV `/etc/hosts` | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [strict-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
 
-1. **LG hardcodes public resolvers.** webOS daemons have been observed using
-   8.8.8.8 / 1.1.1.1 directly, bypassing your router's DNS entirely. A DNS
-   blocklist alone is not a guarantee: block/redirect outbound port 53 and
-   853 (DoT) at the firewall for the TV. A hosts file on a rooted TV only
-   helps NSS-based lookups — daemons that query the local stub directly
-   still escape it.
-2. **Exact-name vs wildcard.** Because we curate subdomain-level entries,
-   whole-family coverage depends on enumeration. If your TV shows traffic to
-   an LG domain not on the list, open a `new-domain` issue — that's exactly
-   how the list grows.
+Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/SHA256SUMS). Not in Germany? The exact-name lists only cover the regions present — see the [region FAQ](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me) and `scripts/localize.py`.
 
-## Annotated domains
+**Rooted TV (webosbrew / Homebrew Channel):** mirror the `-hosts.txt` entries into `/etc/hosts`; a webosbrew `init.d` hook (a boot-time script) can rewrite that file at every boot (it lives in RAM and resets on reboot — mechanism: [webosbrew filesystem-overlays](https://www.webosbrew.org/pages/filesystem-overlays)). Mirror `src/safe.txt`, or `src/strict.txt` for the full lockdown. Separately, [`examples/webos-hooks/`](examples/webos-hooks/) ships a boot hook that forces all TV DNS through your resolver and drops encrypted DNS (DoT/DoQ, port 853) — the fix for the hardcoded-resolver bypass in [caveat 1](#the-two-caveats). Rollback and caveats: [hook README](examples/webos-hooks/README.md).
 
-The source of truth is annotated: `src/safe.txt`, `src/strict.txt`,
-`src/zones.txt`. Reading the comments there tells you what every entry does
-and the evidence behind it. The tier table above summarizes the trade-offs.
+## The two caveats
 
-## Contributing
+1. **LG hardcodes public resolvers.** webOS daemons have been observed using `8.8.8.8` / `1.1.1.1` directly, and can use encrypted DNS, so a DNS blocklist alone is not a guarantee. Redirect outbound port 53 to your resolver and block port 853 at your firewall; on a rooted TV the [DNS-egress hook](examples/webos-hooks/) does it on-device. A hosts file alone is not enough either — some daemons ignore it and query the TV's built-in DNS resolver directly.
+2. **Exact names, not wildcards.** Entries name specific hosts, so whole-family coverage depends on enumeration. If your TV talks to an LG domain that is not on the list, [open a new-domain issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) — that is exactly how the list grows.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) — evidence required, edit `src/`
-only, CI does the rest. Issue templates: [new domain](.github/ISSUE_TEMPLATE/01_new_domain.md) /
-[breakage](.github/ISSUE_TEMPLATE/02_breakage.md).
+## FAQ
 
-- **Methodology** — how the data was collected and how to replicate it (including a firmware-diff recipe): [`docs/methodology.md`](docs/methodology.md)
+- **Which tier should I use?** SAFE for almost everyone; STRICT if you want the TV to fully stop talking to LG.
+- **Will this break Netflix / Prime / HBO / YouTube?** No — verified on an LG G1.
+- **My TV ignores my Pi-hole / AdGuard. Why?** webOS has a built-in DNS resolver and hardcoded fallback DNS; fix it at the router, or use the rooted hook.
+- **I'm not in Germany — do the lists work?** STRICT's adblock list is region-complete; the exact-name lists can be adapted with `scripts/localize.py --region <cc>`.
+- **I want STRICT but keep the LG Content Store.** See the [carve-out recipe](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).
+- **Why doesn't SAFE block all of `lge.com`?** That would kill the Content Store, updates, and account login along with the telemetry.
 
-## Join as a Maintainer / Contributor
+Full list: [docs/faq.md](docs/faq.md).
 
-I built this from empirical packet captures and query logs on an LG G1, but
-LG maintains dozens of webOS versions and regional endpoints. If you have
-captures or query logs from a C-series, G-series, or other webOS model and
-want to co-maintain this list, [open an issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues)
-or submit a PR.
+## Dig deeper
+
+- **Methodology** — how the data was collected and how to replicate it, including a firmware-diff recipe: [docs/methodology.md](docs/methodology.md).
+- **Upstream tracker** — where these domains were submitted to community blocklists: [docs/upstream.md](docs/upstream.md).
+- **Source of truth** — annotated lists: [src/safe.txt](src/safe.txt), [src/strict.txt](src/strict.txt), [src/zones.txt](src/zones.txt). The comments tell you what every entry does and the evidence behind it, e.g. `snu.lge.com # STRICT: firmware OTA check server`.
+- **Contributing** — evidence rules and how to add a domain, edit `src/` only (CI regenerates the lists): [CONTRIBUTING.md](CONTRIBUTING.md) (templates: [new domain](.github/ISSUE_TEMPLATE/01_new_domain.md), [breakage](.github/ISSUE_TEMPLATE/02_breakage.md)).
+- **Join as a maintainer** — LG runs dozens of webOS versions and regional endpoints; captures or query logs from a C-series, G-series, or other model are exactly what this needs. [Open an issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) or submit a PR.
 
 ## License
 
-Content and generated lists: [CC BY 4.0](LICENSE). Scripts and workflows:
-[MIT](LICENSE-MIT).
+Content and generated lists: [CC BY 4.0](LICENSE). Scripts and workflows: [MIT](LICENSE-MIT).
