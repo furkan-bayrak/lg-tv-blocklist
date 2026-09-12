@@ -55,8 +55,9 @@ class TestParseSrc(unittest.TestCase):
                          ["ueiwsp.com", "www.ueiwsp.com"])
 
     def test_ueiwsp_near_misses_rejected(self):
-        # Suffix matching must be label-boundary exact: neither a string prefix
-        # ("notueiwsp.com") nor a suffix at a deeper label ("ueiwsp.com.evil.example").
+        # Suffix matching must be label-boundary exact: "notueiwsp.com" ends
+        # with "ueiwsp.com" as a bare string (no dot boundary), while
+        # "ueiwsp.com.evil.example" only has it as a leading label.
         for host in ("notueiwsp.com", "ueiwsp.com.evil.example"):
             with self.subTest(host=host):
                 self.write("strict.txt", f"{host} # STRICT: weak — near-miss fixture\n")

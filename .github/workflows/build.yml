@@ -30,13 +30,18 @@ jobs:
           fetch-depth: 0
       - name: Detect src/scripts changes
         id: changed
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" != "push" ]; then
             echo "src_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          before='${{ github.event.before }}'
+          before="$BEFORE_SHA"
+          # Fail-open: an empty or all-zeros base SHA (first push, force-push)
+          # assumes changed so publish runs. Worst case is one redundant
+          # rebuild; the guard never blocks a real publish.
           if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
             echo "src_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
