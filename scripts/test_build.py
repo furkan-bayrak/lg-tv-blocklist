@@ -46,10 +46,12 @@ class TestParseSrc(unittest.TestCase):
         self.write("strict.txt", (
             "ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
             "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
-            "not observed on G1); breakage untested\n"
-            "www.ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
-            "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
-            "not observed on G1); breakage untested\n"
+            "not observed on G1; www subdomain observed live on G1 2026-09-12); "
+            "breakage untested\n"
+            "www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; "
+            "community report 2026-09-11 (repo issue #3 querylog); "
+            "observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); "
+            "breakage untested\n"
         ))
         self.assertEqual(build.parse_src("strict.txt"),
                          ["ueiwsp.com", "www.ueiwsp.com"])
