@@ -65,6 +65,23 @@ Because `lge.com` is an umbrella zone: blocking it kills the Content Store, firm
 
 webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` / `1.1.1.1`), so they can bypass your LAN DNS. Packet captures on our G1 confirmed the stub ignoring LAN DNS. Fix it at the router, not the TV: NAT-redirect outbound port 53 to your DNS server, and block outbound 853 (DNS-over-TLS) — optionally known DoH endpoints too. On a rooted TV (webosbrew), [`examples/webos-hooks/`](../examples/webos-hooks/) has a ready-made hook that applies the port-53 redirect and the 853 drop on-device. See the README's resolver caveats.
 
+## Why does the DNS-egress hook use my gateway as `RESOLVER_IP`?
+
+The hook cannot reliably discover the TV's configured DNS server, so it falls back to the default-route gateway:
+
+- `/etc/resolv.conf` on webOS points at a localhost stub; `nmcli`, `systemd-resolve`, and `resolvectl` do not exist, and no documented webOS API was found that exposes the configured DNS servers.
+- So the script runs `ip route | awk '/^default/{print $3; exit}'`, with a comment noting to hardcode `RESOLVER_IP` if init runs before the network is up.
+
+That matters because if your router forwards DNS to your own resolver, queries still get answered — but they arrive via the router/gateway: per-device attribution is lost, and depending on the router's config they may bypass your resolver and its filtering entirely.
+
+**Point it at your own resolver:** set `RESOLVER_IP` to your resolver's IP — hardcoded near the top of `02-block-dns-egress.sh` (most reliable, since the init environment may not pass environment variables) or as an environment variable:
+
+```sh
+RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
+```
+
+**Verify:** the hook logs the resolver it chose — look for the `dnat 53 -> <IP>` line in `/var/log/02-block-dns-egress.log` (fallback `/tmp/02-block-dns-egress.log`).
+
 ## Why aren't `in-addr.arpa` / LAN discovery queries blocked?
 
 Because they never leave the LAN. Reverse lookups under `in-addr.arpa` are answered by your local resolver in milliseconds, and discovery protocols (SSDP, mDNS) are link-local multicast — adding them to a DNS blocklist would not stop a TV from enumerating the LAN, it would only break reverse name resolution for everything else using that resolver. Stopping the scan itself needs device- or network-level rules (firewall drops of discovery traffic on a rooted TV or at the router), and expect that to break discovery-dependent features like casting. If the concern is the cloud side of the feature, the STRICT entry `ueiwsp.com` (QuickSet Cloud) covers it.
