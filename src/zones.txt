@@ -12,4 +12,4 @@ lgtviot.com # ZONE: IoT umbrella
 nextlgsdp.com # ZONE: SDP umbrella
 lgunifiedsmart.com # ZONE: smart-family umbrella
 lgsmartplatform.com # ZONE: smart-platform telemetry umbrella — de.emp.lgsmartplatform.com observed; regional siblings otherwise uncovered
-lgtvcommon.com # ZONE: common-services telemetry umbrella — live-blocked on G1 AGH since 2026-09-09 (no breakage); hagezi umbrella 2026-09; wildcard-safe per Level1Techs guide
+lgtvcommon.com # ZONE: common-services telemetry umbrella — live-blocked on G1 AGH since 2026-09-09 (no breakage); hagezi umbrella 2026-09; wildcard-safe per Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05)

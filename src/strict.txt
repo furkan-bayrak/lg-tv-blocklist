@@ -31,7 +31,8 @@ eic-ocp.lgtviot.com # STRICT: weak — unknown (DNS only; unrelated to the local
 eic.cdplauncher.lgtvcommon.com # STRICT: weak — content-launcher/CDP service
 eic.lgchhomeapp.lgtvcommon.com # STRICT: weak — home-app service
 rdx2.lgtvsdp.com # STRICT: weak — unknown
-lggalleryplus.com # STRICT: weak — Gallery+/SDX endpoint; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
-lgsmartweb.com # STRICT: weak — voice search backend; blocking breaks remote voice search; community report (Level1Techs guide, G5, 2026-08-24); not observed on G1
+lggalleryplus.com # STRICT: weak — Gallery+/SDX endpoint; community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; G5 recon 2026-08-24); not observed on G1
+lgsmartweb.com # STRICT: weak — voice search backend; blocking breaks remote voice search; community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; G5 recon 2026-08-24); not observed on G1
 ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog; device unstated; not observed on G1; www subdomain observed live on G1 2026-09-12); breakage untested
 www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog); observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); breakage untested
+lgshopsvc.lgappstv.com # STRICT: weak — LG Shop service (SDX); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1
