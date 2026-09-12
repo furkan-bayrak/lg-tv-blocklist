@@ -10,6 +10,6 @@ wiselg.com # ZONE: TV/wiselg telemetry umbrella
 lgthinq.com # ZONE: ThinQ umbrella
 lgtviot.com # ZONE: IoT umbrella
 nextlgsdp.com # ZONE: SDP umbrella
-lgunifiedsmart.com # ZONE: smart-family umbrella
+lgunifiedsmart.com # ZONE: smart-family umbrella | ZONE RETIRED 2026-09-12: the apex itself is NXDOMAIN on Google+Cloudflare DoH, so the whole zone is gone (fms.lgunifiedsmart.com with it). Kept as an anchor in case LG revives it; costs nothing while the zone does not exist.
 lgsmartplatform.com # ZONE: smart-platform telemetry umbrella — de.emp.lgsmartplatform.com observed; regional siblings otherwise uncovered
 lgtvcommon.com # ZONE: common-services telemetry umbrella — live-blocked on G1 AGH since 2026-09-09 (no breakage); hagezi umbrella 2026-09; wildcard-safe per Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05)
