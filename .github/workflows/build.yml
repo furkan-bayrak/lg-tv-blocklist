@@ -39,9 +39,9 @@ jobs:
             exit 0
           fi
           before="$BEFORE_SHA"
-          # Fail-open: an empty or all-zeros base SHA (first push, force-push)
-          # assumes changed so publish runs. Worst case is one redundant
-          # rebuild; the guard never blocks a real publish.
+          # Fail-open: empty/all-zeros base SHA (ref creation) assumes changed,
+          # as does a force-push whose unreachable base fails the diff below.
+          # Worst case is one redundant publish run (timestamp-only bot commit).
           if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
             echo "src_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
