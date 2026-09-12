@@ -80,6 +80,8 @@ That matters because if your router forwards DNS to your own resolver, queries s
 RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
 ```
 
+**Already ran the hook this boot?** Changing `RESOLVER_IP` on a re-run does not replace the old rule — the hook only appends, so the stale DNAT rule stays first-match and keeps winning, while the success line still reports the new IP. Remove the old rules first with `sh rollback-dns-egress.sh` (pass `RESOLVER_IP=<old-resolver>` if they were not created with the current gateway), then re-run with your `RESOLVER_IP` — or hardcode it and reboot: the kernel rules are rebuilt empty at boot.
+
 **Verify:** the hook logs the resolver it chose — look for the `dnat 53 -> <IP>` line in `/var/log/02-block-dns-egress.log` (fallback `/tmp/02-block-dns-egress.log`).
 
 ## Why aren't `in-addr.arpa` / LAN discovery queries blocked?

@@ -44,7 +44,8 @@ reboot.
   ships its own DoH client can still escape.
 - **The auto-detected resolver must actually serve DNS.** The hook points the
   TV at its default gateway — if that is not your resolver, hardcode it; see
-  [why the hook falls back to the gateway, and how to override it](../../docs/faq.md#why-does-the-dns-egress-hook-use-my-gateway-as-resolver_ip).
+  [why the hook falls back to the gateway, and how to override
+  it][faq-resolver].
 - **Changed gateway/resolver:** the hook appends rules and never reconciles an
   edited target — if your gateway or resolver changes, the old DNAT rule still
   wins. The rollback auto-detects the *current* gateway, so it will not match
@@ -65,3 +66,5 @@ reboot.
 Provided as-is, no warranty — you are modifying your TV as root. Rollback is
 provided; use it if anything misbehaves. License: MIT (see
 [LICENSE-MIT](../../LICENSE-MIT)).
+
+[faq-resolver]: ../../docs/faq.md#why-does-the-dns-egress-hook-use-my-gateway-as-resolver_ip
