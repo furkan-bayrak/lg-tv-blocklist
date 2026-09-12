@@ -5,11 +5,11 @@
 # log, live blocking verified against Netflix/Prime/HBO/YouTube playback.
 # License: CC BY 4.0. Additions require an inline annotation + evidence.
 
-cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (6-min heartbeat pattern observed)
-ads.lgtvcommon.com # SAFE: ad delivery (querylog family)
-homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos
+cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (6-min heartbeat pattern observed) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names added below — those are the live ones now. Kept for the audit record.
+ads.lgtvcommon.com # SAFE: ad delivery (querylog family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names added below — those are the live ones now. Kept for the audit record.
+homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names added below — those are the live ones now. Kept for the audit record.
 eic.nudge.lgtvcommon.com # SAFE: nudge/notification telemetry
-recommend.lgtvcommon.com # SAFE: recommendations/promos
+recommend.lgtvcommon.com # SAFE: recommendations/promos | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names added below — those are the live ones now. Kept for the audit record.
 eic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry (blocked live, apps fine)
 eic.lgtviot.com # SAFE: IoT telemetry (largest observed family, ~5.1k queries)
 eic.api.lgtviot.com # SAFE: IoT telemetry API
@@ -18,10 +18,43 @@ de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry
 lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
 de.info.lgsmartad.com # SAFE: ad info endpoint
 de.emp.lgsmartplatform.com # SAFE: smart-platform telemetry
-smart.adtvc.app # SAFE: ad serving (adtvc.app family)
-adsdtvc.com # SAFE: ad zone
-ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected)
+smart.adtvc.app # SAFE: ad serving (adtvc.app family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
+adsdtvc.com # SAFE: ad zone | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
+ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 us.lgtvsdp.com # SAFE: SDP telemetry, region endpoint
 lgtvsdp.com # SAFE: SDP telemetry apex (service delivery platform beacons)
-initscr.lge.com # SAFE: initial-setup telemetry (boot-time only)
-info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1
+initscr.lge.com # SAFE: initial-setup telemetry (boot-time only) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
+info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1 | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
+
+# --- Datacentre cluster endpoints (added 2026-09-12) -------------------------
+# LG fronts these services from three regional datacentre clusters: eic
+# (Europe), aic (Americas), kic (Korea). The G1 audit ran in Germany, so it only
+# ever observed eic.*; the aic./kic. twins are the same services for other
+# continents and were entirely absent from this list.
+# Found by taking each eic.* entry's stem and probing the other clusters over
+# DNS-over-HTTPS; every entry below returned NOERROR with an A record on
+# 2026-09-12 (cross-checked on Google and Cloudflare).
+# Tier follows the audited cluster sibling, never the zone apex.
+# Evidence grade: DNS existence, NOT traffic observation.
+aic.ads.lgtvcommon.com # SAFE: ad delivery — aic (Americas) datacentre cluster; DNS-verified 2026-09-12; bare ads.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+aic.api.lgtviot.com # SAFE: IoT telemetry API — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
+aic.cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (~6-min heartbeat) — aic (Americas) datacentre cluster; DNS-verified 2026-09-12; bare cdpbeacon.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+aic.homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos — aic (Americas) datacentre cluster; DNS-verified 2026-09-12; bare homeprv.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+aic.lgtviot.com # SAFE: IoT telemetry (largest observed family) — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
+aic.nudge.lgtvcommon.com # SAFE: nudge/notification telemetry — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
+aic.recommend.lgtvcommon.com # SAFE: recommendations/promos — aic (Americas) datacentre cluster; DNS-verified 2026-09-12; bare recommend.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+aic.tv.wiselg.com # SAFE: TV telemetry — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
+aic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
+eic.ads.lgtvcommon.com # SAFE: ad delivery — eic (Europe) datacentre cluster; DNS-verified 2026-09-12; bare ads.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+eic.cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (~6-min heartbeat) — eic (Europe) datacentre cluster; DNS-verified 2026-09-12; bare cdpbeacon.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+eic.homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos — eic (Europe) datacentre cluster; DNS-verified 2026-09-12; bare homeprv.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+eic.recommend.lgtvcommon.com # SAFE: recommendations/promos — eic (Europe) datacentre cluster; DNS-verified 2026-09-12; bare recommend.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+kic.ads.lgtvcommon.com # SAFE: ad delivery — kic (Korea) datacentre cluster; DNS-verified 2026-09-12; bare ads.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+kic.api.lgtviot.com # SAFE: IoT telemetry API — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
+kic.cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (~6-min heartbeat) — kic (Korea) datacentre cluster; DNS-verified 2026-09-12; bare cdpbeacon.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+kic.homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos — kic (Korea) datacentre cluster; DNS-verified 2026-09-12; bare homeprv.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+kic.lgtviot.com # SAFE: IoT telemetry (largest observed family) — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
+kic.nudge.lgtvcommon.com # SAFE: nudge/notification telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
+kic.recommend.lgtvcommon.com # SAFE: recommendations/promos — kic (Korea) datacentre cluster; DNS-verified 2026-09-12; bare recommend.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
+kic.tv.wiselg.com # SAFE: TV telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
+kic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
