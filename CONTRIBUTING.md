@@ -19,6 +19,14 @@ instead of a PR — maintainers can verify from their own probes.
 **Regional query logs welcome:** include the region, timestamp, and client
 (TV model/name). Region-prefixed entries (`de.`, `us.`) can be extended with
 evidence from your region — regional coverage is the main gap in this list.
+
+**Datacentre clusters.** `eic` (Europe), `aic` (Americas) and `kic` (Korea)
+front the same service from three continents, independently of country codes.
+When you add or verify a clustered host, probe all three and include every one
+that resolves — submitting only the cluster your own TV uses is how this list
+came to be missing 53 live endpoints. Tier follows the cluster sibling, never
+the zone apex: `eic.lgtviot.com` is SAFE, so `aic.`/`kic.lgtviot.com` are SAFE
+too. See [methodology](docs/methodology.md#dns-log-correlation).
 New region prefixes must also be added to `SOURCE_REGION_LABELS` in
 `scripts/localize.py`; otherwise `localize.py` silently leaves those entries
 untouched.
