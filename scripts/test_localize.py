@@ -119,6 +119,25 @@ class TestRewriteContent(unittest.TestCase):
         self.assertIn("de.nextlgsdp.com\n", out)
         self.assertEqual(out.count("# Localized: de"), 1)
 
+    def test_no_duplicate_lines_when_rewrite_target_collides(self):
+        # A rewrite must never duplicate an entry already present: neither a
+        # native target-region twin nor another foreign twin rewritten to the
+        # same target name. Regression: de./ca. collisions on --region ca/us/de.
+        cases = (
+            # unrelated entry + native twin + foreign twin (native first)
+            ("eic.lgtviot.com\nus.lgtvsdp.com\nde.lgtvsdp.com\n", "us",
+             ["eic.lgtviot.com", "us.lgtvsdp.com"]),
+            # foreign twin first, native twin second
+            ("de.lgtvsdp.com\nus.lgtvsdp.com\n", "us", ["us.lgtvsdp.com"]),
+            # two foreign twins collapse onto the same target name
+            ("de.nextlgsdp.com\nus.nextlgsdp.com\n", "fr", ["fr.nextlgsdp.com"]),
+        )
+        for body, region, want in cases:
+            with self.subTest(region=region, body=body.strip().replace("\n", " | ")):
+                out, _ = localize.rewrite_content(HEADER + body, region)
+                entries = [l for l in out.splitlines() if l and not l.startswith("#")]
+                self.assertEqual(entries, want)
+
 
 class TestCli(unittest.TestCase):
     def test_invalid_region_rejected(self):
