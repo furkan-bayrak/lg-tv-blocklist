@@ -25,3 +25,4 @@ us.lgtvsdp.com # SAFE: SDP telemetry, region endpoint
 lgtvsdp.com # SAFE: SDP telemetry apex (service delivery platform beacons)
 initscr.lge.com # SAFE: initial-setup telemetry (boot-time only)
 info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1
+ca.nextlgsdp.com # SAFE: SDP region endpoint, telemetry
