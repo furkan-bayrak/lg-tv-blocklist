@@ -24,8 +24,8 @@
 # could bypass enforcement.
 # CAVEAT: `-C || -A` does NOT reconcile a *changed* rule. If the DNAT target
 # is ever edited, delete the stale rule first (first match wins), then re-run.
-# IPTABLES / IP6TABLES may be env overrides; resolve bare names via PATH,
-# keep explicit paths as-is (busybox installs differ across webOS builds).
+# IPTABLES / IP6TABLES / LUNA_SEND may be env overrides; resolve bare names via
+# PATH, keep explicit paths as-is (busybox installs differ across webOS builds).
 IPTABLES="${IPTABLES:-iptables}"
 case "$IPTABLES" in
     */*) ;;
@@ -36,20 +36,57 @@ case "$IP6TABLES" in
     */*) ;;
     *) IP6TABLES="$(command -v "$IP6TABLES" 2>/dev/null || echo "/usr/sbin/$IP6TABLES")" ;;
 esac
+LUNA_SEND="${LUNA_SEND:-luna-send}"
+case "$LUNA_SEND" in
+    */*) ;;
+    *) LUNA_SEND="$(command -v "$LUNA_SEND" 2>/dev/null || echo "/usr/bin/$LUNA_SEND")" ;;
+esac
 LOG=/var/log/02-block-dns-egress.log
 [ -d /var/log ] || LOG=/tmp/02-block-dns-egress.log
 FAIL=0
 
-# Resolver to redirect DNS to. Empty -> auto-detect from the default route.
+# Resolver to redirect DNS to, in priority order:
+#   1. RESOLVER_IP env override (explicit user intent),
+#   2. configured IPv4 DNS (dns1) from connectionmanager/getStatus,
+#   3. default-route gateway (fallback - legacy behavior).
 # If your TV's init runs before the network is up, hardcode it here instead:
 #   RESOLVER_IP=<your-resolver-ip>
 RESOLVER_IP="${RESOLVER_IP:-}"
+RESOLVER_SOURCE=environment
 
 log() {
     LINE="$(date '+%Y-%m-%d %H:%M:%S') 02-block-dns-egress: $1"
     echo "$LINE"
     logger -t 02-block-dns-egress "$1" 2>/dev/null
     echo "$LINE" >> "$LOG" 2>/dev/null
+}
+
+# detect_dns_cm: print the first usable IPv4 DNS server (dns1) reported by
+# com.webos.service.connectionmanager/getStatus, else print nothing.
+# Disconnected interfaces omit the dns keys entirely; IPv6 values and 0.0.0.0
+# are skipped (invalid iptables DNAT targets). awk split() on '"' keeps the
+# boot path free of extra tooling (no jq); the timeout guard keeps a stuck
+# Luna call from hanging init - on failure the gateway fallback applies.
+detect_dns_cm() {
+    if command -v timeout >/dev/null 2>&1; then
+        LUNA_JSON="$(timeout -t 5 "$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+    else
+        LUNA_JSON="$("$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+    fi
+    [ -n "$LUNA_JSON" ] || return 0
+    printf '%s\n' "$LUNA_JSON" | awk '
+        {
+            n = split($0, part, "\"")
+            for (i = 1; i <= n; i++) {
+                if (part[i] == "dns1" && part[i + 1] == ":") {
+                    value = part[i + 2]
+                    if (value ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && value != "0.0.0.0") {
+                        print value
+                        exit
+                    }
+                }
+            }
+        }'
 }
 
 # ensure_* : add the rule only if absent (idempotent), then verify with -C.
@@ -77,14 +114,24 @@ if [ ! -x "$IPTABLES" ]; then
     exit 1
 fi
 
+# --- resolver selection: env > configured DNS (connectionmanager) > gateway ---
+if [ -z "$RESOLVER_IP" ]; then
+    RESOLVER_IP="$(detect_dns_cm)"
+    if [ -n "$RESOLVER_IP" ]; then
+        RESOLVER_SOURCE="connectionmanager"
+    fi
+fi
 if [ -z "$RESOLVER_IP" ]; then
     RESOLVER_IP="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+    if [ -n "$RESOLVER_IP" ]; then
+        RESOLVER_SOURCE="default-route gateway"
+    fi
 fi
 if [ -z "$RESOLVER_IP" ]; then
-    log "ERROR: RESOLVER_IP not set and default-route detection failed - rules NOT applied"
+    log "ERROR: RESOLVER_IP not set and auto-detection failed (connectionmanager + default route) - rules NOT applied"
     exit 1
 fi
-log "INFO: resolver: $RESOLVER_IP"
+log "INFO: resolver: $RESOLVER_IP (source: $RESOLVER_SOURCE)"
 
 # --- IPv4 rules (redirect 53, drop DoT/DoQ 853) ---
 ensure_v4_nat ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"

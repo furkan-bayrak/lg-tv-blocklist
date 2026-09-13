@@ -54,11 +54,19 @@ def rewrite_entry(line: str, region: str) -> str:
 
 
 def rewrite_content(text: str, region: str) -> tuple[str, int]:
-    """Return (localized text, number of entry lines actually changed)."""
+    """Return (localized text, number of entry lines actually changed).
+
+    Entries that collide after rewriting are de-duplicated (first occurrence
+    wins): the built lists contain no duplicates by construction (build.py
+    rejects them), so collisions only come from rewrites onto an existing
+    name - e.g. a native target-region twin or two foreign twins rewriting
+    to the same target name.
+    """
     lines = text.splitlines()
     if not lines:
         return text, 0
     out: list[str] = []
+    seen: set[str] = set()
     rewritten = 0
     marker_added = False
     for line in lines:
@@ -72,6 +80,9 @@ def rewrite_content(text: str, region: str) -> tuple[str, int]:
             out.append(line)
             continue
         new_line = rewrite_entry(line, region)
+        if new_line in seen:
+            continue
+        seen.add(new_line)
         if new_line != line:
             rewritten += 1
         out.append(new_line)

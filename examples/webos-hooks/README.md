@@ -20,8 +20,9 @@ redirects — that is exactly why this runs on the TV.
    `/var/lib/webosbrew/init.d/02-block-dns-egress` — **without the `.sh`
    extension**: webOS `run-parts` ignores dotted names. Then `chmod +x` it.
 2. Run it once (`sh /var/lib/webosbrew/init.d/02-block-dns-egress`) or just
-   reboot — it auto-detects your default gateway as the resolver. If your
-   init runs before the network is up, hardcode `RESOLVER_IP` in the script.
+   reboot — it auto-detects your configured DNS server via `connectionmanager`
+   when available, falling back to your default gateway. If your init runs
+   before the network is up, hardcode `RESOLVER_IP` in the script.
 3. **Verify from the TV:** `nslookup <a domain your list blocks> 8.8.8.8`
    must no longer return a public IP — and the query must appear in your
    resolver's log. Normal apps (Netflix, YouTube) must still work.
@@ -42,15 +43,16 @@ reboot.
   exposure as any LAN device pointed at it.
 - **DoH over 443 cannot be blocked** without breaking streaming; a daemon that
   ships its own DoH client can still escape.
-- **The auto-detected resolver must actually serve DNS.** The hook points the
-  TV at its default gateway — if that is not your resolver, hardcode it; see
-  [why the hook falls back to the gateway, and how to override
+- **The auto-detected resolver must actually serve DNS.** The hook reads the
+  TV's configured DNS server from `connectionmanager` and only falls back to
+  the default gateway when that fails — if neither is your resolver, hardcode
+  it; see [how the hook picks its resolver, and how to override
   it][faq-resolver].
-- **Changed gateway/resolver:** the hook appends rules and never reconciles an
-  edited target — if your gateway or resolver changes, the old DNAT rule still
-  wins. The rollback auto-detects the *current* gateway, so it will not match
-  the old rule; remove it explicitly with
-  `RESOLVER_IP=<old-gateway> sh rollback-dns-egress.sh`, or delete the nat
+- **Changed resolver:** the hook appends rules and never reconciles an
+  edited target — if your resolver or gateway changes, the old DNAT rule still
+  wins. The rollback auto-detects the *current* resolver the same way, so it
+  will not match the old rule; remove it explicitly with
+  `RESOLVER_IP=<old-resolver> sh rollback-dns-egress.sh`, or delete the nat
   OUTPUT rules by hand, then reinstall.
 - **IPv6:** outbound IPv6 DNS (53/853) is DROPped only where `ip6tables`
   actually works — some kernels lack `ip6_tables`. Where it does not, the hook
@@ -67,4 +69,4 @@ Provided as-is, no warranty — you are modifying your TV as root. Rollback is
 provided; use it if anything misbehaves. License: MIT (see
 [LICENSE-MIT](../../LICENSE-MIT)).
 
-[faq-resolver]: ../../docs/faq.md#why-does-the-dns-egress-hook-use-my-gateway-as-resolver_ip
+[faq-resolver]: ../../docs/faq.md#how-does-the-dns-egress-hook-pick-its-resolver_ip
