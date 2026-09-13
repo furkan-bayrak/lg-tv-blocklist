@@ -1,6 +1,6 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-09-13 07:38 UTC
-# Entries: 61
+# Updated: 2026-09-13 16:15 UTC
+# Entries: 62
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 0.0.0.0 a.lgappstv.com
@@ -9,6 +9,7 @@
 0.0.0.0 adsdtvc.com
 0.0.0.0 am.lge.com
 0.0.0.0 bss.lgechannel.com
+0.0.0.0 ca.nextlgsdp.com
 0.0.0.0 cdpbeacon.lgtvcommon.com
 0.0.0.0 de.emp.lgsmartplatform.com
 0.0.0.0 de.ibs.nextlgsdp.com
