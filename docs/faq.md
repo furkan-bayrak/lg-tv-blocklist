@@ -65,14 +65,17 @@ Because `lge.com` is an umbrella zone: blocking it kills the Content Store, firm
 
 webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` / `1.1.1.1`), so they can bypass your LAN DNS. Packet captures on our G1 confirmed the stub ignoring LAN DNS. Fix it at the router, not the TV: NAT-redirect outbound port 53 to your DNS server, and block outbound 853 (DNS-over-TLS) — optionally known DoH endpoints too. On a rooted TV (webosbrew), [`examples/webos-hooks/`](../examples/webos-hooks/) has a ready-made hook that applies the port-53 redirect and the 853 drop on-device. See the README's resolver caveats.
 
-## Why does the DNS-egress hook use my gateway as `RESOLVER_IP`?
+## How does the DNS-egress hook pick its `RESOLVER_IP`?
 
-The hook cannot reliably discover the TV's configured DNS server, so it falls back to the default-route gateway:
+It tries, in order:
 
-- `/etc/resolv.conf` on webOS points at a localhost stub; `nmcli`, `systemd-resolve`, and `resolvectl` do not exist, and no documented webOS API was found that exposes the configured DNS servers.
-- So the script runs `ip route | awk '/^default/{print $3; exit}'`, with a comment noting to hardcode `RESOLVER_IP` if init runs before the network is up.
+1. **`RESOLVER_IP` override** — if you set it (environment variable or hardcoded), that wins.
+2. **The TV's configured DNS server** — `dns1` read from `com.webos.service.connectionmanager/getStatus`. This works on webOS 6.x (verified on our rooted G1). The first usable IPv4 `dns1` is used; IPv6 values and `0.0.0.0` are skipped, and disconnected interfaces omit the dns fields entirely.
+3. **The default-route gateway** — the fallback, used when the API is unavailable (older firmware, boot before the network is up, `luna-send` missing).
 
-That matters because if your router forwards DNS to your own resolver, queries still get answered — but they arrive via the router/gateway: per-device attribution is lost, and depending on the router's config they may bypass your resolver and its filtering entirely.
+`/etc/resolv.conf` is a dead end: it points at a localhost stub (`127.0.0.1` / `::1`) and reveals nothing about the configured DNS — that is why the hook asks connectionmanager instead.
+
+That matters because if detection does fall back to the gateway and your router forwards DNS to your own resolver, queries still get answered — but they arrive via the router/gateway: per-device attribution is lost, and depending on the router's config they may bypass your resolver and its filtering entirely.
 
 **Point it at your own resolver:** set `RESOLVER_IP` to your resolver's IP — hardcoded near the top of `02-block-dns-egress.sh` (most reliable, since the init environment may not pass environment variables) or as an environment variable:
 
@@ -80,9 +83,9 @@ That matters because if your router forwards DNS to your own resolver, queries s
 RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
 ```
 
-**Already ran the hook this boot?** Changing `RESOLVER_IP` on a re-run does not replace the old rule — the hook only appends, so the stale DNAT rule stays first-match and keeps winning, while the success line still reports the new IP. Remove the old rules first with `sh rollback-dns-egress.sh` (pass `RESOLVER_IP=<old-resolver>` if they were not created with the current gateway), then re-run with your `RESOLVER_IP` — or hardcode it and reboot: the kernel rules are rebuilt empty at boot.
+**Already ran the hook this boot?** Changing `RESOLVER_IP` on a re-run does not replace the old rule — the hook only appends, so the stale DNAT rule stays first-match and keeps winning, while the success line still reports the new IP. Remove the old rules first with `sh rollback-dns-egress.sh` (it auto-detects the same resolver the hook picks; pass `RESOLVER_IP=<old-resolver>` if the rules were created with a different one), then re-run with your `RESOLVER_IP` — or hardcode it and reboot: the kernel rules are rebuilt empty at boot.
 
-**Verify:** the hook logs the resolver it chose — look for the `dnat 53 -> <IP>` line in `/var/log/02-block-dns-egress.log` (fallback `/tmp/02-block-dns-egress.log`).
+**Verify:** the hook logs the resolver it chose and where it came from — look for `resolver: <IP> (source: environment|connectionmanager|default-route gateway)` in `/var/log/02-block-dns-egress.log` (fallback `/tmp/02-block-dns-egress.log`); the success line `dnat 53 -> <IP>` carries the same IP.
 
 ## Why aren't `in-addr.arpa` / LAN discovery queries blocked?
 
