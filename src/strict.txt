@@ -102,3 +102,4 @@ kic.recommend.lgtvcommon.com # STRICT: weak — recommendations/promos — kic (
 kic.service.lgtvcommon.com # STRICT: weak — common-services endpoint, store interplay unproven — kic (Korea) datacentre cluster; DNS-verified 2026-09-12; bare service.lgtvcommon.com is now NXDOMAIN, so this is where the service lives
 kic.tv.wiselg.com # STRICT: weak — TV telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
 kic.wiseconfig.lgtvcommon.com # STRICT: weak — cloud-config telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
+discovery.meethue.com # STRICT: interop: Philips Hue cloud bridge discovery (N-UPnP), called by LG TV background discovery; reported on webOS 25 (repo issue #12, @rugk); observed on G1 (webOS 6) 2026-06-11..2026-09-14 (pcap frame 25919: TLS SNI to 34.117.13.189:443; AGH ~4,100 lookups, ~5-min cadence); cloud discovery only, local mDNS unaffected; breakage unverified (no Hue bridge)

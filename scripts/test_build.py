@@ -67,6 +67,29 @@ class TestParseSrc(unittest.TestCase):
                     build.parse_src("strict.txt")
                 self.assertIn("not an LG family hostname", str(ctx.exception))
 
+    def test_meethue_accepted(self):
+        # meethue.com (Philips Hue cloud discovery) allowlisted 2026-09-14, issue #12.
+        self.write("strict.txt", (
+            "discovery.meethue.com # STRICT: interop: Philips Hue cloud bridge discovery "
+            "(N-UPnP), called by LG TV background discovery; reported on webOS 25 "
+            "(repo issue #12, @rugk); observed on G1 (webOS 6) 2026-06-11..2026-09-14 "
+            "(pcap frame 25919: TLS SNI to 34.117.13.189:443; AGH ~4,100 lookups, "
+            "~5-min cadence); cloud discovery only, local mDNS unaffected; "
+            "breakage unverified (no Hue bridge)\n"
+        ))
+        self.assertEqual(build.parse_src("strict.txt"), ["discovery.meethue.com"])
+
+    def test_meethue_near_misses_rejected(self):
+        # Label-boundary exactness for the meethue.com allowlist entry (same
+        # class as the ueiwsp.com near-misses): bare-string suffix collisions
+        # and leading-label-only matches must not pass.
+        for host in ("notmeethue.com", "meethue.com.evil.example"):
+            with self.subTest(host=host):
+                self.write("strict.txt", f"{host} # STRICT: near-miss fixture\n")
+                with self.assertRaises(ValueError) as ctx:
+                    build.parse_src("strict.txt")
+                self.assertIn("not an LG family hostname", str(ctx.exception))
+
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
         with self.assertRaises(ValueError):
