@@ -88,6 +88,11 @@ def rewrite_content(text: str, region: str) -> tuple[str, int]:
         out.append(new_line)
     if not marker_added:  # header-only content
         out.append(LOCALIZED_MARKER.format(region=region))
+    # De-duplication above can drop lines, so the source header's count no
+    # longer describes this file. Correct it rather than ship a header that
+    # contradicts its own body.
+    out = [f"# Entries: {len(seen)}" if line.startswith("# Entries:") else line
+           for line in out]
     return "\n".join(out) + "\n", rewritten
 
 

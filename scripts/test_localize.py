@@ -84,14 +84,23 @@ class TestRewriteContent(unittest.TestCase):
         entries = [l for l in out.splitlines() if l and not l.startswith("#")]
         self.assertEqual(entries, list(FALSE_POSITIVES))
 
-    def test_header_marker_added_and_entries_line_unchanged(self):
+    def test_header_marker_added_and_entries_line_corrected(self):
         out, _ = localize.rewrite_content(HEADER + "de.nextlgsdp.com\n", "fr")
         lines = out.splitlines()
         self.assertEqual(lines[4], MARKER_FR)
         self.assertEqual(lines[5], "")
         self.assertEqual(lines[6], "fr.nextlgsdp.com")
-        self.assertIn("# Entries: 3", out)
+        self.assertIn("# Entries: 1", out)
         self.assertEqual(out.count("# Localized:"), 1)
+
+    def test_entries_header_matches_body_after_collision(self):
+        # de./us. twins collapse onto one name, so a header carried over from
+        # the source file over-counts by exactly the lines the rewrite dropped.
+        out, _ = localize.rewrite_content(
+            HEADER + "de.nextlgsdp.com\nus.nextlgsdp.com\neic.lgtviot.com\n", "fr")
+        entries = [l for l in out.splitlines() if l and not l.startswith("#")]
+        self.assertEqual(len(entries), 2)
+        self.assertIn(f"# Entries: {len(entries)}", out)
 
     def test_all_known_region_hostnames_rewritten(self):
         text = "".join(f"{h}\n" for h in REGION_HOSTS)
