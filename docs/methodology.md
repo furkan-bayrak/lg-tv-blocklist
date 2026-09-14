@@ -212,6 +212,9 @@ What counts as evidence:
 - Suggested tier.
 - For breakage reports: the symptom.
 
+Certificate evidence for the datacentre-cluster endpoints
+(`eic.`/`aic.`/`kic.`): [certificates.md](certificates.md).
+
 ## Known limitations
 
 - **One model, one region.** The audit covered an LG G1 on a German network.
