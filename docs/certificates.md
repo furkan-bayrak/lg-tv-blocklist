@@ -2,7 +2,9 @@
 
 TLS evidence for the datacentre-cluster entries (`eic.`, `aic.`, `kic.`): does a
 live service answer on port 443 with a certificate valid for that exact
-hostname? Checked **2026-09-13**: 62 of 65 do.
+hostname? Checked **2026-09-13**: 62 of 65 do. The set spans both tiers: 60
+endpoints live in `src/strict.txt`, 5 in `src/safe.txt`, so the totals below
+cover the union — a `strict.txt`-only grep shows 60, not 65.
 
 All of it is public data. DNS records are queryable by anyone, and a TLS
 certificate is what a server presents to every client that connects. Nothing
