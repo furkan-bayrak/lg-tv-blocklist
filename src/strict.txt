@@ -45,10 +45,10 @@ lgshopsvc.lgappstv.com # STRICT: weak — LG Shop service (SDX); community repor
 # Found by taking each eic.* entry's stem and probing the other clusters over
 # DNS-over-HTTPS; every entry below returned NOERROR with an A record on
 # 2026-09-12 (cross-checked on Google and Cloudflare).
-# Evidence grade: DNS existence, not traffic observation. Every entry here is
-# therefore `weak` by policy, including twins whose eic. sibling is SAFE-tier
-# observed: an Americas/Korea querylog or capture is what promotes one to
-# safe.txt, nothing less.
+# Evidence grade: DNS existence, not traffic observation. Twins inherit their
+# sibling's severity; only twins whose sole evidence is DNS on a SAFE/weak
+# lineage are `weak`: an Americas/Korea querylog or capture is what promotes
+# one to safe.txt, nothing less.
 aic-gfts.lge.com # STRICT: file transfer service — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
 aic-ngfts.lge.com # STRICT: firmware/content file transfer — aic (Americas) datacentre cluster; DNS-verified 2026-09-12
 aic-ngfts.nextlgsdp.com # STRICT: update transfer on SDP family — aic (Americas) datacentre cluster; DNS-verified 2026-09-12

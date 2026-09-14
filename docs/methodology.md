@@ -173,8 +173,7 @@ To check a family, take the stem and probe each prefix with both separators
 for p in eic aic kic; do
   for sep in . -; do
     host="$p$sep<stem>"
-    printf '%-40s %s
-' "$host"       "$(curl -s "https://dns.google/resolve?name=$host&type=A" | grep -o '"Status":[0-9]*')"
+    printf '%-40s %s\n' "$host"       "$(curl -s "https://dns.google/resolve?name=$host&type=A" | grep -o '"Status":[0-9]*')"
   done
 done
 ```

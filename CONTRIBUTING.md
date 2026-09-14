@@ -26,8 +26,10 @@ When you add or verify a clustered host, probe all three and include every one
 that resolves — submitting only the cluster your own TV uses is how this list
 came to be missing 53 live endpoints. A twin found by probing is DNS-existence
 evidence, so it belongs in `strict.txt` tagged `weak` even where its sibling is
-SAFE: `eic.lgtviot.com` is SAFE because it was observed, while `aic.`/`kic.`
-stay `weak` until a querylog or capture from that continent lands. See
+SAFE — unless the twin's sibling is a non-weak STRICT entry, in which case the
+twin inherits that severity: `eic.lgtviot.com` is SAFE because it was observed,
+while `aic.`/`kic.` stay `weak` until a querylog or capture from that continent
+lands. See
 [methodology](docs/methodology.md#dns-log-correlation).
 New region prefixes must also be added to `SOURCE_REGION_LABELS` in
 `scripts/localize.py`; otherwise `localize.py` silently leaves those entries

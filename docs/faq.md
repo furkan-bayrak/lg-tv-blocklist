@@ -48,6 +48,8 @@ Confidence varies — that is why this is a starting point, not gospel. STRICT a
 
 **Keep these blocked** even if the store keeps working: the `snu`/`su`/`su-ssl`/`ngfts`/`gfts` firmware-OTA and file-transfer family (not required for store function — if store thumbnails ever break, whitelist only the exact host from your log), `lss.lgthinq.com`, `bss.lgechannel.com`, plus the ad/telemetry hosts that STRICT already includes from SAFE: `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` family.
 
+**ACR beacon:** the bare `cdpbeacon.lgtvcommon.com` is dead (NXDOMAIN, annotated DECOMMISSIONED) — its live successor twins, `eic.`/`aic.`/`kic.cdpbeacon.lgtvcommon.com`, are STRICT-only and tagged `weak`, so SAFE currently has no ACR-beacon coverage. It returns to SAFE if and when traffic observation lands.
+
 **How to verify on your network (AdGuard Home):**
 
 1. Add the exceptions above as custom filtering rules (Filters → Custom filtering rules).
