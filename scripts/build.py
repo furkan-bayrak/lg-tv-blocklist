@@ -23,7 +23,8 @@ LG_SUFFIXES = ("lge.com", "lgappstv.com", "lgtvsdp.com", "lgtvcommon.com",
                "lgsmartplatform.com", "lgeapi.com", "wiselg.com",
                "lgechannel.com", "adtvc.app", "adsdtvc.com",
                "lgunifiedsmart.com", "lggalleryplus.com", "lgsmartweb.com",
-               "ueiwsp.com")
+               "ueiwsp.com",
+               "meethue.com")
 
 LICENSE_LINE = "# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
 
