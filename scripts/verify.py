@@ -85,7 +85,10 @@ def resolve(name: str, provider: str = "google", rtype: str = "A",
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return classify(json.loads(resp.read().decode("utf-8")))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError,
+            UnicodeDecodeError) as exc:
+        # UnicodeDecodeError (a ValueError): a malformed body must not abort
+        # the whole run -- classify this entry as ERROR like any other failure.
         return ERROR, f"{type(exc).__name__}: {exc}"
 
 
@@ -170,6 +173,17 @@ def render(results: dict[str, tuple[str, str]], cross_check: bool) -> str:
     return "\n".join(lines)
 
 
+def worker_count(value: str) -> int:
+    """argparse type for --workers: a positive int, clean error otherwise."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an integer: {value!r}") from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {n}")
+    return n
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Verify blocklist entries still resolve, via DNS-over-HTTPS")
@@ -179,11 +193,20 @@ def main(argv: list[str] | None = None) -> int:
                         help="write a markdown report here instead of stdout")
     parser.add_argument("--cross-check", action="store_true",
                         help="confirm every non-LIVE result on a second provider")
-    parser.add_argument("--workers", type=int, default=12,
+    parser.add_argument("--workers", type=worker_count, default=12,
                         help="concurrent lookups (default: 12)")
     parser.add_argument("--fail-on-dead", action="store_true",
                         help="exit 1 if any entry is NXDOMAIN")
     args = parser.parse_args(argv)
+
+    # This tool never edits lists: refuse an --out that would overwrite the
+    # input file or anything under lists/ before any lookup or write happens.
+    if args.out:
+        target = args.out.resolve()
+        if target == args.file.resolve() or (ROOT / "lists").resolve() in target.parents:
+            print(f"ERROR: refusing --out {args.out}: it would overwrite the input "
+                  "file or a shipped list", file=sys.stderr)
+            return 2
 
     if not args.file.is_file():
         print(f"ERROR: no such file: {args.file} (run build.py build first)",

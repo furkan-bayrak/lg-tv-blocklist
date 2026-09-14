@@ -5,10 +5,13 @@ Deliberately offline: verify.py's judgement lives in classify(), which is a
 pure function over a DoH payload, so the logic that decides "this entry is
 dead" is tested without a network round-trip. Nothing here makes a request.
 """
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify  # noqa: E402  (after sys.path fix)
@@ -93,6 +96,48 @@ class TestRender(unittest.TestCase):
         out = verify.render({"live.lge.com": (verify.LIVE, "1.2.3.4")}, cross_check=False)
         self.assertNotIn("## NXDOMAIN", out)
         self.assertIn("--cross-check", out)
+
+
+class TestMainExitCodes(unittest.TestCase):
+    """main()'s exit-code contract: 0 clean, 1 dead with --fail-on-dead, 2 bad input."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.list_file = Path(tmp.name) / "list.txt"
+        self.list_file.write_text("live.lge.com\n", encoding="utf-8")
+
+    def run_main(self, argv, results):
+        with mock.patch.object(verify, "verify", return_value=results), \
+             contextlib.redirect_stdout(io.StringIO()), \
+             contextlib.redirect_stderr(io.StringIO()):
+            return verify.main(argv)
+
+    def test_exit_zero_when_nothing_dead(self):
+        rc = self.run_main(["--file", str(self.list_file)],
+                           {"live.lge.com": (verify.LIVE, "1.2.3.4")})
+        self.assertEqual(rc, 0)
+
+    def test_fail_on_dead_exits_one(self):
+        rc = self.run_main(["--file", str(self.list_file), "--fail-on-dead"],
+                           {"dead.lge.com": (verify.NXDOMAIN, "name does not exist")})
+        self.assertEqual(rc, 1)
+
+    def test_refuses_out_inside_lists_dir(self):
+        rc = self.run_main(["--file", str(self.list_file), "--out",
+                            str(verify.ROOT / "lists" / "strict-domains.txt")], {})
+        self.assertEqual(rc, 2)
+
+    def test_refuses_out_equal_to_input(self):
+        rc = self.run_main(["--file", str(self.list_file), "--out",
+                            str(self.list_file)], {})
+        self.assertEqual(rc, 2)
+
+    def test_workers_zero_is_a_clean_argparse_error(self):
+        with contextlib.redirect_stderr(io.StringIO()), \
+             self.assertRaises(SystemExit) as caught:
+            verify.main(["--file", str(self.list_file), "--workers", "0"])
+        self.assertEqual(caught.exception.code, 2)
 
 
 if __name__ == "__main__":
