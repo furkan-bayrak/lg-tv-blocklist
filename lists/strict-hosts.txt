@@ -1,12 +1,34 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-09-14 06:14 UTC
-# Entries: 63
+# Updated: 2026-09-14 06:49 UTC
+# Entries: 116
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 0.0.0.0 a.lgappstv.com
 0.0.0.0 ad.lgappstv.com
 0.0.0.0 ads.lgtvcommon.com
 0.0.0.0 adsdtvc.com
+0.0.0.0 aic-gfts.lge.com
+0.0.0.0 aic-ngfts.lge.com
+0.0.0.0 aic-ngfts.nextlgsdp.com
+0.0.0.0 aic-ngfts.tv.wiselg.com
+0.0.0.0 aic-ocp.lgtviot.com
+0.0.0.0 aic-op-lss.lgthinq.com
+0.0.0.0 aic.ads.lgtvcommon.com
+0.0.0.0 aic.api.lgtviot.com
+0.0.0.0 aic.cdpbeacon.lgtvcommon.com
+0.0.0.0 aic.cdplauncher.lgtvcommon.com
+0.0.0.0 aic.homeprv.lgtvcommon.com
+0.0.0.0 aic.lgchhomeapp.lgtvcommon.com
+0.0.0.0 aic.lgeapi.com
+0.0.0.0 aic.lggalleryplus.com
+0.0.0.0 aic.lgshopsvc.lgappstv.com
+0.0.0.0 aic.lgthinq.com
+0.0.0.0 aic.lgtviot.com
+0.0.0.0 aic.nudge.lgtvcommon.com
+0.0.0.0 aic.recommend.lgtvcommon.com
+0.0.0.0 aic.service.lgtvcommon.com
+0.0.0.0 aic.tv.wiselg.com
+0.0.0.0 aic.wiseconfig.lgtvcommon.com
 0.0.0.0 am.lge.com
 0.0.0.0 bss.lgechannel.com
 0.0.0.0 ca.nextlgsdp.com
@@ -19,14 +41,24 @@
 0.0.0.0 discovery.meethue.com
 0.0.0.0 eic-gfts.lge.com
 0.0.0.0 eic-ngfts.lge.com
+0.0.0.0 eic-ngfts.nextlgsdp.com
 0.0.0.0 eic-ngfts.tv.wiselg.com
 0.0.0.0 eic-ocp.lgtviot.com
 0.0.0.0 eic-op-lss.lgthinq.com
+0.0.0.0 eic.ads.lgtvcommon.com
 0.0.0.0 eic.api.lgtviot.com
+0.0.0.0 eic.cdpbeacon.lgtvcommon.com
 0.0.0.0 eic.cdplauncher.lgtvcommon.com
+0.0.0.0 eic.homeprv.lgtvcommon.com
 0.0.0.0 eic.lgchhomeapp.lgtvcommon.com
+0.0.0.0 eic.lgeapi.com
+0.0.0.0 eic.lggalleryplus.com
+0.0.0.0 eic.lgshopsvc.lgappstv.com
+0.0.0.0 eic.lgthinq.com
 0.0.0.0 eic.lgtviot.com
 0.0.0.0 eic.nudge.lgtvcommon.com
+0.0.0.0 eic.recommend.lgtvcommon.com
+0.0.0.0 eic.service.lgtvcommon.com
 0.0.0.0 eic.tv.wiselg.com
 0.0.0.0 eic.wiseconfig.lgtvcommon.com
 0.0.0.0 fms.lgunifiedsmart.com
@@ -35,6 +67,27 @@
 0.0.0.0 ig.lge.com
 0.0.0.0 info.lgsmartad.com
 0.0.0.0 initscr.lge.com
+0.0.0.0 kic-gfts.lge.com
+0.0.0.0 kic-ngfts.lge.com
+0.0.0.0 kic-ngfts.nextlgsdp.com
+0.0.0.0 kic-ngfts.tv.wiselg.com
+0.0.0.0 kic-ocp.lgtviot.com
+0.0.0.0 kic-op-lss.lgthinq.com
+0.0.0.0 kic.ads.lgtvcommon.com
+0.0.0.0 kic.api.lgtviot.com
+0.0.0.0 kic.cdpbeacon.lgtvcommon.com
+0.0.0.0 kic.cdplauncher.lgtvcommon.com
+0.0.0.0 kic.homeprv.lgtvcommon.com
+0.0.0.0 kic.lgchhomeapp.lgtvcommon.com
+0.0.0.0 kic.lgeapi.com
+0.0.0.0 kic.lggalleryplus.com
+0.0.0.0 kic.lgthinq.com
+0.0.0.0 kic.lgtviot.com
+0.0.0.0 kic.nudge.lgtvcommon.com
+0.0.0.0 kic.recommend.lgtvcommon.com
+0.0.0.0 kic.service.lgtvcommon.com
+0.0.0.0 kic.tv.wiselg.com
+0.0.0.0 kic.wiseconfig.lgtvcommon.com
 0.0.0.0 lgappstv.com
 0.0.0.0 lge.com
 0.0.0.0 lgeapi.com
