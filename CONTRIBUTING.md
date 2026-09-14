@@ -16,6 +16,16 @@ a domain, collect evidence:
 If you only have a hunch, open an issue with the `new-domain` template
 instead of a PR — maintainers can verify from their own probes.
 
+**Check the domain still exists.** `python scripts/verify.py` resolves every
+shipped entry over DNS-over-HTTPS and reports which are NXDOMAIN, so a dead
+host gets annotated deliberately instead of sitting in the list unnoticed. DoH
+rather than a plain lookup is the whole point: you run a DNS blocker that
+sinkholes these exact names, so `dig`/`nslookup` hands your own blocklist back
+to you with every entry apparently dead. Add `--cross-check` to confirm each
+finding on a second provider, and `--fail-on-dead` to exit non-zero. It needs
+network access, so it is not part of `build.py check`; its own logic is tested
+offline by `scripts/test_verify.py`.
+
 **Regional query logs welcome:** include the region, timestamp, and client
 (TV model/name). Region-prefixed entries (`de.`, `us.`) can be extended with
 evidence from your region — regional coverage is the main gap in this list.
