@@ -58,7 +58,7 @@ Confidence varies — that is why this is a starting point, not gospel. STRICT a
 1. Add the exceptions above as custom filtering rules (Filters → Custom filtering rules).
 2. Query log → filter by the TV's IP → clear.
 3. On the TV: open the store, browse, install a new app, update an app, reboot.
-4. Look for blocked entries under `lge.com` / `lgeapi.com` / `nextlgsdp.com` / `lgappstv.com` / `lgtvsdp.com` / `lgtvcommon.com` that coincide with something failing — whitelist only those exact hosts.
+4. Look for blocked entries under `lge.com` / `lgeapi.com` / `nextlgsdp.com` / `lgappstv.com` / `lgtvcommon.com` that coincide with something failing — whitelist only those exact hosts.
 5. Let it run for a day and confirm `cdpbeacon.lgtvcommon.com` stays blocked and the store still works.
 6. Report your final set via the issue tracker — verified sets get folded into this recipe with credit.
 
