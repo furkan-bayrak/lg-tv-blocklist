@@ -44,7 +44,7 @@ Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-bl
 ## The two caveats
 
 1. **LG hardcodes public resolvers.** webOS daemons have been observed using `8.8.8.8` / `1.1.1.1` directly, and can use encrypted DNS, so a DNS blocklist alone is not a guarantee. Redirect outbound port 53 to your resolver and block port 853 at your firewall; on a rooted TV the [DNS-egress hook](examples/webos-hooks/) does it on-device. A hosts file alone is not enough either — some daemons ignore it and query the TV's built-in DNS resolver directly.
-2. **Exact names, not wildcards.** Entries name specific hosts, so whole-family coverage depends on enumeration. If your TV talks to an LG domain that is not on the list, [open a new-domain issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) — that is exactly how the list grows.
+2. **Exact names, not wildcards.** Entries name specific hosts, so whole-family coverage depends on enumeration. Two exceptions to the exact-name rule: the shipped `-adblock.txt` lists match subdomains via `||name^`, and the optional `-wildcard.txt` regex files generalise audited region prefixes for Pi-hole. If your TV talks to an LG domain that is not on the list, [open a new-domain issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) — that is exactly how the list grows.
 
 ## FAQ
 

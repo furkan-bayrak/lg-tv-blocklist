@@ -107,6 +107,46 @@ trailing dot, no wildcards — this list is exact-name (see [Format
 semantics](#format-semantics)). Weak-evidence entries are tagged `weak` and
 belong in strict.txt by policy.
 
+One further tag is structural rather than evidential. `[REGION-SCOPED]`
+anywhere in the annotation marks an entry whose family LG also serves behind
+two-letter country prefixes (`de.lgeapi.com`, `br.lgeapi.com`, …):
+
+    de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry [REGION-SCOPED]
+
+It feeds the optional `lists/*-wildcard.txt` regex files and nothing else. The
+six shipped lists are byte-identical with every tag deleted, and a test asserts
+exactly that. Rules:
+
+- Tag only an entry that already carries its own evidence and annotation. The
+  tag adds regional reach to a host that was audited; it never introduces a
+  family, and no untagged hostname is ever generalised. Position in the
+  annotation is free — entries grow a trailing `| DECOMMISSIONED …` note over
+  time, and that must not collide with the tag.
+- The first label must be a two-letter code to generalise. A two-letter label
+  is **not** proof of one: `ad.lgappstv.com` is an ad host on the store CDN and
+  `su.lge.com` is the OTA server, so neither is tagged — tagging them would
+  emit a regex covering every two-letter sibling of the store CDN and of the
+  update server.
+- **Nothing tagged in `safe.txt` may reach a host listed outside SAFE.** The
+  build compiles each SAFE regex line and errors if it matches any STRICT entry
+  or zone apex — `su.lge.com` and `am.`/`ig..lge.com` are two letters wide, so a
+  tag on an `lge.com` host would otherwise put the OTA server behind a SAFE
+  rule. Such a family belongs in `strict.txt`, or untagged.
+- **Store carve-out (build-enforced for `lgtvsdp.com`, judgement for the rest):**
+  do not tag a family whose region twins are listed as store-comms exceptions in
+  [the FAQ's store allowlist](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).
+  `us.lgtvsdp.com` is audited and shipped, but `@@||de.lgtvsdp.com^` is carved
+  out there, so `lgtvsdp.com` carries no tag — the build hard-errors if you try
+  (`FORBIDDEN_REGION_FAMILIES`).
+- `zones.txt` is scanned only to reject tags: its entries are apexes with
+  nothing to generalise, and whole-subtree reach in the regex files comes from
+  that file alone. A tag there is a build error, never a no-op.
+- A malformed tag, a duplicate tag, a tag on a line with no entry, a tag on an entry with no
+  `SAFE:`/`STRICT:`/`ZONE:` annotation, a tag on a host with no two-letter
+  first label, or a forbidden family are all hard build errors with a line
+  number. Silently skipping one would quietly drop a family's regional
+  coverage, or quietly invent one.
+
 ## Workflow
 
 1. Fork, branch off `main`.

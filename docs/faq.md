@@ -109,6 +109,8 @@ For exact-name use outside Germany, localize the built lists with `python script
 
 If you have that query log, it is exactly the evidence needed to extend the `de.*`/`us.*` entries upstream — see [CONTRIBUTING](../CONTRIBUTING.md).
 
+**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code — `^[a-z][a-z]\.nextlgsdp\.com$` covers `fr.`, `br.` and `jp.` alike — and matches two-letter prefixes only, so the family apex and longer labels such as `ngfts.` (updates) and `ibs.` (billing) stay reachable. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. Both go in Pi-hole's **Regex filters**, never an adlist — an adlist ignores every line and reports no error — and AdGuard Home / uBlock Origin users need neither. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file. One warning for `strict-wildcard.txt`: whole-zone blocking is new if you were on the exact-name lists, so read [keeping the Content Store](#i-want-strict-but-keep-the-lg-content-store) first — and note its `@@||host^` exceptions are AdGuard syntax; in Pi-hole an allowlist entry is an exact domain or its own regex.
+
 ## Why is a domain missing / how do I report a false positive?
 
 See [CONTRIBUTING](../CONTRIBUTING.md) — the evidence bar is the point of this project. Use the issue templates.
