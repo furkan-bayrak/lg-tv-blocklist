@@ -1,0 +1,48 @@
+# Title: LG TV Blocklist (strict) — Pi-hole regex filters
+# Updated: 2026-09-16 07:14 UTC
+# Entries: 10
+#
+# PASTE THESE INTO PI-HOLE'S REGEX FILTERS, NOT AN ADLIST. An adlist takes
+# exact domains only and silently ignores every line in this file, leaving
+# you unprotected with no error shown.
+#   Pi-hole UI: Domains -> Add domain -> Regex   (or: pihole --regex '<line>')
+# AdGuard Home and uBlock Origin users do not need this file at all: the
+# strict-adblock.txt list already wildcards via ||name^.
+#
+# Two kinds of line, both derived from src/ entries that already carry their
+# own evidence and annotation:
+#   ^<two letters>\.family$  one audited host's family, generalised to the
+#                           country prefixes LG serves it from. Two-letter
+#                           prefixes ONLY: it never matches the family apex
+#                           or a longer label, so update and billing hosts
+#                           under the same family stay reachable.
+#   (\.|^)zone$            a whole-zone anchor from src/zones.txt, whose
+#                           documented purpose is exactly that. STRICT only;
+#                           this file has none when it is the SAFE tier.
+# Neither kind puts a hostname into the six shipped lists.
+#
+# WIDENING WARNING: the zone lines below block whole zones -- every
+# hostname under each anchor, including hostnames this project has
+# never listed or audited. If you want exact-host blocking, stay on
+# lists/strict-domains.txt (or lists/strict-hosts.txt) and skip this
+# file. Before enabling it, read the store carve-out in docs/faq.md,
+# "I want STRICT but keep the LG Content Store": it is written for
+# exactly this reach.
+#
+# Optional and additive: this is not one of the six shipped lists, and never
+# subscribing to it, or deleting it, leaves coverage exactly as
+# strict-domains.txt and its siblings give it today. It is also not a
+# replacement for them -- audited hosts with no region prefix and no zone
+# anchor have no line here, so keep the list subscribed.
+# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+^[a-z][a-z]\.info\.lgsmartad\.com$
+(\.|^)lge\.com$
+(\.|^)lgeapi\.com$
+(\.|^)lgsmartplatform\.com$
+(\.|^)lgthinq\.com$
+(\.|^)lgtvcommon\.com$
+(\.|^)lgtviot\.com$
+(\.|^)lgunifiedsmart\.com$
+(\.|^)nextlgsdp\.com$
+(\.|^)wiselg\.com$
