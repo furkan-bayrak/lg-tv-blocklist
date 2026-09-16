@@ -56,12 +56,17 @@ A_RECORD = 1
 LIVE, NO_A, NXDOMAIN, ERROR = "LIVE", "NO_A", "NXDOMAIN", "ERROR"
 
 
-def classify(payload: dict) -> tuple[str, str]:
+def classify(payload: object) -> tuple[str, str]:
     """Map a DoH JSON response to (classification, detail). Pure -- no network.
 
     Kept separate from the fetch so the interesting logic is testable without
     touching the network.
     """
+    if not isinstance(payload, dict):
+        # Valid JSON is not necessarily an object: a captive portal or a wrong
+        # endpoint can answer with [] or a bare string. Inconclusive -- never a
+        # verdict about the name.
+        return ERROR, f"non-object DoH response: {type(payload).__name__}"
     status = payload.get("Status")
     if status == RCODE_NXDOMAIN:
         return NXDOMAIN, "name does not exist"
@@ -86,9 +91,13 @@ def resolve(name: str, provider: str = "google", rtype: str = "A",
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return classify(json.loads(resp.read().decode("utf-8")))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError,
-            UnicodeDecodeError) as exc:
+            UnicodeDecodeError, AttributeError, TypeError) as exc:
         # UnicodeDecodeError (a ValueError): a malformed body must not abort
         # the whole run -- classify this entry as ERROR like any other failure.
+        # AttributeError/TypeError: a JSON payload of an unexpected shape (e.g.
+        # a captive portal returning [] or nested types that are not objects)
+        # must not crash the run either; classify() handles the plain
+        # non-object case, this catch is the backstop for the rest.
         return ERROR, f"{type(exc).__name__}: {exc}"
 
 

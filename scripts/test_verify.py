@@ -56,6 +56,37 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(verify.classify({})[0], verify.ERROR)
 
 
+class TestResolveMalformedJson(unittest.TestCase):
+    """A captive portal (or a wrong endpoint) can answer with valid JSON that
+    is not a DoH object -- e.g. []. That must become an ERROR entry, never an
+    uncaught crash that aborts the whole verify run."""
+
+    def resolve_with_body(self, body: bytes):
+        resp = mock.MagicMock()
+        resp.read.return_value = body
+        resp.__enter__.return_value = resp
+        with mock.patch.object(verify.urllib.request, "urlopen", return_value=resp):
+            return verify.resolve("dead.lge.com")
+
+    def test_non_object_json_becomes_an_error_entry(self):
+        for body in (b"[]", b'["a"]', b'"captive portal"', b"42", b"null"):
+            with self.subTest(body=body):
+                cls, detail = self.resolve_with_body(body)
+                self.assertEqual(cls, verify.ERROR)
+                self.assertIn("non-object", detail)
+
+    def test_other_malformed_shapes_do_not_abort(self):
+        # "Answer" as an object instead of a list raises AttributeError inside
+        # classify(); the resolve() backstop must classify it, not propagate.
+        cls, _ = self.resolve_with_body(b'{"Status": 0, "Answer": {"type": 1}}')
+        self.assertEqual(cls, verify.ERROR)
+
+    def test_normal_payload_still_classified(self):
+        cls, detail = self.resolve_with_body(b'{"Status": 3}')
+        self.assertEqual(cls, verify.NXDOMAIN)
+        self.assertIn("does not exist", detail)
+
+
 class TestReadEntries(unittest.TestCase):
     def parse(self, text):
         with tempfile.TemporaryDirectory() as td:
