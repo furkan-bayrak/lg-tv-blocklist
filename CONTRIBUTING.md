@@ -132,18 +132,20 @@ exactly that. Rules:
   or zone apex — `su.lge.com` and `am.`/`ig..lge.com` are two letters wide, so a
   tag on an `lge.com` host would otherwise put the OTA server behind a SAFE
   rule. Such a family belongs in `strict.txt`, or untagged.
-- **Judgement the build cannot make for you:** do not tag a family whose region
-  twins are listed as store-comms exceptions in
+- **Store carve-out (build-enforced for `lgtvsdp.com`, judgement for the rest):**
+  do not tag a family whose region twins are listed as store-comms exceptions in
   [the FAQ's store allowlist](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).
   `us.lgtvsdp.com` is audited and shipped, but `@@||de.lgtvsdp.com^` is carved
-  out there, so `lgtvsdp.com` carries no tag.
+  out there, so `lgtvsdp.com` carries no tag — the build hard-errors if you try
+  (`FORBIDDEN_REGION_FAMILIES`).
 - `zones.txt` is scanned only to reject tags: its entries are apexes with
   nothing to generalise, and whole-subtree reach in the regex files comes from
   that file alone. A tag there is a build error, never a no-op.
 - A malformed tag, a duplicate tag, a tag on a line with no entry, a tag on an entry with no
-  `SAFE:`/`STRICT:`/`ZONE:` annotation, and a tag on a host with no two-letter
-  first label are all hard build errors with a line number. Silently skipping
-  one would quietly drop a family's regional coverage, or quietly invent one.
+  `SAFE:`/`STRICT:`/`ZONE:` annotation, a tag on a host with no two-letter
+  first label, or a forbidden family are all hard build errors with a line
+  number. Silently skipping one would quietly drop a family's regional
+  coverage, or quietly invent one.
 
 ## Workflow
 
