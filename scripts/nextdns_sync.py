@@ -414,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # The existing denylist is read only when it can be: a key, a profile and
     # no --no-fetch. Without it the preview lists the file side only.
-    existing: set[str] | None = None
+    existing: dict[str, bool] | None = None
     if not args.no_fetch and key and args.profile:
         try:
             existing = fetch_denylist(args.profile, key, args.timeout)
