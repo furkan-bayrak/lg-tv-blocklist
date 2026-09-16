@@ -1,5 +1,5 @@
 # Title: LG TV Blocklist (safe) — Pi-hole regex filters
-# Updated: 2026-09-16 08:29 UTC
+# Updated: 2026-09-16 10:05 UTC
 # Entries: 3
 #
 # PASTE THESE INTO PI-HOLE'S REGEX FILTERS, NOT AN ADLIST. An adlist takes
