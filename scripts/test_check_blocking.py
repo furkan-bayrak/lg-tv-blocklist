@@ -401,10 +401,34 @@ class TestClassifyLocal(unittest.TestCase):
             self.verdict((check_blocking.L_ANSWERED, "93.184.216.34"))[0],
             check_blocking.RESOLVES)
 
-    def test_sinkholed_is_blocked(self):
-        self.assertEqual(
-            self.verdict((check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"))[0],
-            check_blocking.BLOCKED)
+    def test_sinkholed_with_a_resolving_cross_check_is_blocked(self):
+        verdict, detail = self.verdict(
+            (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"),
+            (check_blocking.X_RESOLVES, "93.184.216.34"))
+        self.assertEqual(verdict, check_blocking.BLOCKED)
+        self.assertIn("cross-check", detail)
+
+    def test_sinkholed_without_cross_check_is_not_blocked(self):
+        # A wildcard-null resolver answers the same way for DEAD names, so a
+        # null answer without ground truth must never become BLOCKED.
+        verdict, _ = self.verdict((check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"))
+        self.assertEqual(verdict, check_blocking.ERROR)
+        self.assertNotEqual(verdict, check_blocking.BLOCKED)
+
+    def test_sinkhole_on_both_sides_is_dead(self):
+        for cross in ((check_blocking.X_NXDOMAIN, "NXDOMAIN"),
+                      (check_blocking.X_EXISTS, "no A record")):
+            with self.subTest(cross=cross):
+                verdict, _ = self.verdict(
+                    (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"), cross)
+                self.assertEqual(verdict, check_blocking.DEAD)
+
+    def test_sinkholed_with_failed_cross_check_is_not_blocked(self):
+        verdict, _ = self.verdict(
+            (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"),
+            (check_blocking.X_ERROR, "URLError: boom"))
+        self.assertEqual(verdict, check_blocking.ERROR)
+        self.assertNotEqual(verdict, check_blocking.BLOCKED)
 
     def test_nxdomain_with_cross_check_resolves_is_blocked(self):
         verdict, detail = self.verdict(
@@ -493,6 +517,19 @@ class TestCheckOne(unittest.TestCase):
             verdict = check_blocking.check_one("x.example", SERVER, 53, 1.0, "google")
         cross.assert_called_once_with("x.example", "google", 1.0)
         self.assertEqual(verdict[0], check_blocking.BLOCKED)
+
+    def test_sinkholed_triggers_the_cross_check(self):
+        # A null answer alone is ambiguous (wildcard-null vs deliberate
+        # sinkhole), so the cross-check must run and have the final say.
+        with mock.patch.object(
+                check_blocking, "query_local",
+                return_value=(check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0")), \
+             mock.patch.object(
+                check_blocking, "cross_lookup",
+                return_value=(check_blocking.X_NXDOMAIN, "NXDOMAIN")) as cross:
+            verdict = check_blocking.check_one("x.example", SERVER, 53, 1.0, "google")
+        cross.assert_called_once_with("x.example", "google", 1.0)
+        self.assertEqual(verdict[0], check_blocking.DEAD)
 
 
 class TestCheckManyAndCounts(unittest.TestCase):

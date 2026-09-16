@@ -20,8 +20,10 @@ Verdicts (one per domain):
                  NOERROR without an A record, or a null/loopback sinkhole --
                  while the DoH cross-check shows the name exists. The block
                  applies on this resolver.
-    DEAD         both the resolver and the cross-check say the name does not
-                 exist. A stale list entry, not evidence of blocking.
+    DEAD         the resolver failed to produce a usable address (NXDOMAIN,
+                 no A record, or only a null/loopback sinkhole) and the
+                 cross-check agrees the name does not resolve. A stale list
+                 entry, not evidence of blocking.
     RESOLVES     the resolver returned a real address. Not blocked by DNS.
     UNREACHABLE  the resolver did not answer within --timeout. This is
                  never reported as BLOCKED: a silent resolver may be down,
@@ -33,7 +35,9 @@ Verdicts (one per domain):
 The DoH cross-check is what makes BLOCKED and DEAD distinguishable, so it is
 ON by default (dns.google). Use --cross-check cloudflare (or 1.1.1.1) to
 switch providers. Without a cross-check result a failing local lookup is
-reported as ERROR, never as BLOCKED.
+reported as ERROR, never as BLOCKED. Sinkholed answers are cross-checked
+too: a wildcard-null resolver answers 0.0.0.0/:: for DEAD names as well, so
+a null answer alone is not a blocking verdict.
 
 Exit codes: 0 the check ran to completion, 1 --expect-blocked was given and
 at least one domain was not confirmed BLOCKED, 2 usage or configuration
@@ -71,8 +75,8 @@ RCODE_NAMES = {1: "FORMERR", 2: "SERVFAIL", 4: "NOTIMP", 5: "REFUSED"}
 BLOCKED, DEAD, RESOLVES, UNREACHABLE, ERROR = (
     "BLOCKED", "DEAD", "RESOLVES", "UNREACHABLE", "ERROR")
 
-# Local resolver outcomes. NXDOMAIN/NO_ANSWER only become a verdict after a
-# cross-check; the rest are already conclusive on their own.
+# Local resolver outcomes. NXDOMAIN/NO_ANSWER/SINKHOLED only become a verdict
+# after a cross-check; the rest are already conclusive on their own.
 L_ANSWERED = "answered"     # NOERROR with at least one real A record
 L_SINKHOLED = "sinkholed"   # NOERROR, only null/loopback addresses
 L_NXDOMAIN = "nxdomain"
@@ -235,20 +239,20 @@ def classify_local(local: tuple[str, str],
     """Merge a local resolver outcome with an optional DoH cross-check.
 
     Pure -- this is where BLOCKED and DEAD are told apart, which is exactly
-    why a local failure without a cross-check result is ERROR, not BLOCKED:
-    NXDOMAIN alone cannot distinguish "my blocker filtered this" from "this
-    host is dead".
+    why a local negative answer without a cross-check result is ERROR, not
+    BLOCKED: NXDOMAIN alone cannot distinguish "my blocker filtered this"
+    from "this host is dead", and a sinkhole answer can come from a
+    wildcard-null resolver just as well as from a blocker.
     """
     state, detail = local
     if state == L_ANSWERED:
         return RESOLVES, f"resolves to {detail}"
-    if state == L_SINKHOLED:
-        return BLOCKED, detail  # a null answer is a deliberate sinkhole
     if state == L_TIMEOUT:
         return UNREACHABLE, detail  # silence is never evidence of filtering
     if state == L_FAILED:
         return ERROR, detail
-    # L_NXDOMAIN or L_NO_ANSWER: a local failure, meaningless without truth.
+    # L_NXDOMAIN, L_NO_ANSWER or L_SINKHOLED: a local negative answer that
+    # is meaningless without ground truth.
     if cross is None:
         return ERROR, f"{detail} locally; no cross-check result to compare with"
     xstate, xdetail = cross
@@ -258,6 +262,8 @@ def classify_local(local: tuple[str, str],
         if state == L_NO_ANSWER:
             return ERROR, ("no A record from the resolver or the cross-check "
                            "(delegated apex or AAAA-only); not a blocking verdict")
+        if state == L_SINKHOLED:
+            return DEAD, f"{detail} locally; no A record via cross-check"
         return BLOCKED, f"{detail} locally; name exists via cross-check"
     if xstate == X_NXDOMAIN:
         if state == L_NXDOMAIN:
@@ -311,7 +317,7 @@ def check_one(domain: str, server: str, port: int, timeout: float,
     """Query one domain locally and, when needed, against DoH ground truth."""
     local = query_local(domain, server, port, timeout)
     cross = None
-    if local[0] in (L_NXDOMAIN, L_NO_ANSWER):
+    if local[0] in (L_NXDOMAIN, L_NO_ANSWER, L_SINKHOLED):
         cross = cross_lookup(domain, cross_provider, timeout)
     return classify_local(local, cross)
 
