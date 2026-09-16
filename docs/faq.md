@@ -1,6 +1,6 @@
 # FAQ
 
-Answers to the questions that come up most often. See the [README](../README.md) for install instructions and tier descriptions, and [CONTRIBUTING.md](../CONTRIBUTING.md#format-semantics) for format semantics.
+Answers to the questions that come up most often. See the [README](../README.md) for tier descriptions, the [install guide](install.md) for step-by-step setup, and [CONTRIBUTING.md](../CONTRIBUTING.md#format-semantics) for format semantics.
 
 ## Which tier should I use?
 
@@ -67,6 +67,25 @@ Because `lge.com` is an umbrella zone: blocking it kills the Content Store, firm
 
 webOS TVs ship with a local stub resolver and hardcoded fallback DNS (`8.8.8.8` / `1.1.1.1`), so they can bypass your LAN DNS. Packet captures on our G1 confirmed the stub ignoring LAN DNS. Fix it at the router, not the TV: NAT-redirect outbound port 53 to your DNS server, and block outbound 853 (DNS-over-TLS) — optionally known DoH endpoints too. On a rooted TV (webosbrew), [`examples/webos-hooks/`](../examples/webos-hooks/) has a ready-made hook that applies the port-53 redirect and the 853 drop on-device. See the README's resolver caveats.
 
+## Can IPv6 bypass my blocklist?
+
+Yes, when your redirect is IPv4-only. The usual setup (see [caveat 1](../README.md#the-two-caveats)) NATs outbound IPv4 port 53 to your resolver and drops 853. A TV with a global IPv6 address does not need IPv4 DNS: if your router advertises DNS servers over IPv6 (RDNSS in its router advertisements), the TV can query those directly over IPv6 and the v4 rules never see the packet. Encrypted DNS over IPv6 (853) slips through the same way.
+
+**How to check:**
+
+- Router admin: does your IPv6 setup advertise DNS servers (look for RDNSS, IPv6 DNS, or an "advertise DNS" option)?
+- Query log: with IPv6 enabled, do the TV's queries still arrive? A TV that is clearly online but never appears in the log is the signature. The query-log step is in the [install guide](install.md#after-install).
+
+**Cheapest fixes, router first:**
+
+1. Point the DNS servers advertised over IPv6 at your resolver's IPv6 address, or turn the IPv6 DNS advertisement off so the TV falls back to IPv4.
+2. Firewall IPv6 udp/tcp 53 and 853 outbound, allowing only your resolver (the v6 twin of the v4 rule).
+3. Disable IPv6 on the LAN, if nothing else on your network needs it.
+
+**Rooted TV:** the [`02-block-dns-egress` hook](../examples/webos-hooks/02-block-dns-egress.sh) already drops IPv6 53 and 853 where `ip6tables` works. Some kernels lack it, and the hook logs a `WARNING:` instead of filtering; check `/var/log/02-block-dns-egress.log` and the [hook caveats](../examples/webos-hooks/README.md#caveats).
+
+**Honest note:** the fixes above depend on your router, and our own G1 could not test them: its IPv6 guard hit the no-`ip6tables` case, so the hook's v6 drops are untested on our hardware.
+
 ## How does the DNS-egress hook pick its `RESOLVER_IP`?
 
 It tries, in order:
@@ -117,11 +136,36 @@ Depends on your tier and format. In **adblock** format, **STRICT is region-compl
 
 The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
 
-For exact-name use outside Germany, localize the built lists with `python scripts/localize.py --region us`. That writes `lists-regions/us/` (all 6 lists plus `SHA256SUMS`), rewriting only region-prefixed entries (`de.`/`us.`). The output header marks the result **unaudited** — most endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
+For exact-name use outside Germany, the built lists cover the audited prefixes (`de.`, `us.`, `ca.` today). For anywhere else, localize them and repeat the run after every list update:
 
-If you have that query log, it is exactly the evidence needed to extend the `de.*`/`us.*` entries upstream — see [CONTRIBUTING](../CONTRIBUTING.md).
+```sh
+python scripts/localize.py --region fr
+```
 
-**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code — `^[a-z][a-z]\.nextlgsdp\.com$` covers `fr.`, `br.` and `jp.` alike — and matches two-letter prefixes only, so the family apex and longer labels such as `ngfts.` (updates) and `ibs.` (billing) stay reachable. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. Both go in Pi-hole's **Regex filters**, never an adlist — an adlist ignores every line and reports no error. In AdGuard Home the same lines work: wrap each one in slashes (`/^[a-z][a-z]\.nextlgsdp\.com$/`) and add it as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest come from. NextDNS can't use them at all (no regex support); if you want whole-family reach there, add a zone anchor itself as a plain denylist entry (`lgtvcommon.com`), because subdomains are blocked automatically, with the same widening caveat as STRICT. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file. One warning for `strict-wildcard.txt`: whole-zone blocking is new if you were on the exact-name lists, so read [keeping the Content Store](#i-want-strict-but-keep-the-lg-content-store) first — and note its `@@||host^` exceptions are AdGuard syntax; in Pi-hole an allowlist entry is an exact domain or its own regex.
+That writes `lists-regions/fr/` (all 6 lists plus `SHA256SUMS`), rewriting only entries with an audited prefix (`de.`, `us.`, `ca.` today). The output header marks the result **unaudited**: most endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
+
+**Use your TV's real prefix.** Take it from the query log: LG does not always serve a country under its ISO code, for example `uk.`, not `gb.`. A wrong prefix rewrites nothing and blocks nothing.
+
+**Serve the output to your blocker.** The files land on the machine that ran the script; copy the `lists-regions/<cc>/` files to wherever your blocker reads lists from, or serve the directory over HTTP from a machine on your LAN (any static file server, for example `python -m http.server`) and subscribe to that URL.
+
+**Which path should you take?**
+
+| Your blocker | What to do |
+|---|---|
+| Pi-hole / AdGuard Home | Subscribe to the normal list and add the `-wildcard.txt` regex lines; they cover every country, so there is nothing to re-run. |
+| Exact-name only (hosts files, plain domains, some routers) | Localize and serve the output, and repeat after every list update. |
+| NextDNS | No regex and no list URLs: add zone anchors as plain denylist entries, then canary-test. |
+| Rooted TV `/etc/hosts` | The localized `-hosts.txt` must be redeployed to the TV, which resets on reboot; keep your copy somewhere persistent. |
+
+**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.nextlgsdp\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels such as `ngfts.` (updates) and `ibs.` (billing) stay reachable. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
+
+Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores every line and reports no error. In AdGuard Home the same lines work, wrapped in slashes (`/^[a-z][a-z]\.nextlgsdp\.com$/`) and added as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest comes from. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file.
+
+**NextDNS** can't use them at all (no regex support). For whole-family reach, add a zone anchor itself as a plain denylist entry (`lgtvcommon.com`), because subdomains are blocked automatically, with the same widening caveat as STRICT. For the full list, [`scripts/nextdns_sync.py`](../scripts/nextdns_sync.py) bulk-adds a list file to your NextDNS denylist; see the [install guide](install.md#nextdns).
+
+One warning for `strict-wildcard.txt`: whole-zone blocking is new if you were on the exact-name lists, so read [keeping the Content Store](#i-want-strict-but-keep-the-lg-content-store) first. Note also that its `@@||host^` exceptions are AdGuard syntax; in Pi-hole an allowlist entry is an exact domain or its own regex.
+
+If you have a query log for your region, it is exactly the evidence needed to extend the `de.*`/`us.*`/`ca.*` entries upstream: see [regional query logs welcome](../CONTRIBUTING.md#1-evidence-over-guesses). A prefix confirmed by a query log is added to `SOURCE_REGION_LABELS` so future `localize.py` runs rewrite it automatically.
 
 ## Why is a domain missing / how do I report a false positive?
 
