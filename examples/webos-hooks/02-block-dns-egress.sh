@@ -25,6 +25,10 @@
 # target skips the DNAT rules entirely, logs an ERROR and exits 1. Set
 # ALLOW_NON_LOCAL_RESOLVER=1 to allow it deliberately (logs a WARNING); the
 # resolver-independent rules (853 DROP, v6 guard) are applied either way.
+# The target is shape-checked first (strict dotted-quad): malformed input
+# ("10.evil", "1.2.3.4:53", embedded whitespace) takes the same refuse path
+# with a loud ERROR; ALLOW_NON_LOCAL_RESOLVER does not override this, as a
+# malformed address can never be a usable DNAT target.
 # IPv6 guard: when ip6tables is usable it applies idempotent v6 DROPs
 # (udp/tcp 53+853, ::1 excluded) and logs that v6 DNS egress is blocked;
 # otherwise, if a v6 default route exists, it warns that unfiltered IPv6 DNS
@@ -97,11 +101,37 @@ detect_dns_cm() {
         }'
 }
 
+# is_dotted_quad: strict IPv4 shape check - exactly four dot-separated
+# all-digit octets, each 0-255, no leading zeros (inet_aton reads those as
+# octal, so the real DNAT target would differ from the logged one). Runs
+# before the locality checks so hostnames, ports, embedded whitespace or
+# other junk are refused with an accurate ERROR instead of building a broken
+# DNAT target (which would fail downstream with a misleading message).
+is_dotted_quad() {
+    case "$1" in
+        *[!0-9.]*|.*|*.) return 1 ;;
+    esac
+    old_ifs="$IFS"
+    IFS=.
+    # shellcheck disable=SC2086
+    set -- $1
+    IFS="$old_ifs"
+    [ $# -eq 4 ] || return 1
+    for octet in "$@"; do
+        case "$octet" in
+            ''|*[!0-9]*|0[0-9]*) return 1 ;;
+        esac
+        [ "$octet" -le 255 ] || return 1
+    done
+    return 0
+}
+
 # is_local_resolver: true only for IPv4 addresses that can be a LAN-local
 # resolver - RFC1918 private, loopback or link-local. Anything else (public,
-# CGNAT, malformed) is treated as non-local; the DNAT then skips and, after
-# re-verification, the hook still fails loudly. v6 targets are out of scope
-# here: the DNAT rules below are IPv4-only.
+# CGNAT) is treated as non-local; the DNAT then skips and, after
+# re-verification, the hook still fails loudly. Callers shape-check the
+# address first (is_dotted_quad). v6 targets are out of scope here: the DNAT
+# rules below are IPv4-only.
 is_local_resolver() {
     case "$1" in
         10.*|127.*|192.168.*|169.254.*) return 0 ;;
@@ -156,7 +186,11 @@ fi
 # --- resolver trust: never enshrine a non-local resolver via DNAT ---
 ALLOW_NON_LOCAL_RESOLVER="${ALLOW_NON_LOCAL_RESOLVER:-0}"
 APPLY_DNAT=1
-if is_local_resolver "$RESOLVER_IP"; then
+if ! is_dotted_quad "$RESOLVER_IP"; then
+    log "ERROR: resolver '$RESOLVER_IP' (source: $RESOLVER_SOURCE) is not a dotted-quad IPv4 address - refusing DNAT (set RESOLVER_IP to a value like 192.168.1.53)"
+    APPLY_DNAT=0
+    FAIL=1
+elif is_local_resolver "$RESOLVER_IP"; then
     log "INFO: resolver: $RESOLVER_IP (source: $RESOLVER_SOURCE)"
 elif [ "$ALLOW_NON_LOCAL_RESOLVER" = "1" ]; then
     log "WARNING: resolver $RESOLVER_IP (source: $RESOLVER_SOURCE) is not private/loopback/link-local - continuing because ALLOW_NON_LOCAL_RESOLVER=1"
@@ -190,7 +224,7 @@ fi
 if [ "$FAIL" -eq 0 ]; then
     log "OK: all DNS-egress rules verified active (dnat 53 -> $RESOLVER_IP, drop 853)"
 elif [ "$APPLY_DNAT" -eq 0 ]; then
-    log "ERROR: DNAT refused (non-local resolver) - DNS redirect is NOT active; resolver-independent 853 DROP rules were still applied"
+    log "ERROR: DNAT refused (invalid or non-local resolver) - DNS redirect is NOT active; resolver-independent 853 DROP rules were still applied"
 else
     log "ERROR: one or more DNS-egress rules are missing - DNS leak may be open"
 fi

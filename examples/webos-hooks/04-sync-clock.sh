@@ -25,10 +25,11 @@
 # - Otherwise all URLs are fetched in parallel (background curl, <= 4s each); a
 #   second parallel round runs only when the first produced no usable header.
 #   Worst case added boot time is ~2 x 4s, never one timeout per URL.
-# - Parsed RFC1123 GMT dates are range-validated (month 1-12, day 1-31, hour
-#   0-23, minute 0-59, second 0-60, year 2024..2100); impossible values are
-#   rejected. Logs OK/WARN to /tmp/webosbrew_hook.log, never blocks boot,
-#   always exits 0.
+# - Parsed RFC1123 GMT dates are range-validated (month 1-12, day 1-31 within
+#   the month's real length including leap years, hour 0-23, minute 0-59,
+#   second 0-60, year 2024..2100); impossible values are rejected, not
+#   silently shifted into a valid-but-wrong time. Logs OK/WARN to
+#   /tmp/webosbrew_hook.log, never blocks boot, always exits 0.
 # - Corroboration: when two or more sources respond, their times must agree
 #   within 120s before the clock is set; a single responder is accepted with a
 #   WARNING (cannot be corroborated).
@@ -98,6 +99,21 @@ parse_epoch() {
     [ "$mi" -le 59 ] || return 1
     [ "$ss" -le 60 ] || return 1
     [ "$yr" -ge 2024 ] && [ "$yr" -le 2100 ] || return 1
+    # Calendar validity: the day must exist in its month ("31 Feb" must be
+    # rejected, not silently shifted into March). Leap rule: divisible by 4,
+    # except centuries not divisible by 400 (so 2100 is not a leap year).
+    case "$mo" in
+        4|6|9|11) md=30 ;;
+        2)
+            md=28
+            if [ $(( yr % 4 )) -eq 0 ] &&
+               { [ $(( yr % 100 )) -ne 0 ] || [ $(( yr % 400 )) -eq 0 ]; }; then
+                md=29
+            fi
+            ;;
+        *) md=31 ;;
+    esac
+    [ "$dy" -le "$md" ] || return 1
     # days-from-civil (Hinnant); all intermediates stay < 2^31
     a=$(( (14 - mo) / 12 ))
     y=$(( yr + 4800 - a ))
