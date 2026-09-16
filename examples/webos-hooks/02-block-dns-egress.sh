@@ -18,14 +18,22 @@
 # Hardening: after apply, every expected rule is re-verified with `-C`; a
 # missing rule logs an ERROR and the hook exits 1 instead of printing success
 # unconditionally (a boot-time failure would silently reopen the leak).
+# Resolver trust: the DNAT target must be a private (10/8, 172.16/12,
+# 192.168/16), loopback (127/8) or link-local (169.254/16) IPv4 address. A
+# public target (DHCP-pushed 8.8.8.8, a VPN resolver) would be enshrined as
+# the "blocking" resolver while the blocklist is bypassed, so a non-local
+# target skips the DNAT rules entirely, logs an ERROR and exits 1. Set
+# ALLOW_NON_LOCAL_RESOLVER=1 to allow it deliberately (logs a WARNING); the
+# resolver-independent rules (853 DROP, v6 guard) are applied either way.
 # IPv6 guard: when ip6tables is usable it applies idempotent v6 DROPs
 # (udp/tcp 53+853, ::1 excluded) and logs that v6 DNS egress is blocked;
 # otherwise, if a v6 default route exists, it warns that unfiltered IPv6 DNS
 # could bypass enforcement.
 # CAVEAT: `-C || -A` does NOT reconcile a *changed* rule. If the DNAT target
 # is ever edited, delete the stale rule first (first match wins), then re-run.
-# IPTABLES / IP6TABLES / LUNA_SEND may be env overrides; resolve bare names via
-# PATH, keep explicit paths as-is (busybox installs differ across webOS builds).
+# IPTABLES / IP6TABLES / LUNA_SEND / ALLOW_NON_LOCAL_RESOLVER may be env
+# overrides; resolve bare names via PATH, keep explicit paths as-is (busybox
+# installs differ across webOS builds).
 IPTABLES="${IPTABLES:-iptables}"
 case "$IPTABLES" in
     */*) ;;
@@ -89,6 +97,19 @@ detect_dns_cm() {
         }'
 }
 
+# is_local_resolver: true only for IPv4 addresses that can be a LAN-local
+# resolver - RFC1918 private, loopback or link-local. Anything else (public,
+# CGNAT, malformed) is treated as non-local; the DNAT then skips and, after
+# re-verification, the hook still fails loudly. v6 targets are out of scope
+# here: the DNAT rules below are IPv4-only.
+is_local_resolver() {
+    case "$1" in
+        10.*|127.*|192.168.*|169.254.*) return 0 ;;
+        172.1[6-9].*|172.2[0-9].*|172.3[01].*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # ensure_* : add the rule only if absent (idempotent), then verify with -C.
 ensure_v4_nat() {
     if ! "$IPTABLES" -t nat -C OUTPUT "$@" 2>/dev/null; then
@@ -131,11 +152,25 @@ if [ -z "$RESOLVER_IP" ]; then
     log "ERROR: RESOLVER_IP not set and auto-detection failed (connectionmanager + default route) - rules NOT applied"
     exit 1
 fi
-log "INFO: resolver: $RESOLVER_IP (source: $RESOLVER_SOURCE)"
+
+# --- resolver trust: never enshrine a non-local resolver via DNAT ---
+ALLOW_NON_LOCAL_RESOLVER="${ALLOW_NON_LOCAL_RESOLVER:-0}"
+APPLY_DNAT=1
+if is_local_resolver "$RESOLVER_IP"; then
+    log "INFO: resolver: $RESOLVER_IP (source: $RESOLVER_SOURCE)"
+elif [ "$ALLOW_NON_LOCAL_RESOLVER" = "1" ]; then
+    log "WARNING: resolver $RESOLVER_IP (source: $RESOLVER_SOURCE) is not private/loopback/link-local - continuing because ALLOW_NON_LOCAL_RESOLVER=1"
+else
+    log "ERROR: refusing DNAT to non-local resolver $RESOLVER_IP (source: $RESOLVER_SOURCE); set ALLOW_NON_LOCAL_RESOLVER=1 if this is intentional"
+    APPLY_DNAT=0
+    FAIL=1
+fi
 
 # --- IPv4 rules (redirect 53, drop DoT/DoQ 853) ---
-ensure_v4_nat ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
-ensure_v4_nat ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
+if [ "$APPLY_DNAT" -eq 1 ]; then
+    ensure_v4_nat ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
+    ensure_v4_nat ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
+fi
 ensure_v4_out -p tcp --dport 853 -j DROP
 ensure_v4_out -p udp --dport 853 -j DROP
 
@@ -154,6 +189,8 @@ fi
 # --- result: success line only when every expected rule verified present ---
 if [ "$FAIL" -eq 0 ]; then
     log "OK: all DNS-egress rules verified active (dnat 53 -> $RESOLVER_IP, drop 853)"
+elif [ "$APPLY_DNAT" -eq 0 ]; then
+    log "ERROR: DNAT refused (non-local resolver) - DNS redirect is NOT active; resolver-independent 853 DROP rules were still applied"
 else
     log "ERROR: one or more DNS-egress rules are missing - DNS leak may be open"
 fi

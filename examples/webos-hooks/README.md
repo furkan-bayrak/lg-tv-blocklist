@@ -37,7 +37,8 @@ redirects — that is exactly why the DNS hook runs on the TV.
    resolver's log. Normal apps (Netflix, YouTube) must still work.
 
 Failures are visible: the hook logs to `/var/log/02-block-dns-egress.log`
-and syslog, and exits 1 (no success line) if any rule is missing.
+and syslog, and exits 1 (no success line) if any rule is missing or if the
+resolved target is refused (see the non-local resolver guard below).
 
 ### Rollback
 
@@ -57,6 +58,12 @@ reboot.
   the default gateway when that fails — if neither is your resolver, hardcode
   it; see [how the hook picks its resolver, and how to override
   it][faq-resolver].
+- **Non-local resolver guard.** The DNAT target must be a private, loopback or
+  link-local address. If the detected DNS is public (a DHCP-pushed `8.8.8.8`,
+  a VPN resolver), the hook skips the DNAT rules, logs an ERROR and exits 1
+  instead of silently enshrining it; the resolver-independent 853 DROP rules
+  still apply. Set `ALLOW_NON_LOCAL_RESOLVER=1` only if that target is
+  intentional (logs a WARNING and continues).
 - **Changed resolver:** the hook appends rules and never reconciles an
   edited target — if your resolver or gateway changes, the old DNAT rule still
   wins. The rollback auto-detects the *current* resolver the same way, so it
@@ -87,8 +94,8 @@ the Homebrew Channel repo download dies with error `(0)`. Symptom write-up:
    `/var/lib/webosbrew/init.d/04-sync-clock` — **without the `.sh`
    extension**: same `run-parts` rule as above. Then `chmod 755` it.
 2. Run it once (`sh /var/lib/webosbrew/init.d/04-sync-clock`) and check
-   `date` — the clock should jump to the real time. It skips when the clock
-   is already within ~10 minutes of the fetched time.
+   `date` — if the clock is wrong it jumps to the real time. A clock whose
+   year is already sane (2024–2100) is left alone without any network fetch.
 3. Nothing else — every boot now self-corrects the clock; a failed sync is
    logged and never blocks boot.
 
@@ -107,6 +114,16 @@ itself is not (and does not need to be) reverted; no reboot needed.
 - **Plain HTTP only, by design.** HTTPS needs a correct clock to validate
   certificates, so the fetch runs over port 80 and only the `Date:` header is
   read. Point it at URLs you trust via `SYNC_URLS_OVERRIDE` if you prefer.
+- **Parallel, bounded fetches.** All URLs are tried at once with a 4-second
+  cap each; a second round only runs when none answered. A dead network adds
+  ~8 seconds to boot, never a timeout queue — and an already-sane clock costs
+  no network at all.
+- **Corroborated before set.** When two or more sources answer, their times
+  must agree within 120 seconds or the clock is not set (`WARN`, possible
+  tampering). A single responder is accepted but flagged `WARN` — it cannot be
+  corroborated.
+- **Validated dates.** Impossible `Date` values (day `32`, hour `99`, ...) and
+  implausible years are rejected instead of being shifted into the clock.
 - **Boot safety over loud failure:** unlike the DNS hook, this one always
   exits 0 — a failed sync is a logged `WARN`, never a reason to hold up boot.
 - **Timezone comes from the TV.** The server sends UTC and the hook converts
