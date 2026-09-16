@@ -122,8 +122,13 @@ itself is not (and does not need to be) reverted; no reboot needed.
   must agree within 120 seconds or the clock is not set (`WARN`, possible
   tampering). A single responder is accepted but flagged `WARN` — it cannot be
   corroborated.
-- **Validated dates.** Impossible `Date` values (day `32`, hour `99`, ...) and
-  implausible years are rejected instead of being shifted into the clock.
+- **Validated dates.** Impossible `Date` values (day `32`, `31 Feb`, hour
+  `99`, ...) and implausible years are rejected instead of being shifted into
+  the clock.
+- **Year-implausible clocks only, by design.** The fast path treats any clock
+  in 2024–2100 as sane, so the hook corrects power-loss resets (e.g. a
+  `2021-01-01` clock) but leaves a clock that is months or days off alone —
+  only a wrong-by-year clock triggers a fetch and is overwritten.
 - **Boot safety over loud failure:** unlike the DNS hook, this one always
   exits 0 — a failed sync is a logged `WARN`, never a reason to hold up boot.
 - **Timezone comes from the TV.** The server sends UTC and the hook converts
