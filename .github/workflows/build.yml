@@ -75,6 +75,10 @@ jobs:
         run: python3 scripts/test_localize.py
       - name: Run verify tests
         run: python3 scripts/test_verify.py
+      - name: Run nextdns sync tests
+        run: python3 scripts/test_nextdns_sync.py
+      - name: Run check_blocking tests
+        run: python3 scripts/test_check_blocking.py
 
   publish:
     if: github.event_name != 'pull_request' && needs.check.outputs.src_changed == 'true'
