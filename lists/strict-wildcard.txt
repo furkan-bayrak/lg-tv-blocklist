@@ -1,5 +1,5 @@
 # Title: LG TV Blocklist (strict) — Pi-hole regex filters
-# Updated: 2026-09-16 10:05 UTC
+# Updated: 2026-09-16 14:35 UTC
 # Entries: 10
 #
 # PASTE THESE INTO PI-HOLE'S REGEX FILTERS, NOT AN ADLIST. An adlist takes
@@ -7,7 +7,7 @@
 # you unprotected with no error shown.
 #   Pi-hole UI: Domains -> Add domain -> Regex   (or: pihole --regex '<line>')
 # AdGuard Home users: these work too. Wrap each line in slashes, like
-# /^[a-z][a-z]\.nextlgsdp\.com$/, and add it as a custom filtering rule.
+# /^[a-z][a-z]\.info\.lgsmartad\.com$/, and add it as a custom filtering rule.
 #
 # Two kinds of line, both derived from src/ entries that already carry their
 # own evidence and annotation:
