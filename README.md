@@ -45,6 +45,8 @@ Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-bl
 
 **Rooted TV (webosbrew / Homebrew Channel):** mirror the `-hosts.txt` entries into `/etc/hosts`; a webosbrew `init.d` hook (a boot-time script) can rewrite that file at every boot (it lives in RAM and resets on reboot — mechanism: [webosbrew filesystem-overlays](https://www.webosbrew.org/pages/filesystem-overlays)). Mirror `src/safe.txt`, or `src/strict.txt` for the full lockdown. Separately, [`examples/webos-hooks/`](examples/webos-hooks/) ships a boot hook that forces all TV DNS through your resolver and drops encrypted DNS (DoT/DoQ, port 853) — the fix for the hardcoded-resolver bypass in [caveat 1](#the-two-caveats). Rollback and caveats: [hook README](examples/webos-hooks/README.md).
 
+**Clock stuck at 2021-01-01 after a power loss?** Blocking LG's time-sync can leave a cold-booted TV unable to fix its clock, which breaks strict-TLS downloads (e.g. Homebrew Channel error `(0)`). [`examples/webos-hooks/04-sync-clock.sh`](examples/webos-hooks/04-sync-clock.sh) sets the clock from an HTTP `Date:` header at boot — details in the [hook README](examples/webos-hooks/README.md#the-clock-sync-hook).
+
 ## The two caveats
 
 1. **LG hardcodes public resolvers.** webOS daemons have been observed using `8.8.8.8` / `1.1.1.1` directly, and can use encrypted DNS, so a DNS blocklist alone is not a guarantee. Redirect outbound port 53 to your resolver and block port 853 at your firewall; on a rooted TV the [DNS-egress hook](examples/webos-hooks/) does it on-device. A hosts file alone is not enough either — some daemons ignore it and query the TV's built-in DNS resolver directly.

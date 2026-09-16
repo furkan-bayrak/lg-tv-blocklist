@@ -89,6 +89,18 @@ RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
 
 **Verify:** the hook logs the resolver it chose and where it came from — look for `resolver: <IP> (source: environment|connectionmanager|default-route gateway)` in `/var/log/02-block-dns-egress.log` (fallback `/tmp/02-block-dns-egress.log`); the success line `dnat 53 -> <IP>` carries the same IP.
 
+## Homebrew Channel / HTTPS apps fail after power loss or cold boot
+
+**Symptom:** after power loss or any cold boot, HTTPS downloads start failing — e.g. the Homebrew Channel cannot fetch its repo or install apps and errors out with `(0)`, or apps report TLS errors like *"certificate is not yet valid"*.
+
+**Cause:** the TV clock is stuck at `2021-01-01`. On our rooted G1 the RTC does not survive power loss, and the TV's built-in time sync talks to LG's SDP time endpoints (`lgtvsdp.com` / `nextlgsdp.com` families) — which the lists block — so the clock never recovers. Every strict-TLS connection is then rejected as "not yet valid". This is a known side effect of blocking LG's time domains.
+
+**Quick check (root/SSH):** run `date` on the TV — if it shows a 2021 date, this is the same problem.
+
+**Fix:** install the [`04-sync-clock` hook](../examples/webos-hooks/04-sync-clock.sh) — it sets the clock at boot from the `Date:` header of a plain-HTTP request (no NTP tools needed). Install steps: [hook README](../examples/webos-hooks/README.md#the-clock-sync-hook).
+
+**Temporary manual fix (root/SSH):** set the clock once by hand, e.g. `date -s '2026-09-16 12:00:00'` — it will reset again on the next cold boot until the hook is installed.
+
 ## Why aren't `in-addr.arpa` / LAN discovery queries blocked?
 
 Because they never leave the LAN. Reverse lookups under `in-addr.arpa` are answered by your local resolver in milliseconds, and discovery protocols (SSDP, mDNS) are link-local multicast — adding them to a DNS blocklist would not stop a TV from enumerating the LAN, it would only break reverse name resolution for everything else using that resolver. Stopping the scan itself needs device- or network-level rules (firewall drops of discovery traffic on a rooted TV or at the router), and expect that to break discovery-dependent features like casting. If the concern is the cloud side of the feature, the STRICT entry `ueiwsp.com` (QuickSet Cloud) covers it.
