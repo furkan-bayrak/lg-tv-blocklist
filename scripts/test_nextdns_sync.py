@@ -10,6 +10,7 @@ treated as failure (the docs' documented way of rejecting a domain).
 """
 import contextlib
 import email.message
+import http.client
 import io
 import json
 import os
@@ -17,6 +18,7 @@ import sys
 import tempfile
 import unittest
 import urllib.error
+import urllib.request
 from pathlib import Path
 from unittest import mock
 
@@ -144,12 +146,28 @@ class TestFetchDenylist(unittest.TestCase):
 
         with mock.patch.object(nextdns_sync, "api_request", side_effect=fake):
             ids = nextdns_sync.fetch_denylist("abc123", TEST_KEY, 15.0)
-        self.assertEqual(ids, {"a.lge.com", "b.lge.com", "c.lge.com"})
+        self.assertEqual(ids, {"a.lge.com": True, "b.lge.com": True,
+                               "c.lge.com": False})
         self.assertEqual(calls[0][0], "GET")
         self.assertEqual(calls[0][1], "/profiles/abc123/denylist")
         self.assertEqual(calls[0][2]["key"], TEST_KEY)
         self.assertIn("cursor=next", calls[1][1])
         self.assertEqual(len(calls), 2)
+
+    def test_entries_are_mapped_to_their_active_flag(self):
+        # Only an explicit active:false counts as disabled; a missing flag
+        # and the tolerated plain-string entry shape stay active.
+        payload = (200, {"data": [
+            {"id": "on.lge.com", "active": True},
+            {"id": "off.lge.com", "active": False},
+            {"id": "flagless.lge.com"},
+            "plain.lge.com",
+        ], "meta": {}})
+        with mock.patch.object(nextdns_sync, "api_request",
+                               return_value=payload):
+            ids = nextdns_sync.fetch_denylist("abc123", TEST_KEY, 15.0)
+        self.assertEqual(ids, {"on.lge.com": True, "off.lge.com": False,
+                               "flagless.lge.com": True, "plain.lge.com": True})
 
     def test_a_200_with_errors_is_not_a_denylist(self):
         with mock.patch.object(nextdns_sync, "api_request",
@@ -229,6 +247,73 @@ class TestAddDomain(unittest.TestCase):
         sleep.assert_called_once_with(0.5)
 
 
+class TestRedirectRefusal(unittest.TestCase):
+    """A redirect must never carry the API key to another origin.
+
+    The key rides on every request, so the only safe behavior on a 3xx is a
+    failed call. _NoRedirect makes urllib surface the redirect as an
+    HTTPError instead of rebuilding the request against the Location origin.
+    This drives the real opener machinery with HTTPSConnection replaced by a
+    recording fake (no sockets): exactly one request may ever be made, to
+    api.nextdns.io, and it is the request that carried the key.
+    """
+
+    class FakeResponse(io.BytesIO):
+        """Minimal http.client.HTTPResponse stand-in."""
+
+        def __init__(self, status, reason, headers):
+            super().__init__(b"")
+            self.status = status
+            self.code = status
+            self.reason = reason
+            self.msg = reason
+            self._headers = headers
+
+        def info(self):
+            return self._headers
+
+    def test_redirect_is_refused_and_the_key_stays_on_the_api_origin(self):
+        sent = []
+
+        class FakeHTTPSConnection:
+            sock = None  # do_open() checks h.sock on recent CPythons
+
+            def __init__(self, host, timeout=None, **kwargs):
+                self.host = host
+
+            def set_debuglevel(self, level):
+                pass
+
+            def request(self, method, url, body=None, headers=None,
+                        encode_chunked=False):
+                sent.append({"host": self.host, "method": method,
+                             "url": url, "headers": dict(headers or {})})
+
+            def getresponse(self):
+                headers = email.message.Message()
+                headers["Location"] = "https://evil.example/profiles/abc123/denylist"
+                return TestRedirectRefusal.FakeResponse(302, "Found", headers)
+
+        # A fresh opener (same _NoRedirect handler, no OS proxy) so the test
+        # is immune to HTTP(S)_PROXY in the environment.
+        opener = urllib.request.build_opener(
+            nextdns_sync._NoRedirect, urllib.request.ProxyHandler({}))
+        with mock.patch.object(nextdns_sync, "_OPENER", opener), \
+             mock.patch.object(http.client, "HTTPSConnection", FakeHTTPSConnection), \
+             self.assertRaises(RuntimeError) as caught:
+            nextdns_sync.add_domain("abc123", "snu.lge.com", TEST_KEY,
+                                    timeout=5.0, delay=0.0, max_retries=0)
+
+        self.assertIn("HTTP 302", str(caught.exception))
+        # One request only, to the API origin: the redirect was not followed.
+        self.assertEqual([entry["host"] for entry in sent], ["api.nextdns.io"])
+        self.assertEqual(sent[0]["method"], "POST")
+        self.assertEqual(sent[0]["url"], "/profiles/abc123/denylist")
+        key_headers = [value for name, value in sent[0]["headers"].items()
+                       if name.lower() == "x-api-key"]
+        self.assertEqual(key_headers, [TEST_KEY])
+
+
 class TestMain(unittest.TestCase):
     """main() with api_request mocked: exit codes, dry-run safety, outcomes."""
 
@@ -284,6 +369,41 @@ class TestMain(unittest.TestCase):
         self.assertIn("EXISTS  a.lge.com", out)
         self.assertIn("WOULD ADD new.lge.com", out)
         self.assertIn("summary: 1 to add, 1 already present", out)
+
+    def test_disabled_entry_is_flagged_in_dry_run(self):
+        write_list(self.path, "a.lge.com\n")
+
+        def routes(method, path, **kw):
+            return 200, {"data": [{"id": "a.lge.com", "active": False}],
+                         "meta": {"pagination": {"cursor": None}}}
+
+        rc, out, _, _ = self.run_main(
+            ["--file", str(self.path), "--profile", "abc123"], routes)
+        self.assertEqual(rc, 0)
+        self.assertIn("EXISTS (disabled) a.lge.com", out)
+        self.assertNotIn("WOULD ADD", out)
+        self.assertIn(
+            "summary: 0 to add, 0 already present, 1 present but disabled", out)
+
+    def test_apply_skips_a_disabled_entry_instead_of_adding_it(self):
+        write_list(self.path, "a.lge.com\nnew.lge.com\n")
+
+        def routes(method, path, **kw):
+            if method == "GET":
+                return 200, {"data": [{"id": "a.lge.com", "active": False}],
+                             "meta": {"pagination": {"cursor": None}}}
+            # The only write may be the missing domain: the disabled entry
+            # must not be re-added (or re-enabled) as if it were satisfied.
+            self.assertEqual(kw["body"], {"id": "new.lge.com"})
+            return 204, None
+
+        rc, out, _, _ = self.run_main(
+            ["--file", str(self.path), "--profile", "abc123", "--apply"], routes)
+        self.assertEqual(rc, 0)
+        self.assertIn("EXISTS (disabled) a.lge.com", out)
+        self.assertNotIn("ADDED   a.lge.com", out)
+        self.assertIn("ADDED   new.lge.com", out)
+        self.assertIn("0 already present, 1 present but disabled", out)
 
     def test_apply_adds_only_missing_domains(self):
         write_list(self.path, "a.lge.com\nnew.lge.com\nnew2.lge.com\n")

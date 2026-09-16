@@ -53,6 +53,7 @@ ENV_VAR = "NEXTDNS_API_KEY"
 
 # Outcome labels -- one line per domain as it is processed, counted at the end.
 ADDED, EXISTS, SKIPPED, ERROR = "ADDED", "EXISTS", "SKIPPED", "ERROR"
+EXISTS_DISABLED = "EXISTS (disabled)"  # present in the denylist, active:false
 
 # Profile IDs are short alphanumerics (my.nextdns.io, Setup tab). The check is
 # deliberately loose but keeps "/" and ".." out of the request path.
@@ -73,7 +74,9 @@ The API key is read from the NEXTDNS_API_KEY environment variable (bottom of
 https://my.nextdns.io/account). It is never accepted as a flag and never
 printed. Writing is additive-only: existing denylist entries -- including any
 you added by hand -- are never removed, disabled or reordered. Re-running is
-safe and reports them as EXISTS.
+safe and reports them as EXISTS; an entry that is present but disabled
+(active:false) is flagged as EXISTS (disabled) instead, and is never
+re-enabled or removed by this script.
 
 Step-by-step install and update guidance: docs/install.md in this repository.
 
@@ -236,15 +239,18 @@ def api_request(method: str, path: str, *, key: str, body: dict | None = None,
     return status, payload
 
 
-def fetch_denylist(profile: str, key: str, timeout: float) -> set[str]:
-    """Every denylist ID (lowercased) for a profile, following pagination.
+def fetch_denylist(profile: str, key: str, timeout: float) -> dict[str, bool]:
+    """Every denylist ID (lowercased) mapped to its active flag, following
+    pagination.
 
-    Raises the underlying urllib errors and ValueError on a malformed body --
-    the caller decides whether that aborts a run. It must for --apply:
-    writing without knowing what exists would risk duplicates.
+    active=False means the entry is present but not enforced, so the caller
+    must not report it as satisfied. Raises the underlying urllib errors and
+    ValueError on a malformed body -- the caller decides whether that aborts
+    a run. It must for --apply: writing without knowing what exists would
+    risk duplicates.
     """
     path = f"/profiles/{urllib.parse.quote(profile, safe='')}/denylist"
-    ids: set[str] = set()
+    ids: dict[str, bool] = {}
     cursor: str | None = None
     for _ in range(100):  # a bulk run should never loop forever
         url = path + (f"?cursor={urllib.parse.quote(cursor, safe='')}" if cursor else "")
@@ -258,9 +264,14 @@ def fetch_denylist(profile: str, key: str, timeout: float) -> set[str]:
         if not isinstance(data, list):
             raise ValueError("response has no data list")
         for entry in data:
-            entry_id = entry.get("id") if isinstance(entry, dict) else entry
+            if isinstance(entry, dict):
+                entry_id = entry.get("id")
+                active = bool(entry.get("active", True))
+            else:
+                entry_id = entry
+                active = True
             if isinstance(entry_id, str) and entry_id:
-                ids.add(entry_id.lower())
+                ids[entry_id.lower()] = active
         meta = payload.get("meta")
         cursor = None
         if isinstance(meta, dict) and isinstance(meta.get("pagination"), dict):
@@ -443,13 +454,19 @@ def main(argv: list[str] | None = None) -> int:
             print("note: no --profile -- every entry is listed as if the "
                   "denylist were empty")
 
-    added = exists = failed = 0
+    added = exists = disabled = failed = 0
     for lineno, raw, reason in skipped:
         print(f"SKIPPED {raw} (line {lineno}: {reason})")
     for domain in domains:
         if existing is not None and domain in existing:
-            exists += 1
-            print(f"EXISTS  {domain}")
+            if existing[domain]:
+                exists += 1
+                print(f"EXISTS  {domain}")
+            else:
+                # Present but active:false blocks nothing; the entry is not
+                # satisfied. Never re-enabled by this script (additive-only).
+                disabled += 1
+                print(f"{EXISTS_DISABLED} {domain}")
         elif not args.apply:
             added += 1
             print(f"WOULD ADD {domain}")
@@ -466,7 +483,8 @@ def main(argv: list[str] | None = None) -> int:
 
     verb = "added" if args.apply else "to add"
     print(f"summary: {added} {verb}, {exists} already present, "
-          f"{len(skipped)} skipped, {failed} failed")
+          f"{disabled} present but disabled, {len(skipped)} skipped, "
+          f"{failed} failed")
     return 1 if failed else 0
 
 
