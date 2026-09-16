@@ -38,12 +38,17 @@ REGION_TAG = "[REGION-SCOPED]"
 REGION_TAG_PROBE = re.compile(r"\[\s*region[-_ ]?scoped", re.IGNORECASE)
 REGION_CODE_RE = re.compile(r"^[a-z]{2}$")
 TIER_TAG_RE = re.compile(r"\b(?:SAFE|STRICT|ZONE):")
+# Families a [REGION-SCOPED] tag must never generalise, even though they live
+# in src/: docs/faq.md's store carve-out ("I want STRICT but keep the LG
+# Content Store") keeps their region-prefixed hosts reachable, and
+# ^[a-z][a-z]\.lgtvsdp\.com$ would block exactly the de. host it allowlists.
+FORBIDDEN_REGION_FAMILIES = {"lgtvsdp.com"}
 
 
 def wildcard_header(tier: str, n: int) -> list[str]:
     """Header for the regex files. Every warning a first-time reader needs is
     above the first line of content, because the failure modes are silent."""
-    return [
+    head = [
         f"# Title: LG TV Blocklist ({tier}) — Pi-hole regex filters",
         f"# Updated: {now_utc()}",
         f"# Entries: {n}",
@@ -67,6 +72,19 @@ def wildcard_header(tier: str, n: int) -> list[str]:
         "#                           this file has none when it is the SAFE tier.",
         "# Neither kind puts a hostname into the six shipped lists.",
         "#",
+    ]
+    if tier == "strict":
+        head += [
+            "# WIDENING WARNING: the zone lines below block whole zones -- every",
+            "# hostname under each anchor, including hostnames this project has",
+            "# never listed or audited. If you want exact-host blocking, stay on",
+            "# lists/strict-domains.txt (or lists/strict-hosts.txt) and skip this",
+            "# file. Before enabling it, read the store carve-out in docs/faq.md,",
+            '# "I want STRICT but keep the LG Content Store": it is written for',
+            "# exactly this reach.",
+            "#",
+        ]
+    head += [
         "# Optional and additive: this is not one of the six shipped lists, and never",
         "# subscribing to it, or deleting it, leaves coverage exactly as",
         f"# {tier}-domains.txt and its siblings give it today. It is also not a",
@@ -75,6 +93,7 @@ def wildcard_header(tier: str, n: int) -> list[str]:
         LICENSE_LINE,
         "",
     ]
+    return head
 
 
 def now_utc() -> str:
@@ -116,10 +135,11 @@ def region_families(filename: str) -> list[str]:
     two-letter sibling of the store CDN and of the update server.
 
     Every failure here is hard, with a line number. A tag that is malformed,
-    duplicated, on a line with no entry, on an entry with no tier annotation, or
-    on a host with no two-letter first label to generalise raises -- silently
-    ignoring one would quietly drop a family's regional coverage, or quietly
-    invent one. Position within the annotation is free: entries here grow a
+    duplicated, on a line with no entry, on an entry with no tier annotation, on
+    a host with no two-letter first label to generalise, or on a forbidden
+    family (FORBIDDEN_REGION_FAMILIES) raises -- silently ignoring one would
+    quietly drop a family's regional coverage, or quietly invent one. Position
+    within the annotation is free: entries here grow a
     trailing " | DECOMMISSIONED ..." note over time, and a tagged host getting
     decommissioned must not break the build.
     """
@@ -151,6 +171,11 @@ def region_families(filename: str) -> list[str]:
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} needs a two-letter first label to "
                 f"generalise, got {host!r}")
+        if rest in FORBIDDEN_REGION_FAMILIES:
+            raise ValueError(
+                f"{filename}:{lineno}: {REGION_TAG} on {host} would block the "
+                f"store-comms hosts docs/faq.md carves out of {rest}; this family "
+                f"must stay exact-host")
         families.setdefault(rest, None)
     return sorted(families)
 
@@ -172,10 +197,21 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
         return host.replace(".", r"\.")
 
     zone_set = {zone.lower() for zone in zones}
+    forbidden = sorted(set(families) & FORBIDDEN_REGION_FAMILIES)
+    if forbidden:
+        raise ValueError(
+            f"region wildcard forbidden for {', '.join(forbidden)}: docs/faq.md "
+            f"keeps these store-comms hosts reachable; do not tag this family")
 
     def covered(family: str) -> bool:
-        """True if a zone anchor in this file already matches the family."""
-        return ".".join(family.split(".")[-2:]) in zone_set
+        """True if a zone anchor in this file already covers the family.
+
+        Label-boundary suffix, not last-two-labels: an anchor at any depth
+        covers itself and every descendant, while a bare string suffix such as
+        notlge.com vs lge.com does not count.
+        """
+        return any(family == zone or family.endswith("." + zone)
+                   for zone in zone_set)
 
     lines = [rf"^[a-z][a-z]\.{pattern(fam)}$"
              for fam in sorted(set(families)) if not covered(fam)]

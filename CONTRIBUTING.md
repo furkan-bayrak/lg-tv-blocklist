@@ -107,8 +107,8 @@ trailing dot, no wildcards — this list is exact-name (see [Format
 semantics](#format-semantics)). Weak-evidence entries are tagged `weak` and
 belong in strict.txt by policy.
 
-One further tag is structural rather than evidential. `[REGION-SCOPED]` at the
-end of an annotation marks an entry whose family LG also serves behind
+One further tag is structural rather than evidential. `[REGION-SCOPED]`
+anywhere in the annotation marks an entry whose family LG also serves behind
 two-letter country prefixes (`de.lgeapi.com`, `br.lgeapi.com`, …):
 
     de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry [REGION-SCOPED]

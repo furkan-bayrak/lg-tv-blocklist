@@ -342,6 +342,13 @@ class TestWildcard(unittest.TestCase):
         lines = build.wildcard_lines(["emp.lgsmartplatform.com"], ["lgsmartplatform.com"])
         self.assertEqual(lines, [r"(\.|^)lgsmartplatform\.com$"])
 
+    def test_zone_anchor_deeper_than_two_labels_covers_its_descendants(self):
+        # Last-two-labels dedupe missed an anchor deeper than the family's own
+        # depth; the suffix boundary must still count it as covered.
+        lines = build.wildcard_lines(["emp.reg.lgsmartplatform.com"],
+                                     ["reg.lgsmartplatform.com"])
+        self.assertEqual(lines, [r"(\.|^)reg\.lgsmartplatform\.com$"])
+
     # ---- condition 2: tag validation ---------------------------------------
 
     def test_malformed_tag_is_a_hard_error_never_silently_ignored(self):
@@ -383,6 +390,21 @@ class TestWildcard(unittest.TestCase):
                 with self.assertRaises(ValueError) as caught:
                     build.region_families("safe.txt")
                 self.assertIn("two-letter first label", str(caught.exception))
+
+    def test_forbidden_family_tag_is_a_hard_error(self):
+        """us.lgtvsdp.com is audited and shipped, but docs/faq.md's store
+        carve-out keeps de.lgtvsdp.com reachable; a tag would emit
+        ^[a-z][a-z]\\.lgtvsdp\\.com$ and block exactly that host."""
+        self.write_src(
+            safe="us.lgtvsdp.com # SAFE: SDP telemetry [REGION-SCOPED]\n")
+        with self.assertRaises(ValueError) as caught:
+            build.dry_run()
+        message = str(caught.exception)
+        self.assertIn("safe.txt:1", message)
+        self.assertIn("lgtvsdp.com", message)
+        # direct callers of the emitter hit the same guard
+        with self.assertRaises(ValueError):
+            build.wildcard_lines(["lgtvsdp.com"], [])
 
     def test_trailing_dot_does_not_produce_a_dead_regex(self):
         """parse_src tolerates one trailing dot; so must this, or the family
@@ -429,6 +451,17 @@ class TestWildcard(unittest.TestCase):
         out = build.dry_run()["safe-wildcard.txt"]
         body = [l for l in out.splitlines() if l and not l.startswith("#")]
         self.assertIn(f"Entries: {len(body)}", head)    # count matches the body
+
+    def test_strict_header_carries_the_widening_warning(self):
+        strict_head = build.dry_run()["strict-wildcard.txt"].split("\n\n")[0]
+        self.assertIn("WIDENING WARNING", strict_head)
+        self.assertIn("whole zones", strict_head)
+        self.assertIn("never listed or audited", strict_head)
+        self.assertIn("lists/strict-domains.txt", strict_head)
+        self.assertIn("docs/faq.md", strict_head)
+        self.assertIn("I want STRICT but keep the LG Content Store", strict_head)
+        safe_head = build.dry_run()["safe-wildcard.txt"].split("\n\n")[0]
+        self.assertNotIn("WIDENING WARNING", safe_head)
 
 
 if __name__ == "__main__":
