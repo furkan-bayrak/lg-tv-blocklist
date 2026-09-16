@@ -14,15 +14,13 @@ eic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry (blocked live, apps
 eic.lgtviot.com # SAFE: IoT telemetry (largest observed family, ~5.1k queries)
 eic.api.lgtviot.com # SAFE: IoT telemetry API
 eic.tv.wiselg.com # SAFE: TV telemetry (blocked live, apps fine)
-de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry [REGION-SCOPED]
+de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry — never generalised to a region regex: the two-letter region hosts carry TV time/apps traffic on some models (hagezi/dns-blocklists#11438)
 lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
 de.info.lgsmartad.com # SAFE: ad info endpoint [REGION-SCOPED]
 de.emp.lgsmartplatform.com # SAFE: smart-platform telemetry [REGION-SCOPED]
 smart.adtvc.app # SAFE: ad serving (adtvc.app family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 adsdtvc.com # SAFE: ad zone | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-us.lgtvsdp.com # SAFE: SDP telemetry, region endpoint
-lgtvsdp.com # SAFE: SDP telemetry apex (service delivery platform beacons)
 initscr.lge.com # SAFE: initial-setup telemetry (boot-time only) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1 | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 ca.nextlgsdp.com # SAFE: SDP Canada region endpoint, telemetry — observed live on LG C1 (Canada), ~1/min after power-on + playback; querylog.json attached to PR #9

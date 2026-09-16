@@ -39,10 +39,19 @@ REGION_TAG_PROBE = re.compile(r"\[\s*region[-_ ]?scoped", re.IGNORECASE)
 REGION_CODE_RE = re.compile(r"^[a-z]{2}$")
 TIER_TAG_RE = re.compile(r"\b(?:SAFE|STRICT|ZONE):")
 # Families a [REGION-SCOPED] tag must never generalise, even though they live
-# in src/: docs/faq.md's store carve-out ("I want STRICT but keep the LG
-# Content Store") keeps their region-prefixed hosts reachable, and
-# ^[a-z][a-z]\.lgtvsdp\.com$ would block exactly the de. host it allowlists.
-FORBIDDEN_REGION_FAMILIES = {"lgtvsdp.com"}
+# in src/ (exact-name entries stay allowed): their two-letter region hosts
+# (at./de./us.lgtvsdp.com, de.nextlgsdp.com) are the TV's time-sync channel on
+# some models, and ^[a-z][a-z]\.<family>$ would block that channel for every
+# country — clocks then fail and store/app TLS breaks with them (repo issue #6;
+# Reddit Austria report; hagezi/dns-blocklists#11438).
+FORBIDDEN_REGION_FAMILIES = {"lgtvsdp.com", "nextlgsdp.com"}
+
+# The lgtvsdp.com apex must never appear as an entry in any src file. In the
+# exact-name formats it would block nothing (delegated apex, SOA-only —
+# docs/upstream.md), but the adblock output emits ||lgtvsdp.com^, which covers
+# every <cc>.lgtvsdp.com subdomain: the same time hosts, reached via an entry
+# instead of a tag.
+FORBIDDEN_APEX_ENTRIES = {"lgtvsdp.com"}
 
 
 def wildcard_header(tier: str, n: int) -> list[str]:
@@ -58,7 +67,7 @@ def wildcard_header(tier: str, n: int) -> list[str]:
         "# you unprotected with no error shown.",
         "#   Pi-hole UI: Domains -> Add domain -> Regex   (or: pihole --regex '<line>')",
         "# AdGuard Home users: these work too. Wrap each line in slashes, like",
-        r"# /^[a-z][a-z]\.nextlgsdp\.com$/, and add it as a custom filtering rule.",
+        r"# /^[a-z][a-z]\.info\.lgsmartad\.com$/, and add it as a custom filtering rule.",
         "#",
         "# Two kinds of line, both derived from src/ entries that already carry their",
         "# own evidence and annotation:",
@@ -119,6 +128,11 @@ def parse_src(filename: str) -> list[str]:
             raise ValueError(f"{filename}:{lineno}: malformed hostname: {line!r}")
         if not any(host == suffix or host.endswith("." + suffix) for suffix in LG_SUFFIXES):
             raise ValueError(f"{filename}:{lineno}: not an LG family hostname: {host}")
+        if host in FORBIDDEN_APEX_ENTRIES:
+            raise ValueError(
+                f"{filename}:{lineno}: {host} must never be listed: adblock format "
+                f"would emit ||{host}^, covering every <cc>.{host} time host in "
+                f"every country; region hosts may be exact-name entries only")
         if host in seen:
             raise ValueError(f"{filename}:{lineno}: duplicate of {host} (first at line {seen[host]})")
         seen[host] = lineno
@@ -174,8 +188,8 @@ def region_families(filename: str) -> list[str]:
         if rest in FORBIDDEN_REGION_FAMILIES:
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} on {host} would block the "
-                f"store-comms hosts docs/faq.md carves out of {rest}; this family "
-                f"must stay exact-host")
+                f"country variants of {rest}, which carry TV time/apps traffic "
+                f"on some models; this family must stay exact-host")
         families.setdefault(rest, None)
     return sorted(families)
 
@@ -184,10 +198,9 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
     """Pi-hole regex filters: region prefixes, then whole-zone anchors.
 
     Whole-subtree reach comes only from zones.txt. Deriving it from ordinary
-    entries instead would turn an exact-name entry like lgtvsdp.com into a rule
-    over every host beneath it -- which is what the adblock lists do and what
-    docs/faq.md carves an exception out of, not something an exact-name
-    subscriber opted into.
+    entries instead would turn an exact-name entry like lgsmartad.com into a
+    rule over every host beneath it -- the exact overreach the apex-entry guard
+    exists to prevent, and not something an exact-name subscriber opted into.
 
     re.escape is deliberately not used: it escapes '-' as '\\-', which is
     undefined in the POSIX ERE that Pi-hole's FTL compiles. HOSTNAME_RE already
@@ -200,8 +213,9 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
     forbidden = sorted(set(families) & FORBIDDEN_REGION_FAMILIES)
     if forbidden:
         raise ValueError(
-            f"region wildcard forbidden for {', '.join(forbidden)}: docs/faq.md "
-            f"keeps these store-comms hosts reachable; do not tag this family")
+            f"region wildcard forbidden for {', '.join(forbidden)}: these "
+            f"families carry TV time/apps traffic in their country variants; do "
+            f"not tag this family")
 
     def covered(family: str) -> bool:
         """True if a zone anchor in this file already covers the family.

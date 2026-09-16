@@ -40,7 +40,7 @@ what they widen: [region FAQ](faq.md#im-not-in-germany--do-the-lists-still-work-
 
 **Optional: regex rules.** The wildcard files work in AdGuard Home as custom
 filtering rules: wrap each line in slashes, for example
-`/^[a-z][a-z]\.nextlgsdp\.com$/`, and add it under **Filters → Custom
+`/^[a-z][a-z]\.info\.lgsmartad\.com$/`, and add it under **Filters → Custom
 filtering rules**. When they help is covered in the [region
 FAQ](faq.md#im-not-in-germany--do-the-lists-still-work-for-me).
 

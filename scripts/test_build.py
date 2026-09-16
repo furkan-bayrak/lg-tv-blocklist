@@ -108,6 +108,24 @@ class TestParseSrc(unittest.TestCase):
             build.parse_src("safe.txt")
         self.assertIn("not an LG family hostname", str(ctx.exception))
 
+    def test_lgtvsdp_apex_entry_rejected_in_any_src_file(self):
+        # The apex is SOA-only, so exact-name formats would block nothing;
+        # adblock emits ||lgtvsdp.com^, covering every <cc>.lgtvsdp.com time
+        # host. The guard applies to every src file, not just safe.txt.
+        for name in ("safe.txt", "strict.txt", "zones.txt"):
+            with self.subTest(src=name):
+                self.write(name, "lgtvsdp.com # nope\n")
+                with self.assertRaises(ValueError) as ctx:
+                    build.parse_src(name)
+                self.assertIn(f"{name}:1", str(ctx.exception))
+                self.assertIn("must never be listed", str(ctx.exception))
+
+    def test_lgtvsdp_region_hosts_still_pass_the_apex_guard(self):
+        # The guard is apex-only: audited region hosts stay listable as
+        # exact-name entries (strict.txt ships rdx2.lgtvsdp.com today).
+        self.write("strict.txt", "rdx2.lgtvsdp.com # STRICT: weak — unknown\n")
+        self.assertEqual(build.parse_src("strict.txt"), ["rdx2.lgtvsdp.com"])
+
     def test_single_trailing_dot_stripped(self):
         self.write("safe.txt", "snu.lge.com. # exactly one trailing dot\n")
         self.assertEqual(build.parse_src("safe.txt"), ["snu.lge.com"])
@@ -268,7 +286,7 @@ class TestWildcard(unittest.TestCase):
     def test_golden_output_for_a_known_source_tree(self):
         """Pins both line kinds. Fails if either generator half goes missing."""
         self.write_src(
-            safe="de.nextlgsdp.com # SAFE: telemetry [REGION-SCOPED]\n"
+            safe="de.info.lgsmartad.com # SAFE: ad info [REGION-SCOPED]\n"
                  "lgsmartad.com # SAFE: ad zone apex\n",
             strict="snu.lge.com # STRICT: OTA\n"
                    "de.lgeapi.com # STRICT: weak — region API [REGION-SCOPED]\n",
@@ -278,24 +296,29 @@ class TestWildcard(unittest.TestCase):
                              if l and not l.startswith("#")]
         # SAFE never carries a strict.txt family, and never a zone anchor.
         self.assertEqual(body("safe-wildcard.txt"),
-                         [r"^[a-z][a-z]\.nextlgsdp\.com$"])
+                         [r"^[a-z][a-z]\.info\.lgsmartad\.com$"])
         # STRICT carries both tiers' families plus the zone anchors.
         self.assertEqual(body("strict-wildcard.txt"),
-                         [r"^[a-z][a-z]\.lgeapi\.com$",
-                          r"^[a-z][a-z]\.nextlgsdp\.com$",
+                         [r"^[a-z][a-z]\.info\.lgsmartad\.com$",
+                          r"^[a-z][a-z]\.lgeapi\.com$",
                           r"(\.|^)lge\.com$"])
 
     def test_safe_file_carries_region_lines_only(self):
         """No whole-subtree line may reach the SAFE tier: zones are STRICT-only,
-        and an exact-name entry like lgtvsdp.com must not become a subtree rule
-        (docs/faq.md carves a store-comms exception out of exactly that reach)."""
+        and exact-name entries must not become subtree rules. The nextlgsdp
+        family specifically must not be generalised: its two-letter region
+        hosts carry TV time/apps traffic on some models
+        (hagezi/dns-blocklists#11438)."""
         body = [l for l in build.dry_run()["safe-wildcard.txt"].splitlines()
                 if l and not l.startswith("#")]
         self.assertTrue(body, "safe-wildcard.txt is empty")
         for line in body:
             with self.subTest(line=line):
                 self.assertTrue(line.startswith("^[a-z][a-z]"), line)
-        self.assertIn(r"^[a-z][a-z]\.nextlgsdp\.com$", body)
+        self.assertNotIn(r"^[a-z][a-z]\.nextlgsdp\.com$", body)
+        self.assertEqual(sorted(body),
+                         [r"^[a-z][a-z]\.emp\.lgsmartplatform\.com$",
+                          r"^[a-z][a-z]\.info\.lgsmartad\.com$"])
 
     def test_zone_anchors_mirror_zones_txt(self):
         zones = build.parse_src("zones.txt")
@@ -308,15 +331,16 @@ class TestWildcard(unittest.TestCase):
     def test_region_line_reach_is_two_letter_prefixes_only(self):
         # Pi-hole's FTL matches unanchored (regexec), so search(), not match():
         # with match() a missing ^ would sail through this test.
-        line = build.wildcard_lines(["nextlgsdp.com"], [])[0]
+        line = build.wildcard_lines(["lgsmartplatform.com"], [])[0]
         region = re.compile(line)
-        for hit in ("de.nextlgsdp.com", "br.nextlgsdp.com"):
+        for hit in ("de.lgsmartplatform.com", "br.lgsmartplatform.com"):
             with self.subTest(host=hit):
                 self.assertTrue(region.search(hit))
-        # ngfts. is firmware transfer, ibs. is in-app billing, and the apex
-        # itself is not SAFE's to block.
-        for miss in ("nextlgsdp.com", "ngfts.nextlgsdp.com", "de.ibs.nextlgsdp.com",
-                     "xde.nextlgsdp.com", "de.nextlgsdp.com.evil.test"):
+        # The apex itself, longer first labels and deeper names stay out: the
+        # line reaches the two-letter region prefixes and nothing else.
+        for miss in ("lgsmartplatform.com", "emp.lgsmartplatform.com",
+                     "de.emp.lgsmartplatform.com", "xde.lgsmartplatform.com",
+                     "de.lgsmartplatform.com.evil.test"):
             with self.subTest(host=miss):
                 self.assertFalse(region.search(miss))
 
@@ -332,7 +356,8 @@ class TestWildcard(unittest.TestCase):
         self.assertIn("su.lge.com", str(caught.exception))
 
     def test_every_line_is_valid_and_families_are_deduplicated(self):
-        lines = build.wildcard_lines(["nextlgsdp.com", "nextlgsdp.com"], ["lge.com"])
+        lines = build.wildcard_lines(["lgsmartplatform.com", "lgsmartplatform.com"],
+                                     ["lge.com"])
         self.assertEqual(len(lines), 2)
         for line in lines:
             with self.subTest(line=line):
@@ -361,13 +386,13 @@ class TestWildcard(unittest.TestCase):
                 self.assertIn("safe.txt:1", str(caught.exception))
 
     def test_tag_survives_a_later_decommission_note(self):
-        """src/ entries grow a trailing "| DECOMMISSIONED ..." note; 9 of 21 SAFE
+        """src/ entries grow a trailing "| DECOMMISSIONED ..." note; 9 of 19 SAFE
         entries carry one today. A tagged host getting one must not break the
         build, so the tag's position in the annotation is free."""
         self.write_src(
-            safe="de.nextlgsdp.com # SAFE: telemetry [REGION-SCOPED] | DECOMMISSIONED "
-                 "2026-10-01: NXDOMAIN on Google+Cloudflare DoH\n")
-        self.assertEqual(build.region_families("safe.txt"), ["nextlgsdp.com"])
+            safe="de.info.lgsmartad.com # SAFE: ad info [REGION-SCOPED] | "
+                 "DECOMMISSIONED 2026-10-01: NXDOMAIN on Google+Cloudflare DoH\n")
+        self.assertEqual(build.region_families("safe.txt"), ["info.lgsmartad.com"])
 
     def test_prose_and_urls_are_not_mistaken_for_a_tag(self):
         """CONTRIBUTING requires an annotation on every line; the words and the
@@ -392,9 +417,9 @@ class TestWildcard(unittest.TestCase):
                 self.assertIn("two-letter first label", str(caught.exception))
 
     def test_forbidden_family_tag_is_a_hard_error(self):
-        """us.lgtvsdp.com is audited and shipped, but docs/faq.md's store
-        carve-out keeps de.lgtvsdp.com reachable; a tag would emit
-        ^[a-z][a-z]\\.lgtvsdp\\.com$ and block exactly that host."""
+        """A tag on lgtvsdp.com would emit ^[a-z][a-z]\\.lgtvsdp\\.com$: the
+        region hosts are the TV time-sync channel (repo issue #6; Reddit Austria
+        report), so the family must stay exact-host."""
         self.write_src(
             safe="us.lgtvsdp.com # SAFE: SDP telemetry [REGION-SCOPED]\n")
         with self.assertRaises(ValueError) as caught:
@@ -406,11 +431,24 @@ class TestWildcard(unittest.TestCase):
         with self.assertRaises(ValueError):
             build.wildcard_lines(["lgtvsdp.com"], [])
 
+    def test_nextlgsdp_family_tag_is_a_hard_error(self):
+        """Two-letter nextlgsdp region hosts carry TV time/apps traffic on some
+        models (hagezi/dns-blocklists#11438): never generalise them either."""
+        self.write_src(
+            safe="de.nextlgsdp.com # SAFE: telemetry [REGION-SCOPED]\n")
+        with self.assertRaises(ValueError) as caught:
+            build.dry_run()
+        message = str(caught.exception)
+        self.assertIn("safe.txt:1", message)
+        self.assertIn("nextlgsdp.com", message)
+        with self.assertRaises(ValueError):
+            build.wildcard_lines(["nextlgsdp.com"], [])
+
     def test_trailing_dot_does_not_produce_a_dead_regex(self):
         """parse_src tolerates one trailing dot; so must this, or the family
         silently compiles to a pattern that can never match."""
-        self.write_src(safe="de.nextlgsdp.com. # SAFE: telemetry [REGION-SCOPED]\n")
-        self.assertEqual(build.region_families("safe.txt"), ["nextlgsdp.com"])
+        self.write_src(safe="de.lgsmartplatform.com. # SAFE: telemetry [REGION-SCOPED]\n")
+        self.assertEqual(build.region_families("safe.txt"), ["lgsmartplatform.com"])
 
     def test_tag_in_zones_txt_is_rejected_not_ignored(self):
         # The apex form trips the two-letter check; the region-prefixed form has

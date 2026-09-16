@@ -24,7 +24,10 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 **Starting point (community-testing — not yet G1-verified; trim it with your own query log):**
 
 ```text
-# SDP/store comms — needed with the adblock lists (our ||lgtvsdp.com^ covers de.); domains/hosts users can drop it:
+# SDP/store comms — needed for STRICT's adblock lists: the nextlgsdp zone anchor
+# (||nextlgsdp.com^) covers de.ibs.; @@||de.lgtvsdp.com^ is belt-and-braces
+# since 2026-09-16 (our lists no longer block the lgtvsdp family). Domains/hosts
+# users can drop the whole block:
 @@||de.lgtvsdp.com^
 @@||de.lgeapi.com^
 @@||de.ibs.nextlgsdp.com^
@@ -44,7 +47,7 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 
 **Region prefixes:** the `de.` hosts above are what the German G1 audit saw — if your TV is in another region, swap `de.` for your prefix (`fr.`, `uk.`, `us.`, …) and confirm the exact hostnames against your query log. The blocked zones themselves are region-agnostic in the adblock lists (`||lgeapi.com^` also covers `fr.lgeapi.com`), so only the exceptions need adjusting.
 
-Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki) — our SAFE tier blocks its apex, so with the adblock lists `||lgtvsdp.com^` covers `de.lgtvsdp.com` and this exception is needed for store comms; with domains/hosts lists (exact-name) it is unnecessary; `nextlgsdp.com` may carry in-app billing; `lgappstv.com` is the store CDN apex.
+Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki) — our lists no longer block its apex (dropped 2026-09-16: `||lgtvsdp.com^` also covered every country's time-sync host), so `@@||de.lgtvsdp.com^` is belt-and-braces now, useful only against other lists; `nextlgsdp.com` may carry in-app billing and STRICT blocks it as a whole zone (`||nextlgsdp.com^` covers `de.ibs.nextlgsdp.com`), so those exceptions are the ones store comms rely on; `lgappstv.com` is the store CDN apex.
 
 **Keep these blocked** even if the store keeps working: the `snu`/`su`/`su-ssl`/`ngfts`/`gfts` firmware-OTA and file-transfer family (not required for store function — if store thumbnails ever break, whitelist only the exact host from your log), `lss.lgthinq.com`, `bss.lgechannel.com`, plus the ad/telemetry hosts that STRICT already includes from SAFE: `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` family.
 
@@ -112,7 +115,16 @@ RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
 
 **Symptom:** after power loss or any cold boot, HTTPS downloads start failing — e.g. the Homebrew Channel cannot fetch its repo or install apps and errors out with `(0)`, or apps report TLS errors like *"certificate is not yet valid"*.
 
-**Cause:** the TV clock is stuck at `2021-01-01`. On our rooted G1 the RTC does not survive power loss, and the TV's built-in time sync talks to LG's SDP time endpoints (`lgtvsdp.com` / `nextlgsdp.com` families) — which the lists block — so the clock never recovers. Every strict-TLS connection is then rejected as "not yet valid". This is a known side effect of blocking LG's time domains.
+**Cause:** the TV clock is stuck at `2021-01-01`. On our rooted G1 the RTC does not survive power loss, and the TV's built-in time sync talks to LG's SDP time endpoints (`lgtvsdp.com` / `nextlgsdp.com` families) — older copies of the lists blocked the whole SDP time family, so the clock never recovered. Every strict-TLS connection is then rejected as "not yet valid".
+
+**If you run an older copy of the lists:** re-pull them. Since 2026-09-16 the SAFE tier does not block the `<cc>.lgtvsdp.com` time hosts (the apex was removed — in adblock format it covered every country's clock host) and no longer generalises the `<cc>.nextlgsdp.com` region hosts. STRICT still blocks the whole `nextlgsdp.com` zone by design; if the time or store path still fails there (or another list blocks the time hosts), allowlist your country's hosts — replace `<cc>` with your region prefix, e.g. `de.`:
+
+```text
+@@||<cc>.lgtvsdp.com^
+@@||<cc>.ibs.nextlgsdp.com^
+```
+
+(the second line keeps the region store/billing path reachable).
 
 **Quick check (root/SSH):** run `date` on the TV — if it shows a 2021 date, this is the same problem.
 
@@ -130,9 +142,9 @@ AdGuard Home evaluates `@@` exceptions at the engine level, but the official doc
 
 ## I'm not in Germany — do the lists still work for me?
 
-Depends on your tier and format. In **adblock** format, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, `||lgtvsdp.com^`) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`.
+Depends on your tier and format. In **adblock** format, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
 
-**SAFE's adblock list only covers region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` and `lgtvsdp.com` families wholesale (`||lgsmartad.com^`, `||lgtvsdp.com^`), so `fr.info.lgsmartad.com` and `fr.lgtvsdp.com` are caught. But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock list.
+**SAFE's adblock list only covers region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` family wholesale (`||lgsmartad.com^`), so `fr.info.lgsmartad.com` is caught, and it no longer blocks the `lgtvsdp.com` family at all (the time-sync apex was removed 2026-09-16). But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock list — SAFE keeps only the audited exact `de.`/`ca.nextlgsdp.com` entries.
 
 The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
 
@@ -157,9 +169,9 @@ That writes `lists-regions/fr/` (all 6 lists plus `SHA256SUMS`), rewriting only 
 | NextDNS | No regex and no list URLs: add zone anchors as plain denylist entries, then canary-test. |
 | Rooted TV `/etc/hosts` | The localized `-hosts.txt` must be redeployed to the TV, which resets on reboot; keep your copy somewhere persistent. |
 
-**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.nextlgsdp\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels such as `ngfts.` (updates) and `ibs.` (billing) stay reachable. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
+**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.info\.lgsmartad\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels stay reachable. The `nextlgsdp.com` region hosts are deliberately not generalised — they are the TV's time/apps channel on some models, so only the audited exact entries are blocked. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
 
-Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores every line and reports no error. In AdGuard Home the same lines work, wrapped in slashes (`/^[a-z][a-z]\.nextlgsdp\.com$/`) and added as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest comes from. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file.
+Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores every line and reports no error. In AdGuard Home the same lines work, wrapped in slashes (`/^[a-z][a-z]\.info\.lgsmartad\.com$/`) and added as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest comes from. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file.
 
 **NextDNS** can't use them at all (no regex support). For whole-family reach, add a zone anchor itself as a plain denylist entry (`lgtvcommon.com`), because subdomains are blocked automatically, with the same widening caveat as STRICT. For the full list, [`scripts/nextdns_sync.py`](../scripts/nextdns_sync.py) bulk-adds a list file to your NextDNS denylist. It dry-runs by default and only writes with `--apply`; the API key goes in the `NEXTDNS_API_KEY` environment variable. See the [install guide](install.md#nextdns).
 

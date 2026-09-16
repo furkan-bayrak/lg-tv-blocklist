@@ -81,10 +81,11 @@ All three source files use exact-name, lowercase, wildcard-free entries
 `src/strict.txt` (STRICT delta), `src/zones.txt` (STRICT-only zone
 anchors). So `-domains.txt` / `-hosts.txt` subdomain coverage depends on
 enumeration. In the adblock format, zone anchors match region-prefixed
-subdomains (`de.`, `us.`, …) — that is why STRICT is region-complete
-there, while the exact-name formats cover only the region prefixes
-present. Extending regional coverage is covered in [section
-1](#1-evidence-over-guesses).
+subdomains (`de.`, `us.`, …) — that is why STRICT is region-complete there
+for the families it anchors (the `lgtvsdp.com` time family is anchored
+nowhere and stays reachable by design), while the exact-name formats cover
+only the region prefixes present. Extending regional coverage is covered in
+[section 1](#1-evidence-over-guesses).
 
 ## Annotated domains
 
@@ -132,12 +133,21 @@ exactly that. Rules:
   or zone apex — `su.lge.com` and `am.`/`ig..lge.com` are two letters wide, so a
   tag on an `lge.com` host would otherwise put the OTA server behind a SAFE
   rule. Such a family belongs in `strict.txt`, or untagged.
-- **Store carve-out (build-enforced for `lgtvsdp.com`, judgement for the rest):**
-  do not tag a family whose region twins are listed as store-comms exceptions in
-  [the FAQ's store allowlist](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).
-  `us.lgtvsdp.com` is audited and shipped, but `@@||de.lgtvsdp.com^` is carved
-  out there, so `lgtvsdp.com` carries no tag — the build hard-errors if you try
-  (`FORBIDDEN_REGION_FAMILIES`).
+- **SDP time/apps families never generalise (`lgtvsdp.com`, `nextlgsdp.com`).**
+  Their region-prefixed hosts (`at.`/`de.`/`us.lgtvsdp.com`, `de.nextlgsdp.com`)
+  are the TV's time-sync channel on some models, and generalising them breaks
+  TV clocks — and store/app TLS with them (repo issue #6; Reddit Austria
+  report; hagezi/dns-blocklists#11438). Keep such hosts as exact-name entries
+  with their own evidence; the build hard-errors on a `[REGION-SCOPED]` tag in
+  either family (`FORBIDDEN_REGION_FAMILIES`). The FAQ's [store
+  allowlist](docs/faq.md#i-want-strict-but-keep-the-lg-content-store) carves
+  the region hosts of these families back out — the same rule seen from the
+  other direction.
+- **Never list the bare `lgtvsdp.com` apex as an entry.** In the exact-name
+  formats it blocks nothing (delegated apex, SOA-only), but the adblock output
+  emits `||lgtvsdp.com^`, which covers every `<cc>.lgtvsdp.com` time host in
+  every country. The build hard-errors on it in any `src/` file
+  (`FORBIDDEN_APEX_ENTRIES`).
 - `zones.txt` is scanned only to reject tags: its entries are apexes with
   nothing to generalise, and whole-subtree reach in the regex files comes from
   that file alone. A tag there is a build error, never a no-op.
