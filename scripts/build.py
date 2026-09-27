@@ -277,6 +277,8 @@ def compile_tier(tier: str, domains: list[str], zones: list[str]) -> dict[str, s
         make_headers(title, len(domains)) + [f"0.0.0.0 {d}" for d in domains]) + "\n"
     outputs[f"{tier}-adblock.txt"] = "\n".join(
         make_headers(title, len(domains)) + [f"||{d}^" for d in domains]) + "\n"
+    outputs[f"{tier}-dnsmasq.conf"] = "\n".join(
+        make_headers(title, len(domains)) + [f"address=/{d}/0.0.0.0" for d in domains]) + "\n"
     return outputs
 
 
