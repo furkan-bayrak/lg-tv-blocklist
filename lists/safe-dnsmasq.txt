@@ -1,0 +1,24 @@
+# Title: LG TV Blocklist (safe)
+# Updated: 2026-09-28 06:43 UTC
+# Entries: 19
+# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+address=/ad.lgappstv.com/0.0.0.0
+address=/ads.lgtvcommon.com/0.0.0.0
+address=/adsdtvc.com/0.0.0.0
+address=/ca.nextlgsdp.com/0.0.0.0
+address=/cdpbeacon.lgtvcommon.com/0.0.0.0
+address=/de.emp.lgsmartplatform.com/0.0.0.0
+address=/de.info.lgsmartad.com/0.0.0.0
+address=/de.nextlgsdp.com/0.0.0.0
+address=/eic.api.lgtviot.com/0.0.0.0
+address=/eic.lgtviot.com/0.0.0.0
+address=/eic.nudge.lgtvcommon.com/0.0.0.0
+address=/eic.tv.wiselg.com/0.0.0.0
+address=/eic.wiseconfig.lgtvcommon.com/0.0.0.0
+address=/homeprv.lgtvcommon.com/0.0.0.0
+address=/info.lgsmartad.com/0.0.0.0
+address=/initscr.lge.com/0.0.0.0
+address=/lgsmartad.com/0.0.0.0
+address=/recommend.lgtvcommon.com/0.0.0.0
+address=/smart.adtvc.app/0.0.0.0
