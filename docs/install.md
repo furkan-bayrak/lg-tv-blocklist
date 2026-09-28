@@ -44,6 +44,33 @@ filtering rules: wrap each line in slashes, for example
 filtering rules**. When they help is covered in the [region
 FAQ](faq.md#im-not-in-germany--do-the-lists-still-work-for-me).
 
+## dnsmasq
+
+The dnsmasq files are dnsmasq config snippets: every line is a complete
+`address=/<domain>/0.0.0.0` rule, and dnsmasq already reads the `#` header
+lines as comments. No conversion step.
+
+1. Download the raw file for your tier:
+   - SAFE: `https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt`
+   - STRICT: `https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt`
+2. Save it where dnsmasq reads config (for example `/etc/dnsmasq.d/` on a
+   router or Pi), then point one `conf-file` line at it, for example
+   `conf-file=/etc/dnsmasq.d/lg-tv-safe.conf`. Pasting the file's lines into
+   an existing config works the same way.
+3. Reload: `service dnsmasq restart` (or the equivalent on your router).
+
+Check the download against [SHA256SUMS](../lists/SHA256SUMS)
+(`sha256sum -c SHA256SUMS` from a full checkout of the repo; compare the
+single line for your file if you keep only one list).
+
+`address=/name/0.0.0.0` answers `0.0.0.0` for the name **and every
+subdomain**, the same reach as the adblock `||name^` format. STRICT is
+therefore region-complete here too, and its zone anchors
+(`address=/lge.com/0.0.0.0`, ...) are whole-zone blocks by nature; for
+exact-host blocking use `-domains.txt` or `-hosts.txt` instead. Read the
+[store carve-out](faq.md#i-want-strict-but-keep-the-lg-content-store) before
+installing STRICT.
+
 ## NextDNS
 
 NextDNS has no custom list URLs (third-party lists reach it only through its
@@ -133,6 +160,7 @@ blocked, which are dead, and which still resolve.
 |---|---|
 | Pi-hole adlist | Automatically, on the gravity schedule; `pihole -g` forces a re-download |
 | AdGuard Home blocklist | Automatically, on the list update interval (24 h default) |
+| dnsmasq `conf-file` | Manual: re-download the file and reload dnsmasq after a list update |
 | Regex wildcard lines | Manual: they are pasted rules, not a subscription. Re-paste when the file's `# Updated:` header is newer than your paste |
 | NextDNS denylist | Manual: re-run `scripts/nextdns_sync.py` after a list update |
 | `lists-regions/<cc>/` | Manual: re-run `localize.py` after every list update; the output does not refresh itself |
@@ -147,6 +175,8 @@ always tell how old the copy you are looking at is.
   (`pihole -g`).
 - **AdGuard Home:** **Filters → DNS blocklists** → delete the list; remove any
   custom filtering rules you added.
+- **dnsmasq:** remove the `conf-file` line (and the copied list file), then
+  reload dnsmasq.
 - **NextDNS:** delete the denylist entries in the web UI, one at a time. The
   sync script only adds entries, it never removes them.
 - **Unbound:** remove the generated include file and its `include:` line, then

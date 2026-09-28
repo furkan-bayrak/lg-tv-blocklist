@@ -7,7 +7,7 @@ Origin: two-week empirical audit of an LG G1 (webOS) TV — root access, service
 
 A small, curated, evidence-based DNS blocklist for LG TV / webOS telemetry, published as an open GitHub repository that the community can extend. Inspired by HaGeZi's dns-blocklists quality bar (tiered lists, generated artifacts, annotated, checksummed) but scoped to LG only.
 
-Non-goals (YAGNI): non-LG devices; LG TVs' *advertising* outside webOS; auto-probe bots; release assets; wildcard/dnsmasq/unbound/more formats; model-specific hardware lists.
+Non-goals (YAGNI): non-LG devices; LG TVs' *advertising* outside webOS; auto-probe bots; release assets; wildcard/dnsmasq/unbound/more formats; model-specific hardware lists. (superseded: dnsmasq format added 2026-09-28, PR #17)
 
 ## 2. Audience & constraints
 

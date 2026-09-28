@@ -138,11 +138,11 @@ Because they never leave the LAN. Reverse lookups under `in-addr.arpa` are answe
 
 ## Do exceptions work with the hosts-format lists?
 
-AdGuard Home evaluates `@@` exceptions at the engine level, but the official docs only guarantee modifier semantics (`$important`, `$badfilter`) for rule-style filters — modifiers do not work with `/etc/hosts`-style entries. Our lists use no modifiers, so a plain `@@` exception works; still, for AdGuard Home we recommend the `-adblock.txt` URL anyway, because only the adblock format gives whole-zone semantics for STRICT's zone anchors.
+AdGuard Home evaluates `@@` exceptions at the engine level, but the official docs only guarantee modifier semantics (`$important`, `$badfilter`) for rule-style filters — modifiers do not work with `/etc/hosts`-style entries. Our lists use no modifiers, so a plain `@@` exception works; still, for AdGuard Home we recommend the `-adblock.txt` URL anyway, because only the adblock and dnsmasq formats give whole-zone semantics for STRICT's zone anchors.
 
 ## I'm not in Germany — do the lists still work for me?
 
-Depends on your tier and format. In **adblock** format, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
+Depends on your tier and format. In the **adblock** and **dnsmasq** formats, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
 
 **SAFE's adblock list only covers region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` family wholesale (`||lgsmartad.com^`), so `fr.info.lgsmartad.com` is caught, and it no longer blocks the `lgtvsdp.com` family at all (the time-sync apex was removed 2026-09-16). But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock list — SAFE keeps only the audited exact `de.`/`ca.nextlgsdp.com` entries.
 

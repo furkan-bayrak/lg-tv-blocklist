@@ -51,7 +51,7 @@ untouched.
 - `src/strict.txt` — the DELTA over safe (updates, ThinQ, LG Channels,
   weak-evidence entries). Do not repeat safe entries here.
 - `src/zones.txt` — strict-only family apexes for whole-zone blocking in the
-  adblock format.
+  adblock and dnsmasq formats.
 
 Every line needs an inline annotation — format, tags, and examples in
 [Annotated domains](#annotated-domains) below.
@@ -69,22 +69,27 @@ Matching differs per generated format:
 - `-domains.txt` / `-hosts.txt`: **exact-name** — `snu.lge.com` blocks that
   host only, not the whole zone.
 - `-adblock.txt`: `||snu.lge.com^` also matches subdomains of that name.
-- Generated `-adblock.txt` files start with `#` metadata headers (title,
+- `-dnsmasq.txt`: `address=/snu.lge.com/0.0.0.0` also matches subdomains of
+  that name, the same reach as the adblock format.
+- Generated list files start with `#` metadata headers (title,
   date, entry count, license). AdGuard Home and uBlock Origin both treat
   those lines as comments; `!` is the canonical adblock comment prefix, so
-  use `!` for comments when you extend a list in a custom filter.
+  use `!` for comments when you extend a list in a custom filter. dnsmasq
+  reads `#` comments, so the dnsmasq files need no edits before use.
 - STRICT zone anchors (see `src/zones.txt`) only achieve whole-zone blocking
-  in the adblock format; in domains/hosts they block the apex domain.
+  in the adblock and dnsmasq formats; in domains/hosts they block the apex
+  domain.
 
 All three source files use exact-name, lowercase, wildcard-free entries
 (see [section 2](#2-edit-src-never-lists)): `src/safe.txt` (SAFE),
 `src/strict.txt` (STRICT delta), `src/zones.txt` (STRICT-only zone
 anchors). So `-domains.txt` / `-hosts.txt` subdomain coverage depends on
-enumeration. In the adblock format, zone anchors match region-prefixed
-subdomains (`de.`, `us.`, …) — that is why STRICT is region-complete there
-for the families it anchors (the `lgtvsdp.com` time family is anchored
-nowhere and stays reachable by design), while the exact-name formats cover
-only the region prefixes present. Extending regional coverage is covered in
+enumeration. In the adblock and dnsmasq formats, zone anchors match
+region-prefixed subdomains (`de.`, `us.`, …) — that is why STRICT is
+region-complete there for the families it anchors (the `lgtvsdp.com` time
+family is anchored nowhere and stays reachable by design), while the
+exact-name formats cover only the region prefixes present. Extending
+regional coverage is covered in
 [section 1](#1-evidence-over-guesses).
 
 ## Annotated domains
@@ -115,7 +120,7 @@ two-letter country prefixes (`de.lgeapi.com`, `br.lgeapi.com`, …):
     de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry [REGION-SCOPED]
 
 It feeds the optional `lists/*-wildcard.txt` regex files and nothing else. The
-six shipped lists are byte-identical with every tag deleted, and a test asserts
+eight shipped lists are byte-identical with every tag deleted, and a test asserts
 exactly that. Rules:
 
 - Tag only an entry that already carries its own evidence and annotation. The

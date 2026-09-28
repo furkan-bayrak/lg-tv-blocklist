@@ -125,8 +125,9 @@ For each observed domain:
      evidence. Weak entries never risk the SAFE promise.
    - **ZONE** — family apexes for whole-zone blocking where we haven't
      enumerated the whole family. Note: whole-zone blocking only works in
-     the adblock format — `-domains.txt` / `-hosts.txt` block the apex name
-     only (see [Format semantics](../CONTRIBUTING.md#format-semantics)).
+     the adblock and dnsmasq formats — `-domains.txt` / `-hosts.txt` block
+     the apex name only (see [Format
+     semantics](../CONTRIBUTING.md#format-semantics)).
 
 ## Firmware diff: "what's new in this update"
 

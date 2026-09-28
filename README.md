@@ -35,7 +35,7 @@ Pick a tier above, then load the matching file into your blocker. Step-by-step w
 |---|---|---|
 | Pi-hole (v6) | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [strict-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) |
 | AdGuard Home | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) | [strict-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
-| Dnsmasq | [safe-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt) | [strict-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt) |
+| dnsmasq | [safe-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt) | [strict-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt) |
 | Rooted TV `/etc/hosts` | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [strict-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
 
 **NextDNS** has no custom list URLs, and its web UI denylist takes one domain per entry: add a zone anchor itself (`lgtvcommon.com`) for whole-family reach, or bulk-add a list file with [`scripts/nextdns_sync.py`](scripts/nextdns_sync.py) through the free API ([install steps](docs/install.md#nextdns)). **Unbound** cannot read the domains file as-is: it needs conversion to `local-data` entries ([recipe](docs/install.md#unbound-and-similar-resolvers)). **uBlock Origin** is a browser extension: it can subscribe to the adblock file for your browser, but it does not cover your TV.
@@ -51,14 +51,14 @@ Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-bl
 ## The two caveats
 
 1. **LG hardcodes public resolvers.** webOS daemons have been observed using `8.8.8.8` / `1.1.1.1` directly, and can use encrypted DNS, so a DNS blocklist alone is not a guarantee. Redirect outbound port 53 to your resolver and block port 853 at your firewall; on a rooted TV the [DNS-egress hook](examples/webos-hooks/) does it on-device. A hosts file alone is not enough either — some daemons ignore it and query the TV's built-in DNS resolver directly.
-2. **Exact names, not wildcards.** Entries name specific hosts, so whole-family coverage depends on enumeration. Two exceptions to the exact-name rule: the shipped `-adblock.txt` lists match subdomains via `||name^`, and the optional `-wildcard.txt` regex files generalise the audited two-letter region prefixes. They work wherever regex rules are supported (Pi-hole, AdGuard Home); the strict one also blocks whole server families. If your TV talks to an LG domain that is not on the list, [open a new-domain issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) — that is exactly how the list grows.
+2. **Exact names, not wildcards.** Entries name specific hosts, so whole-family coverage depends on enumeration. Exceptions to the exact-name rule: the shipped `-adblock.txt` lists match subdomains via `||name^`, the `-dnsmasq.txt` files match them with `address=/name/0.0.0.0`, and the optional `-wildcard.txt` regex files generalise the audited two-letter region prefixes. They work wherever regex rules are supported (Pi-hole, AdGuard Home); the strict one also blocks whole server families. If your TV talks to an LG domain that is not on the list, [open a new-domain issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) — that is exactly how the list grows.
 
 ## FAQ
 
 - **Which tier should I use?** SAFE for almost everyone; STRICT if you want the TV to fully stop talking to LG.
 - **Will this break Netflix / Prime / HBO / YouTube?** No — verified on an LG G1.
 - **My TV ignores my Pi-hole / AdGuard. Why?** webOS has a built-in DNS resolver and hardcoded fallback DNS; fix it at the router, or use the rooted hook. To check that the resolver itself blocks the listed domains, run [`scripts/check_blocking.py`](scripts/check_blocking.py).
-- **I'm not in Germany — do the lists work?** STRICT's adblock list is region-complete; the exact-name lists can be adapted with `scripts/localize.py --region <cc>`.
+- **I'm not in Germany — do the lists work?** STRICT's adblock and dnsmasq lists are region-complete; the exact-name lists can be adapted with `scripts/localize.py --region <cc>`.
 - **I want STRICT but keep the LG Content Store.** See the [carve-out recipe](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).
 - **Why doesn't SAFE block all of `lge.com`?** That would kill the Content Store, updates, and account login along with the telemetry.
 
