@@ -30,8 +30,8 @@ LICENSE_LINE = "# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.
 
 # [REGION-SCOPED] marks one audited entry whose family LG also serves behind
 # two-letter country prefixes (de.lgeapi.com, br.lgeapi.com, ...). It feeds the
-# optional wildcard files only: no tagged entry is ever expanded into the six
-# shipped lists, and deleting every tag leaves those six byte-identical.
+# optional wildcard files only: no tagged entry is ever expanded into the eight
+# shipped lists, and deleting every tag leaves those eight byte-identical.
 REGION_TAG = "[REGION-SCOPED]"
 # Bracket-anchored, so ordinary prose ("region-scoped promo beacon") and
 # evidence URLs are not mistaken for a malformed tag.
@@ -79,7 +79,7 @@ def wildcard_header(tier: str, n: int) -> list[str]:
         "#   (\\.|^)zone$            a whole-zone anchor from src/zones.txt, whose",
         "#                           documented purpose is exactly that. STRICT only;",
         "#                           this file has none when it is the SAFE tier.",
-        "# Neither kind puts a hostname into the six shipped lists.",
+        "# Neither kind puts a hostname into the eight shipped lists.",
         "#",
     ]
     if tier == "strict":
@@ -94,7 +94,7 @@ def wildcard_header(tier: str, n: int) -> list[str]:
             "#",
         ]
     head += [
-        "# Optional and additive: this is not one of the six shipped lists, and never",
+        "# Optional and additive: this is not one of the eight shipped lists, and never",
         "# subscribing to it, or deleting it, leaves coverage exactly as",
         f"# {tier}-domains.txt and its siblings give it today. It is also not a",
         "# replacement for them -- audited hosts with no region prefix and no zone",
@@ -300,7 +300,7 @@ def dry_run() -> dict[str, str]:
     all_outputs.update(compile_tier("safe", safe, []))
     all_outputs.update(compile_tier("strict", safe + strict_delta, zones))
     # Optional Pi-hole regex variants, built from the same src/ and never fed
-    # back into the six lists above. Whole-subtree reach comes only from
+    # back into the eight lists above. Whole-subtree reach comes only from
     # zones.txt, which is STRICT-only -- so the SAFE file is region lines and
     # nothing else, and cannot block a host SAFE has not audited.
     safe_families = region_families("safe.txt")
