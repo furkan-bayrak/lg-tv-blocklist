@@ -147,10 +147,11 @@ class TestParseSrc(unittest.TestCase):
 
 
 class TestCompileTier(unittest.TestCase):
-    def test_safe_has_three_formats_no_zones(self):
+    def test_safe_has_four_formats_no_zones(self):
         out = build.compile_tier("safe", ["a.lge.com"], ["lge.com"])
         self.assertIn("0.0.0.0 a.lge.com", out["safe-hosts.txt"])
         self.assertIn("||a.lge.com^", out["safe-adblock.txt"])
+        self.assertIn("address=/a.lge.com/0.0.0.0", out["safe-dnsmasq.txt"])
         self.assertIn("a.lge.com", out["safe-domains.txt"])
         body = [l for l in out["safe-domains.txt"].splitlines() if not l.startswith("#")]
         self.assertNotIn("lge.com", body)
@@ -159,6 +160,14 @@ class TestCompileTier(unittest.TestCase):
         out = build.compile_tier("strict", ["snu.lge.com"], ["lge.com"])
         self.assertIn("0.0.0.0 lge.com", out["strict-hosts.txt"])
         self.assertIn("||lge.com^", out["strict-adblock.txt"])
+        self.assertIn("address=/lge.com/0.0.0.0", out["strict-dnsmasq.txt"])
+
+    def test_dnsmasq_wraps_every_domain_including_zones(self):
+        out = build.compile_tier("strict", ["snu.lge.com"], ["lge.com"])
+        body = [l for l in out["strict-dnsmasq.txt"].splitlines()
+                if l and not l.startswith("#")]
+        self.assertEqual(body, ["address=/lge.com/0.0.0.0",
+                                "address=/snu.lge.com/0.0.0.0"])
 
     def test_headers_shape_and_counts(self):
         out = build.compile_tier("safe", ["a.lge.com", "b.lge.com"], [])
@@ -241,7 +250,9 @@ class TestWildcard(unittest.TestCase):
     """The regex outputs, and the guarantee that they change nothing else."""
 
     SHIPPED = ("safe-domains.txt", "safe-hosts.txt", "safe-adblock.txt",
-               "strict-domains.txt", "strict-hosts.txt", "strict-adblock.txt")
+               "safe-dnsmasq.txt",
+               "strict-domains.txt", "strict-hosts.txt", "strict-adblock.txt",
+               "strict-dnsmasq.txt")
 
     def setUp(self):
         self.orig_src = build.SRC
@@ -258,9 +269,9 @@ class TestWildcard(unittest.TestCase):
                            ("zones.txt", zones)):
             (build.SRC / name).write_text(text, encoding="utf-8")
 
-    # ---- condition 3: the six shipped lists must not move -------------------
+    # ---- condition 3: the eight shipped lists must not move -----------------
 
-    def test_six_shipped_outputs_are_identical_without_the_tags(self):
+    def test_eight_shipped_outputs_are_identical_without_the_tags(self):
         real = self.orig_src
         tagged = build.dry_run()
 
@@ -500,6 +511,58 @@ class TestWildcard(unittest.TestCase):
         self.assertIn("I want STRICT but keep the LG Content Store", strict_head)
         safe_head = build.dry_run()["safe-wildcard.txt"].split("\n\n")[0]
         self.assertNotIn("WIDENING WARNING", safe_head)
+
+
+class TestDnsmasqOutputs(unittest.TestCase):
+    """The dnsmasq format: one address=/<domain>/0.0.0.0 line per entry.
+
+    These run against the real src/ tree, so the assertions hold for the
+    shipped files: header counts, per-line shape, and cross-format parity
+    with the -domains.txt output are derived, never hardcoded.
+    """
+
+    def setUp(self):
+        self.orig_now = build.now_utc
+        build.now_utc = lambda: "2026-01-01 00:00 UTC"
+
+    def tearDown(self):
+        build.now_utc = self.orig_now
+
+    def test_header_counts_and_line_format(self):
+        out = build.dry_run()
+        for tier in ("safe", "strict"):
+            with self.subTest(tier=tier):
+                lines = out[f"{tier}-dnsmasq.txt"].splitlines()
+                self.assertEqual(lines[0], f"# Title: LG TV Blocklist ({tier})")
+                self.assertEqual(lines[1], "# Updated: 2026-01-01 00:00 UTC")
+                body = [l for l in lines if l and not l.startswith("#")]
+                self.assertEqual(lines[2], f"# Entries: {len(body)}")
+                self.assertIn(build.LICENSE_LINE, lines)
+                self.assertTrue(body, f"{tier}-dnsmasq.txt has no entries")
+                for line in body:
+                    with self.subTest(line=line):
+                        self.assertTrue(line.startswith("address=/"), line)
+                        self.assertTrue(line.endswith("/0.0.0.0"), line)
+                        domain = line[len("address=/"):-len("/0.0.0.0")]
+                        self.assertIsNotNone(build.HOSTNAME_RE.match(domain), line)
+
+    def test_lines_parity_with_domains_output(self):
+        """The two files are two syntaxes for one compiled domain list, so
+        entry count, order, and names must agree in both tiers."""
+        out = build.dry_run()
+        for tier in ("safe", "strict"):
+            with self.subTest(tier=tier):
+                domains = [l for l in out[f"{tier}-domains.txt"].splitlines()
+                           if l and not l.startswith("#")]
+                dnsmasq = [l[len("address=/"):-len("/0.0.0.0")]
+                           for l in out[f"{tier}-dnsmasq.txt"].splitlines()
+                           if l and not l.startswith("#")]
+                self.assertEqual(dnsmasq, domains)
+
+    def test_outputs_are_deterministic(self):
+        # now_utc is pinned in setUp, so two compilations of the same src/
+        # tree must be byte-identical in every output.
+        self.assertEqual(build.dry_run(), build.dry_run())
 
 
 if __name__ == "__main__":
