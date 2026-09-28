@@ -356,6 +356,7 @@ def read_domains(path: Path) -> list[str]:
         elif line.startswith("||") and line.endswith("^"):
             line = line[2:-1]
         elif line.startswith("address=/") and "/" in line[len("address=/"):]:
+            # Multi-name rules (address=/a/b/0.0.0.0): only the first domain is kept.
             line = line[len("address=/"):].partition("/")[0]
         line = line.lower()
         if line and line not in out:
