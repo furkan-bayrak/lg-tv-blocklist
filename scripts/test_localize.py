@@ -59,7 +59,7 @@ FORMATS = {
 
 
 def make_lists_dir(parent, entries=()):
-    """Create the six built list files in parent, each in its real format."""
+    """Create the eight built list files in parent, each in its real format."""
     d = Path(parent)
     d.mkdir(parents=True, exist_ok=True)
     for name in ALL_FILES:
