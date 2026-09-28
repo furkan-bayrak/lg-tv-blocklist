@@ -36,9 +36,11 @@ FALSE_POSITIVES = ("su.lge.com", "ad.lgappstv.com", "am.lge.com", "ig.lge.com")
 
 ALL_FILES = (
     "safe-adblock.txt",
+    "safe-dnsmasq.txt",
     "safe-domains.txt",
     "safe-hosts.txt",
     "strict-adblock.txt",
+    "strict-dnsmasq.txt",
     "strict-domains.txt",
     "strict-hosts.txt",
 )
@@ -46,9 +48,11 @@ ALL_FILES = (
 # Real per-file output formats, so file-level tests exercise format routing.
 FORMATS = {
     "safe-adblock.txt": "||{e}^",
+    "safe-dnsmasq.txt": "address=/{e}/0.0.0.0",
     "safe-domains.txt": "{e}",
     "safe-hosts.txt": "0.0.0.0 {e}",
     "strict-adblock.txt": "||{e}^",
+    "strict-dnsmasq.txt": "address=/{e}/0.0.0.0",
     "strict-domains.txt": "{e}",
     "strict-hosts.txt": "0.0.0.0 {e}",
 }
@@ -65,17 +69,30 @@ def make_lists_dir(parent, entries=()):
 
 
 class TestRewriteContent(unittest.TestCase):
-    def test_rewrites_in_all_three_formats(self):
+    def test_rewrites_in_all_four_formats(self):
         cases = (
             ("de.nextlgsdp.com", "fr.nextlgsdp.com"),
             ("0.0.0.0 de.nextlgsdp.com", "0.0.0.0 fr.nextlgsdp.com"),
             ("||de.nextlgsdp.com^", "||fr.nextlgsdp.com^"),
+            ("address=/de.nextlgsdp.com/0.0.0.0",
+             "address=/fr.nextlgsdp.com/0.0.0.0"),
         )
         for raw, want in cases:
             with self.subTest(raw=raw):
                 out, count = localize.rewrite_content(HEADER + raw + "\n", "fr")
                 self.assertEqual(count, 1)
                 self.assertEqual(out.splitlines()[-1], want)
+
+    def test_dnsmasq_non_region_entries_unchanged(self):
+        # A dnsmasq line whose label is not a source region stays byte-identical,
+        # sinkhole target and all.
+        text = (HEADER
+                + "address=/ad.lgappstv.com/0.0.0.0\n"
+                + "address=/su.lge.com/0.0.0.0\n")
+        out, count = localize.rewrite_content(text, "fr")
+        self.assertEqual(count, 0)
+        self.assertIn("address=/ad.lgappstv.com/0.0.0.0\n", out)
+        self.assertIn("address=/su.lge.com/0.0.0.0\n", out)
 
     def test_non_region_two_letter_labels_untouched(self):
         text = HEADER + "".join(f"{h}\n" for h in FALSE_POSITIVES)
@@ -237,7 +254,7 @@ class TestLocalizeFiles(unittest.TestCase):
             self.assertEqual(sorted(counts), sorted(ALL_FILES))
             sums = (out / "SHA256SUMS").read_text(encoding="utf-8")
             lines = sums.splitlines()
-            self.assertEqual(len(lines), 6)
+            self.assertEqual(len(lines), 8)
             names = []
             for line in lines:
                 self.assertRegex(line, r"^[0-9a-f]{64}  [^ ]+$")
@@ -259,6 +276,8 @@ class TestLocalizeFiles(unittest.TestCase):
                 "strict-hosts.txt": "0.0.0.0 fr.nextlgsdp.com",
                 "safe-adblock.txt": "||fr.nextlgsdp.com^",
                 "strict-adblock.txt": "||fr.nextlgsdp.com^",
+                "safe-dnsmasq.txt": "address=/fr.nextlgsdp.com/0.0.0.0",
+                "strict-dnsmasq.txt": "address=/fr.nextlgsdp.com/0.0.0.0",
             }
             for name, want in expected.items():
                 with self.subTest(name=name):
@@ -267,6 +286,22 @@ class TestLocalizeFiles(unittest.TestCase):
                         if line and not line.startswith("#")
                     ]
                     self.assertEqual(lines, [want])
+
+    def test_non_region_entries_keep_their_lines_across_all_formats(self):
+        # A file whose entries carry no source region label must come out with
+        # entry lines byte-identical in every format (including dnsmasq); only
+        # the Localized marker and header comments may differ.
+        with tempfile.TemporaryDirectory() as td:
+            entries = ("eic.lgtviot.com", "lgsmartad.com")
+            src = make_lists_dir(Path(td) / "lists", entries=entries)
+            out = Path(td) / "out"
+            counts = localize.localize(src, out, "fr")
+            for name in ALL_FILES:
+                with self.subTest(name=name):
+                    self.assertEqual(counts[name], 0)
+                    read = lambda p: [l for l in (p / name).read_text(
+                        encoding="utf-8").splitlines() if l and not l.startswith("#")]
+                    self.assertEqual(read(out), read(src))
 
     def test_refuses_to_write_into_source_lists_dir(self):
         with tempfile.TemporaryDirectory() as td:

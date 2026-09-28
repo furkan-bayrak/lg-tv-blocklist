@@ -4,10 +4,11 @@
 Usage:
     python scripts/localize.py --region <cc> [--out <dir>]
 
-Reads the six built files from lists/ and rewrites entries whose first
+Reads the eight built files from lists/ and rewrites entries whose first
 hostname label is a known source region label to the target region,
-preserving each line's format (plain / "0.0.0.0 name" / "||name^").
-Output goes to lists-regions/<cc>/ by default; lists/ is never modified.
+preserving each line's format (plain / "0.0.0.0 name" / "||name^" /
+"address=/name/0.0.0.0"). Output goes to lists-regions/<cc>/ by default;
+lists/ is never modified.
 
 Region detection is an explicit label set, NOT a generic two-letter-prefix
 regex: ad., su., am., ig. are recon-verified false positives. When src/
@@ -28,13 +29,16 @@ SOURCE_REGION_LABELS = ("de", "us", "ca")
 REGION_RE = re.compile(r"^[a-z]{2}$")
 EXPECTED_FILES = (
     "safe-adblock.txt",
+    "safe-dnsmasq.txt",
     "safe-domains.txt",
     "safe-hosts.txt",
     "strict-adblock.txt",
+    "strict-dnsmasq.txt",
     "strict-domains.txt",
     "strict-hosts.txt",
 )
 HOSTS_PREFIX = "0.0.0.0 "
+DNSMASQ_PREFIX = "address=/"
 LOCALIZED_MARKER = ("# Localized: {region} — regional endpoints are NOT audited "
                     "for this region; verify before use.")
 
@@ -45,6 +49,9 @@ def rewrite_entry(line: str, region: str) -> str:
         prefix, host, suffix = HOSTS_PREFIX, line[len(HOSTS_PREFIX):], ""
     elif line.startswith("||") and line.endswith("^"):
         prefix, host, suffix = "||", line[2:-1], "^"
+    elif line.startswith(DNSMASQ_PREFIX) and "/" in line[len(DNSMASQ_PREFIX):]:
+        host, _, target = line[len(DNSMASQ_PREFIX):].partition("/")
+        prefix, suffix = DNSMASQ_PREFIX, f"/{target}"
     else:
         prefix, host, suffix = "", line, ""
     first, dot, rest = host.partition(".")
@@ -97,7 +104,7 @@ def rewrite_content(text: str, region: str) -> tuple[str, int]:
 
 
 def localize(lists_dir: Path, out_dir: Path, region: str) -> dict[str, int]:
-    """Rewrite the six built lists into out_dir; return per-file change counts."""
+    """Rewrite the eight built lists into out_dir; return per-file change counts."""
     if lists_dir.resolve() in (out_dir.resolve(), *out_dir.resolve().parents):
         raise ValueError(f"refusing to write inside the source lists directory: {lists_dir}")
     if not lists_dir.is_dir():
