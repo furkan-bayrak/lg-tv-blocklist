@@ -108,11 +108,15 @@ def read_entries(path: Path) -> list[str]:
         line = raw.strip()
         if not line or line.startswith(("#", "!")):
             continue
-        # Tolerate hosts ("0.0.0.0 name") and adblock ("||name^") formats too.
+        # Tolerate hosts ("0.0.0.0 name"), adblock ("||name^") and dnsmasq
+        # ("address=/name/0.0.0.0") formats too; without the dnsmasq parse
+        # the whole rule would be resolved as if it were a hostname.
         if line.startswith("0.0.0.0 "):
             line = line[len("0.0.0.0 "):].strip()
         elif line.startswith("||") and line.endswith("^"):
             line = line[2:-1]
+        elif line.startswith("address=/") and "/" in line[len("address=/"):]:
+            line = line[len("address=/"):].partition("/")[0]
         out.append(line)
     return sorted(set(out))
 

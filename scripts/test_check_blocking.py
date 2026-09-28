@@ -570,10 +570,18 @@ class TestReadDomains(unittest.TestCase):
             self.parse("# Title: x\n\nsnu.lge.com\n! adblock comment\n"),
             ["snu.lge.com"])
 
-    def test_accepts_all_three_built_formats(self):
-        for text in ("snu.lge.com\n", "0.0.0.0 snu.lge.com\n", "||snu.lge.com^\n"):
+    def test_accepts_all_four_built_formats(self):
+        for text in ("snu.lge.com\n", "0.0.0.0 snu.lge.com\n", "||snu.lge.com^\n",
+                     "address=/snu.lge.com/0.0.0.0\n"):
             with self.subTest(text=text):
                 self.assertEqual(self.parse(text), ["snu.lge.com"])
+
+    def test_dnsmasq_lines_parse_to_the_domain_between_the_slashes(self):
+        # The sinkhole target must never leak into the parsed name: it would
+        # be sent as a query and reported as ERROR/DEAD for every entry.
+        text = ("address=/snu.lge.com/0.0.0.0\n"
+                "address=/de.lgeapi.com/0.0.0.0\n")
+        self.assertEqual(self.parse(text), ["snu.lge.com", "de.lgeapi.com"])
 
     def test_dedupes_and_keeps_file_order(self):
         self.assertEqual(self.parse("b.lge.com\na.lge.com\nb.lge.com\n"),

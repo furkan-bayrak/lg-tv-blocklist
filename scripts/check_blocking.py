@@ -343,8 +343,8 @@ def count_verdicts(results: dict[str, tuple[str, str]]) -> dict[str, int]:
 def read_domains(path: Path) -> list[str]:
     """Hostnames from a built list file (comments and blanks skipped).
 
-    Tolerates the hosts and adblock output formats as well, and keeps file
-    order so the report reads like the list.
+    Tolerates the hosts, adblock and dnsmasq output formats as well, and
+    keeps file order so the report reads like the list.
     """
     out: list[str] = []
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -355,6 +355,8 @@ def read_domains(path: Path) -> list[str]:
             line = line[len("0.0.0.0 "):].strip()
         elif line.startswith("||") and line.endswith("^"):
             line = line[2:-1]
+        elif line.startswith("address=/") and "/" in line[len("address=/"):]:
+            line = line[len("address=/"):].partition("/")[0]
         line = line.lower()
         if line and line not in out:
             out.append(line)
