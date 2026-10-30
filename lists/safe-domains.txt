@@ -1,5 +1,5 @@
 # Title: LG TV Blocklist (safe)
-# Updated: 2026-10-30 11:17 UTC
+# Updated: 2026-10-30 15:01 UTC
 # Entries: 20
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
