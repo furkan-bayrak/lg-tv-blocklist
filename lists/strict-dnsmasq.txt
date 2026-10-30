@@ -1,6 +1,6 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-09-28 07:09 UTC
-# Entries: 114
+# Updated: 2026-10-30 11:17 UTC
+# Entries: 115
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 address=/a.lgappstv.com/0.0.0.0
@@ -29,6 +29,7 @@ address=/aic.recommend.lgtvcommon.com/0.0.0.0
 address=/aic.service.lgtvcommon.com/0.0.0.0
 address=/aic.tv.wiselg.com/0.0.0.0
 address=/aic.wiseconfig.lgtvcommon.com/0.0.0.0
+address=/alphonso.tv/0.0.0.0
 address=/am.lge.com/0.0.0.0
 address=/bss.lgechannel.com/0.0.0.0
 address=/ca.nextlgsdp.com/0.0.0.0
