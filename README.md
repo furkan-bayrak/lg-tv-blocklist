@@ -14,7 +14,9 @@ Built by watching a real LG G1's network traffic and DNS logs, cross-checked aga
 |---|---|---|
 | **Blocks** | Telemetry, ads, and ACR (Automatic Content Recognition — the TV's "what are you watching" reporting) | Everything in SAFE, plus firmware OTA (over-the-air) updates, ThinQ cloud sync, and LG Channels |
 | **For** | Almost everyone | Privacy-focused users who want the TV to fully stop talking to LG |
-| **Cost** | Streaming apps, Content Store, and app updates keep working (verified on an LG G1) | Those services stop working on purpose |
+| **Cost** | Streaming apps, Content Store, and app updates worked in the G1 audit; see the exception below | Those services stop working on purpose |
+
+**SAFE exception:** `alphonso.tv` was added at the owner's request, but we haven't tested it on our TV. It may cause breakage; [details and evidence](docs/methodology.md#from-data-to-tiers).
 
 **What breaks in STRICT (read this):**
 
@@ -56,7 +58,7 @@ Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-bl
 ## FAQ
 
 - **Which tier should I use?** SAFE for almost everyone; STRICT if you want the TV to fully stop talking to LG.
-- **Will this break Netflix / Prime / HBO / YouTube?** No — verified on an LG G1.
+- **Will this break Netflix / Prime / HBO / YouTube?** They worked in the G1 audit, but `alphonso.tv` has not been tested by this project; see the [SAFE exception](docs/methodology.md#from-data-to-tiers).
 - **My TV ignores my Pi-hole / AdGuard. Why?** webOS has a built-in DNS resolver and hardcoded fallback DNS; fix it at the router, or use the rooted hook. To check that the resolver itself blocks the listed domains, run [`scripts/check_blocking.py`](scripts/check_blocking.py).
 - **I'm not in Germany — do the lists work?** STRICT's adblock and dnsmasq lists are region-complete; the exact-name lists can be adapted with `scripts/localize.py --region <cc>`.
 - **I want STRICT but keep the LG Content Store.** See the [carve-out recipe](docs/faq.md#i-want-strict-but-keep-the-lg-content-store).

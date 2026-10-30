@@ -77,6 +77,17 @@ class TestParseSrc(unittest.TestCase):
                     build.parse_src("strict.txt")
                 self.assertIn("not an LG family hostname", str(ctx.exception))
 
+    def test_alphonso_family_and_near_misses(self):
+        self.write("safe.txt", "alphonso.tv\nprov-lg.alphonso.tv\n")
+        self.assertEqual(
+            build.parse_src("safe.txt"), ["alphonso.tv", "prov-lg.alphonso.tv"]
+        )
+        for host in ("unrelated.tv", "notalphonso.tv", "alphonso.tv.evil.example"):
+            with self.subTest(host=host):
+                self.write("safe.txt", f"{host}\n")
+                with self.assertRaisesRegex(ValueError, "not an LG family hostname"):
+                    build.parse_src("safe.txt")
+
     def test_meethue_accepted(self):
         # meethue.com (Philips Hue cloud discovery) allowlisted 2026-09-14, issue #12.
         self.write(
@@ -159,6 +170,22 @@ class TestParseSrc(unittest.TestCase):
 
 
 class TestCompileTier(unittest.TestCase):
+    def test_alphonso_real_source_compiles_into_both_tiers_without_regex_anchor(self):
+        out = build.dry_run()
+        for tier in ("safe", "strict"):
+            for fmt, line in (
+                ("domains", "alphonso.tv"),
+                ("hosts", "0.0.0.0 alphonso.tv"),
+                ("adblock", "||alphonso.tv^"),
+                ("dnsmasq", "address=/alphonso.tv/0.0.0.0"),
+            ):
+                with self.subTest(tier=tier, fmt=fmt):
+                    body = out[f"{tier}-{fmt}.txt"].splitlines()
+                    self.assertEqual(body.count(line), 1)
+            self.assertNotIn(
+                r"(\.|^)alphonso\.tv$", out[f"{tier}-wildcard.txt"].splitlines()
+            )
+
     def test_safe_has_four_formats_no_zones(self):
         out = build.compile_tier("safe", ["a.lge.com"], ["lge.com"])
         self.assertIn("0.0.0.0 a.lge.com", out["safe-hosts.txt"])

@@ -2,9 +2,9 @@
 
 This list is the output of a two-week root-level audit of an LG G1 running
 webOS: a ~44,800-packet capture, a 267,000-query DNS log, and per-service
-investigation (root access, service kills, iptables, hosts hooks). Every
-entry in `src/` traces back to that data — it was authored from audit data,
-not scraped from other lists.
+investigation (root access, service kills, iptables, hosts hooks). Later
+contributions and the explicitly noted exception below also use attributed
+community evidence; they are not all observations from that G1 audit.
 
 ## The two-layer method
 
@@ -127,7 +127,17 @@ For each observed domain:
      enumerated the whole family. Note: whole-zone blocking only works in
      the adblock and dnsmasq formats — `-domains.txt` / `-hosts.txt` block
      the apex name only (see [Format
-     semantics](../CONTRIBUTING.md#format-semantics)).
+      semantics](../CONTRIBUTING.md#format-semantics)).
+
+**Owner-directed exception — `alphonso.tv` (issue #19):** This entry is in
+SAFE despite not having this project's normal smoke-test evidence. Community
+reports describe LG TVs querying Alphonso subdomains and one OLED65BX owner
+reports the TV remained functional when blocking the family; the project has
+not independently verified compatibility. Breakage remains possible and the
+entry may be moved to STRICT if reported. Domains/hosts formats block the apex
+only; adblock/dnsmasq also cover subdomains. See its source annotation for
+the reports and upstream inclusion. This exception does not relax the policy
+for other entries.
 
 ## Firmware diff: "what's new in this update"
 

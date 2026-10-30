@@ -1,8 +1,8 @@
-# LG TV Blocklist — SAFE tier (stock-TV-safe: store, app updates, logins,
-# Netflix/Prime/HBO/YouTube keep working). Blocks proven telemetry/ad/ACR/promo
-# hostnames only. Subdomain-level; exact-name semantics.
-# Evidence basis: G1 (webOS) audit — 44.8k-packet capture, 267k-query AdGuard
-# log, live blocking verified against Netflix/Prime/HBO/YouTube playback.
+# LG TV Blocklist — SAFE tier: telemetry/ad/ACR/promo names.
+# G1 audit: 44.8k-packet capture, 267k-query AdGuard log; live blocking
+# verified against Netflix/Prime/HBO/YouTube playback for the audited entries.
+# Exception: alphonso.tv is owner-directed and not independently smoke-tested;
+# compatibility is unverified. See docs/methodology.md and the entry below.
 # License: CC BY 4.0. Additions require an inline annotation + evidence.
 
 cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (6-min heartbeat pattern observed) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names, which are DNS-verified only and therefore filed in src/strict.txt tagged weak — the SAFE tier no longer covers this service. Kept for the audit record.
@@ -24,3 +24,4 @@ ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaf
 initscr.lge.com # SAFE: initial-setup telemetry (boot-time only) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1 | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 ca.nextlgsdp.com # SAFE: SDP Canada region endpoint, telemetry — observed live on LG C1 (Canada), ~1/min after power-on + playback; querylog.json attached to PR #9
+alphonso.tv # SAFE: owner-directed exception; LG TV Alphonso subdomains reported in https://www.reddit.com/r/pihole/comments/scsg2w/lg_tv_has_changed_ad_providers_january_2022/ and OLED65BX blocking reported functional in https://gist.github.com/mcrumm/972070dfe67d44ed61c4247563cbf07c; included in https://github.com/hagezi/dns-blocklists/blob/main/wildcard/native.lgwebos-onlydomains.txt; not independently smoke-tested by this project; compatibility unverified, may move to STRICT if breakage is reported

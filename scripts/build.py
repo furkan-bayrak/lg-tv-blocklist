@@ -41,6 +41,7 @@ LG_SUFFIXES = (
     "lgsmartweb.com",
     "ueiwsp.com",
     "meethue.com",
+    "alphonso.tv",
 )
 
 LICENSE_LINE = "# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
