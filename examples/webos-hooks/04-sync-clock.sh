@@ -161,10 +161,9 @@ collect_round() {
     if [ -n "$MIN" ] && [ -n "$MAX" ]; then SPREAD=$(( MAX - MIN )); fi
 }
 
-WORKDIR="/tmp/04-sync-clock.$$"
-if ! mkdir -p "$WORKDIR" 2>/dev/null; then
-    log "WARN: cannot create work dir $WORKDIR - clock sync skipped"
+if ! WORKDIR=$(mktemp -d /tmp/04-sync-clock.XXXXXX 2>/dev/null); then
     WORKDIR=""
+    log "WARN: cannot create secure work dir - clock sync skipped"
     exit 0
 fi
 

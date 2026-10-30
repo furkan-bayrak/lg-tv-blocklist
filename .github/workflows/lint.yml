@@ -31,3 +31,5 @@ jobs:
           fi
           echo "checking: ${files[*]}"
           shellcheck -s sh "${files[@]}"
+      - name: Test clock hook lifecycle
+        run: python3 scripts/test_sync_clock.py

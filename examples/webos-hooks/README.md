@@ -131,6 +131,9 @@ itself is not (and does not need to be) reverted; no reboot needed.
   only a wrong-by-year clock triggers a fetch and is overwritten.
 - **Boot safety over loud failure:** unlike the DNS hook, this one always
   exits 0 — a failed sync is a logged `WARN`, never a reason to hold up boot.
+- **Secure temporary directory:** requires `mktemp -d` with a six-X template.
+  If unavailable or allocation fails, the hook logs a warning and skips sync;
+  availability on a particular TV must be verified separately.
 - **Timezone comes from the TV.** The server sends UTC and the hook converts
   it through the system timezone; a misconfigured TV timezone still shows the
   wrong wall-clock time.
