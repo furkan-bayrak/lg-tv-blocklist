@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test suite for build.py. Run: python scripts/test_build.py (stdlib only)."""
+
 import io
 import re
 import sys
@@ -9,7 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import build  # noqa: E402  (after sys.path fix)
+import build
 
 
 class TestParseSrc(unittest.TestCase):
@@ -25,37 +26,45 @@ class TestParseSrc(unittest.TestCase):
         p.write_text(text, encoding="utf-8")
 
     def test_annotations_and_comments_stripped(self):
-        self.write("safe.txt", (
-            "# comment line\n"
-            "snu.lge.com # STRICT: OTA\n"
-            "\n"
-            "LGSMARTAD.com # caps lowered, comment stripped\n"
-        ))
+        self.write(
+            "safe.txt",
+            (
+                "# comment line\n"
+                "snu.lge.com # STRICT: OTA\n"
+                "\n"
+                "LGSMARTAD.com # caps lowered, comment stripped\n"
+            ),
+        )
         self.assertEqual(build.parse_src("safe.txt"), ["lgsmartad.com", "snu.lge.com"])
 
     def test_new_lg_apexes_accepted(self):
         # lggalleryplus.com / lgsmartweb.com allowlisted 2026-09-11.
-        self.write("strict.txt", (
-            "lggalleryplus.com # STRICT: weak\n"
-            "lgsmartweb.com # STRICT: weak\n"
-        ))
-        self.assertEqual(build.parse_src("strict.txt"),
-                         ["lggalleryplus.com", "lgsmartweb.com"])
+        self.write(
+            "strict.txt",
+            ("lggalleryplus.com # STRICT: weak\nlgsmartweb.com # STRICT: weak\n"),
+        )
+        self.assertEqual(
+            build.parse_src("strict.txt"), ["lggalleryplus.com", "lgsmartweb.com"]
+        )
 
     def test_ueiwsp_accepted(self):
         # ueiwsp.com (QuickSet Cloud / UEI) allowlisted 2026-09-11, issue #3.
-        self.write("strict.txt", (
-            "ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
-            "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
-            "not observed on G1; www subdomain observed live on G1 2026-09-12); "
-            "breakage untested\n"
-            "www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; "
-            "community report 2026-09-11 (repo issue #3 querylog); "
-            "observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); "
-            "breakage untested\n"
-        ))
-        self.assertEqual(build.parse_src("strict.txt"),
-                         ["ueiwsp.com", "www.ueiwsp.com"])
+        self.write(
+            "strict.txt",
+            (
+                "ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; "
+                "community report 2026-09-11 (repo issue #3 querylog; device unstated; "
+                "not observed on G1; www subdomain observed live on G1 2026-09-12); "
+                "breakage untested\n"
+                "www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; "
+                "community report 2026-09-11 (repo issue #3 querylog); "
+                "observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); "
+                "breakage untested\n"
+            ),
+        )
+        self.assertEqual(
+            build.parse_src("strict.txt"), ["ueiwsp.com", "www.ueiwsp.com"]
+        )
 
     def test_ueiwsp_near_misses_rejected(self):
         # Suffix matching must be label-boundary exact: "notueiwsp.com" ends
@@ -70,14 +79,17 @@ class TestParseSrc(unittest.TestCase):
 
     def test_meethue_accepted(self):
         # meethue.com (Philips Hue cloud discovery) allowlisted 2026-09-14, issue #12.
-        self.write("strict.txt", (
-            "discovery.meethue.com # STRICT: interop: Philips Hue cloud bridge discovery "
-            "(N-UPnP), called by LG TV background discovery; reported on webOS 25 "
-            "(repo issue #12, @rugk); observed on G1 (webOS 6) 2026-06-11..2026-09-14 "
-            "(pcap frame 25919: TLS SNI to 34.117.13.189:443; AGH ~4,100 lookups, "
-            "~5-min cadence); cloud discovery only, local mDNS unaffected; "
-            "breakage unverified (no Hue bridge)\n"
-        ))
+        self.write(
+            "strict.txt",
+            (
+                "discovery.meethue.com # STRICT: interop: Philips Hue cloud bridge discovery "
+                "(N-UPnP), called by LG TV background discovery; reported on webOS 25 "
+                "(repo issue #12, @rugk); observed on G1 (webOS 6) 2026-06-11..2026-09-14 "
+                "(pcap frame 25919: TLS SNI to 34.117.13.189:443; AGH ~4,100 lookups, "
+                "~5-min cadence); cloud discovery only, local mDNS unaffected; "
+                "breakage unverified (no Hue bridge)\n"
+            ),
+        )
         self.assertEqual(build.parse_src("strict.txt"), ["discovery.meethue.com"])
 
     def test_meethue_near_misses_rejected(self):
@@ -153,7 +165,9 @@ class TestCompileTier(unittest.TestCase):
         self.assertIn("||a.lge.com^", out["safe-adblock.txt"])
         self.assertIn("address=/a.lge.com/0.0.0.0", out["safe-dnsmasq.txt"])
         self.assertIn("a.lge.com", out["safe-domains.txt"])
-        body = [l for l in out["safe-domains.txt"].splitlines() if not l.startswith("#")]
+        body = [
+            l for l in out["safe-domains.txt"].splitlines() if not l.startswith("#")
+        ]
         self.assertNotIn("lge.com", body)
 
     def test_strict_merges_zones_as_apex_and_adblock_zone(self):
@@ -164,10 +178,14 @@ class TestCompileTier(unittest.TestCase):
 
     def test_dnsmasq_wraps_every_domain_including_zones(self):
         out = build.compile_tier("strict", ["snu.lge.com"], ["lge.com"])
-        body = [l for l in out["strict-dnsmasq.txt"].splitlines()
-                if l and not l.startswith("#")]
-        self.assertEqual(body, ["address=/lge.com/0.0.0.0",
-                                "address=/snu.lge.com/0.0.0.0"])
+        body = [
+            l
+            for l in out["strict-dnsmasq.txt"].splitlines()
+            if l and not l.startswith("#")
+        ]
+        self.assertEqual(
+            body, ["address=/lge.com/0.0.0.0", "address=/snu.lge.com/0.0.0.0"]
+        )
 
     def test_headers_shape_and_counts(self):
         out = build.compile_tier("safe", ["a.lge.com", "b.lge.com"], [])
@@ -202,7 +220,9 @@ class TestLoadAll(unittest.TestCase):
                 (build.SRC / "zones.txt").write_text("lge.com\n", encoding="utf-8")
                 safe, delta, zones = build.load_all()
                 strict_total = len(set(safe) | set(delta) | set(zones))
-                self.assertEqual((safe, delta, zones), (["a.lge.com"], ["snu.lge.com"], ["lge.com"]))
+                self.assertEqual(
+                    (safe, delta, zones), (["a.lge.com"], ["snu.lge.com"], ["lge.com"])
+                )
                 self.assertEqual(strict_total, 3)
             finally:
                 build.SRC = old
@@ -249,15 +269,21 @@ class TestDryRunAndCheck(unittest.TestCase):
 class TestWildcard(unittest.TestCase):
     """The regex outputs, and the guarantee that they change nothing else."""
 
-    SHIPPED = ("safe-domains.txt", "safe-hosts.txt", "safe-adblock.txt",
-               "safe-dnsmasq.txt",
-               "strict-domains.txt", "strict-hosts.txt", "strict-adblock.txt",
-               "strict-dnsmasq.txt")
+    SHIPPED = (
+        "safe-domains.txt",
+        "safe-hosts.txt",
+        "safe-adblock.txt",
+        "safe-dnsmasq.txt",
+        "strict-domains.txt",
+        "strict-hosts.txt",
+        "strict-adblock.txt",
+        "strict-dnsmasq.txt",
+    )
 
     def setUp(self):
         self.orig_src = build.SRC
         self.orig_now = build.now_utc
-        build.now_utc = lambda: "2026-01-01 00:00 UTC"   # stable headers to diff
+        build.now_utc = lambda: "2026-01-01 00:00 UTC"  # stable headers to diff
 
     def tearDown(self):
         build.SRC = self.orig_src
@@ -265,8 +291,11 @@ class TestWildcard(unittest.TestCase):
 
     def write_src(self, safe="", strict="", zones=""):
         build.SRC = Path(tempfile.mkdtemp())
-        for name, text in (("safe.txt", safe), ("strict.txt", strict),
-                           ("zones.txt", zones)):
+        for name, text in (
+            ("safe.txt", safe),
+            ("strict.txt", strict),
+            ("zones.txt", zones),
+        ):
             (build.SRC / name).write_text(text, encoding="utf-8")
 
     # ---- condition 3: the eight shipped lists must not move -----------------
@@ -280,9 +309,13 @@ class TestWildcard(unittest.TestCase):
             text = (real / name).read_text(encoding="utf-8")
             # strip the tag itself, then any space it left behind, so a tag
             # written without a leading space is still removed
-            stripped = "\n".join(
-                line.replace(build.REGION_TAG, "").rstrip()
-                for line in text.splitlines()) + "\n"
+            stripped = (
+                "\n".join(
+                    line.replace(build.REGION_TAG, "").rstrip()
+                    for line in text.splitlines()
+                )
+                + "\n"
+            )
             (build.SRC / name).write_text(stripped, encoding="utf-8")
         untagged = build.dry_run()
 
@@ -298,21 +331,28 @@ class TestWildcard(unittest.TestCase):
         """Pins both line kinds. Fails if either generator half goes missing."""
         self.write_src(
             safe="de.info.lgsmartad.com # SAFE: ad info [REGION-SCOPED]\n"
-                 "lgsmartad.com # SAFE: ad zone apex\n",
+            "lgsmartad.com # SAFE: ad zone apex\n",
             strict="snu.lge.com # STRICT: OTA\n"
-                   "de.lgeapi.com # STRICT: weak — region API [REGION-SCOPED]\n",
-            zones="lge.com # ZONE: umbrella\n")
+            "de.lgeapi.com # STRICT: weak — region API [REGION-SCOPED]\n",
+            zones="lge.com # ZONE: umbrella\n",
+        )
         out = build.dry_run()
-        body = lambda name: [l for l in out[name].splitlines()
-                             if l and not l.startswith("#")]
+        body = lambda name: [
+            l for l in out[name].splitlines() if l and not l.startswith("#")
+        ]
         # SAFE never carries a strict.txt family, and never a zone anchor.
-        self.assertEqual(body("safe-wildcard.txt"),
-                         [r"^[a-z][a-z]\.info\.lgsmartad\.com$"])
+        self.assertEqual(
+            body("safe-wildcard.txt"), [r"^[a-z][a-z]\.info\.lgsmartad\.com$"]
+        )
         # STRICT carries both tiers' families plus the zone anchors.
-        self.assertEqual(body("strict-wildcard.txt"),
-                         [r"^[a-z][a-z]\.info\.lgsmartad\.com$",
-                          r"^[a-z][a-z]\.lgeapi\.com$",
-                          r"(\.|^)lge\.com$"])
+        self.assertEqual(
+            body("strict-wildcard.txt"),
+            [
+                r"^[a-z][a-z]\.info\.lgsmartad\.com$",
+                r"^[a-z][a-z]\.lgeapi\.com$",
+                r"(\.|^)lge\.com$",
+            ],
+        )
 
     def test_safe_file_carries_region_lines_only(self):
         """No whole-subtree line may reach the SAFE tier: zones are STRICT-only,
@@ -320,21 +360,31 @@ class TestWildcard(unittest.TestCase):
         family specifically must not be generalised: its two-letter region
         hosts carry TV time/apps traffic on some models
         (hagezi/dns-blocklists#11438)."""
-        body = [l for l in build.dry_run()["safe-wildcard.txt"].splitlines()
-                if l and not l.startswith("#")]
+        body = [
+            l
+            for l in build.dry_run()["safe-wildcard.txt"].splitlines()
+            if l and not l.startswith("#")
+        ]
         self.assertTrue(body, "safe-wildcard.txt is empty")
         for line in body:
             with self.subTest(line=line):
                 self.assertTrue(line.startswith("^[a-z][a-z]"), line)
         self.assertNotIn(r"^[a-z][a-z]\.nextlgsdp\.com$", body)
-        self.assertEqual(sorted(body),
-                         [r"^[a-z][a-z]\.emp\.lgsmartplatform\.com$",
-                          r"^[a-z][a-z]\.info\.lgsmartad\.com$"])
+        self.assertEqual(
+            sorted(body),
+            [
+                r"^[a-z][a-z]\.emp\.lgsmartplatform\.com$",
+                r"^[a-z][a-z]\.info\.lgsmartad\.com$",
+            ],
+        )
 
     def test_zone_anchors_mirror_zones_txt(self):
         zones = build.parse_src("zones.txt")
-        body = [l for l in build.dry_run()["strict-wildcard.txt"].splitlines()
-                if l.startswith("(")]
+        body = [
+            l
+            for l in build.dry_run()["strict-wildcard.txt"].splitlines()
+            if l.startswith("(")
+        ]
         self.assertEqual(len(body), len(zones))
 
     # ---- reach: the property that keeps this inside SAFE's promise ----------
@@ -349,9 +399,13 @@ class TestWildcard(unittest.TestCase):
                 self.assertTrue(region.search(hit))
         # The apex itself, longer first labels and deeper names stay out: the
         # line reaches the two-letter region prefixes and nothing else.
-        for miss in ("lgsmartplatform.com", "emp.lgsmartplatform.com",
-                     "de.emp.lgsmartplatform.com", "xde.lgsmartplatform.com",
-                     "de.lgsmartplatform.com.evil.test"):
+        for miss in (
+            "lgsmartplatform.com",
+            "emp.lgsmartplatform.com",
+            "de.emp.lgsmartplatform.com",
+            "xde.lgsmartplatform.com",
+            "de.lgsmartplatform.com.evil.test",
+        ):
             with self.subTest(host=miss):
                 self.assertFalse(region.search(miss))
 
@@ -361,35 +415,44 @@ class TestWildcard(unittest.TestCase):
         self.write_src(
             safe="kr.lge.com # SAFE: regional telemetry [REGION-SCOPED]\n",
             strict="su.lge.com # STRICT: OTA update server\n",
-            zones="lge.com # ZONE: umbrella\n")
+            zones="lge.com # ZONE: umbrella\n",
+        )
         with self.assertRaises(ValueError) as caught:
             build.dry_run()
         self.assertIn("su.lge.com", str(caught.exception))
 
     def test_every_line_is_valid_and_families_are_deduplicated(self):
-        lines = build.wildcard_lines(["lgsmartplatform.com", "lgsmartplatform.com"],
-                                     ["lge.com"])
+        lines = build.wildcard_lines(
+            ["lgsmartplatform.com", "lgsmartplatform.com"], ["lge.com"]
+        )
         self.assertEqual(len(lines), 2)
         for line in lines:
             with self.subTest(line=line):
                 re.compile(line)
 
     def test_family_under_a_zone_anchor_is_skipped(self):
-        lines = build.wildcard_lines(["emp.lgsmartplatform.com"], ["lgsmartplatform.com"])
+        lines = build.wildcard_lines(
+            ["emp.lgsmartplatform.com"], ["lgsmartplatform.com"]
+        )
         self.assertEqual(lines, [r"(\.|^)lgsmartplatform\.com$"])
 
     def test_zone_anchor_deeper_than_two_labels_covers_its_descendants(self):
         # Last-two-labels dedupe missed an anchor deeper than the family's own
         # depth; the suffix boundary must still count it as covered.
-        lines = build.wildcard_lines(["emp.reg.lgsmartplatform.com"],
-                                     ["reg.lgsmartplatform.com"])
+        lines = build.wildcard_lines(
+            ["emp.reg.lgsmartplatform.com"], ["reg.lgsmartplatform.com"]
+        )
         self.assertEqual(lines, [r"(\.|^)reg\.lgsmartplatform\.com$"])
 
     # ---- condition 2: tag validation ---------------------------------------
 
     def test_malformed_tag_is_a_hard_error_never_silently_ignored(self):
-        for tag in ("[REGION SCOPED]", "[region-scoped]", "[REGION-SCOPED: ar at]",
-                    "[REGION-SCOPED"):
+        for tag in (
+            "[REGION SCOPED]",
+            "[region-scoped]",
+            "[REGION-SCOPED: ar at]",
+            "[REGION-SCOPED",
+        ):
             with self.subTest(tag=tag):
                 self.write_src(safe=f"de.nextlgsdp.com # SAFE: telemetry {tag}\n")
                 with self.assertRaises(ValueError) as caught:
@@ -402,7 +465,8 @@ class TestWildcard(unittest.TestCase):
         build, so the tag's position in the annotation is free."""
         self.write_src(
             safe="de.info.lgsmartad.com # SAFE: ad info [REGION-SCOPED] | "
-                 "DECOMMISSIONED 2026-10-01: NXDOMAIN on Google+Cloudflare DoH\n")
+            "DECOMMISSIONED 2026-10-01: NXDOMAIN on Google+Cloudflare DoH\n"
+        )
         self.assertEqual(build.region_families("safe.txt"), ["info.lgsmartad.com"])
 
     def test_prose_and_urls_are_not_mistaken_for_a_tag(self):
@@ -410,12 +474,14 @@ class TestWildcard(unittest.TestCase):
         evidence URLs people write there must stay legal."""
         self.write_src(
             safe="xx.lgeapi.com # SAFE: region-scoped promo beacon\n"
-                 "de.lgtvsdp.com # SAFE: see https://example.test/region-scoped-endpoints\n")
+            "de.lgtvsdp.com # SAFE: see https://example.test/region-scoped-endpoints\n"
+        )
         self.assertEqual(build.region_families("safe.txt"), [])
 
     def test_duplicate_tag_on_one_line_rejected(self):
         self.write_src(
-            safe="de.nextlgsdp.com # SAFE: x [REGION-SCOPED] y [REGION-SCOPED]\n")
+            safe="de.nextlgsdp.com # SAFE: x [REGION-SCOPED] y [REGION-SCOPED]\n"
+        )
         with self.assertRaises(ValueError):
             build.region_families("safe.txt")
 
@@ -431,8 +497,7 @@ class TestWildcard(unittest.TestCase):
         """A tag on lgtvsdp.com would emit ^[a-z][a-z]\\.lgtvsdp\\.com$: the
         region hosts are the TV time-sync channel (repo issue #6; Reddit Austria
         report), so the family must stay exact-host."""
-        self.write_src(
-            safe="us.lgtvsdp.com # SAFE: SDP telemetry [REGION-SCOPED]\n")
+        self.write_src(safe="us.lgtvsdp.com # SAFE: SDP telemetry [REGION-SCOPED]\n")
         with self.assertRaises(ValueError) as caught:
             build.dry_run()
         message = str(caught.exception)
@@ -445,8 +510,7 @@ class TestWildcard(unittest.TestCase):
     def test_nextlgsdp_family_tag_is_a_hard_error(self):
         """Two-letter nextlgsdp region hosts carry TV time/apps traffic on some
         models (hagezi/dns-blocklists#11438): never generalise them either."""
-        self.write_src(
-            safe="de.nextlgsdp.com # SAFE: telemetry [REGION-SCOPED]\n")
+        self.write_src(safe="de.nextlgsdp.com # SAFE: telemetry [REGION-SCOPED]\n")
         with self.assertRaises(ValueError) as caught:
             build.dry_run()
         message = str(caught.exception)
@@ -458,14 +522,18 @@ class TestWildcard(unittest.TestCase):
     def test_trailing_dot_does_not_produce_a_dead_regex(self):
         """parse_src tolerates one trailing dot; so must this, or the family
         silently compiles to a pattern that can never match."""
-        self.write_src(safe="de.lgsmartplatform.com. # SAFE: telemetry [REGION-SCOPED]\n")
+        self.write_src(
+            safe="de.lgsmartplatform.com. # SAFE: telemetry [REGION-SCOPED]\n"
+        )
         self.assertEqual(build.region_families("safe.txt"), ["lgsmartplatform.com"])
 
     def test_tag_in_zones_txt_is_rejected_not_ignored(self):
         # The apex form trips the two-letter check; the region-prefixed form has
         # a family to return, so only an explicit reject catches it.
-        for zone in ("lgeapi.com # ZONE: umbrella [REGION-SCOPED]",
-                     "de.lgeapi.com # ZONE: region API umbrella [REGION-SCOPED]"):
+        for zone in (
+            "lgeapi.com # ZONE: umbrella [REGION-SCOPED]",
+            "de.lgeapi.com # ZONE: region API umbrella [REGION-SCOPED]",
+        ):
             with self.subTest(zone=zone):
                 self.write_src(safe="", strict="", zones=zone + "\n")
                 with self.assertRaises(ValueError):
@@ -485,7 +553,8 @@ class TestWildcard(unittest.TestCase):
     def test_untagged_region_shaped_host_never_expands(self):
         """ad. is an ad host and su. is the OTA server, not Andorra and Sudan."""
         self.write_src(
-            safe="ad.lgappstv.com # SAFE: ad delivery\nsu.lge.com # SAFE: OTA\n")
+            safe="ad.lgappstv.com # SAFE: ad delivery\nsu.lge.com # SAFE: OTA\n"
+        )
         self.assertEqual(build.region_families("safe.txt"), [])
 
     # ---- condition 1: the header -------------------------------------------
@@ -493,13 +562,13 @@ class TestWildcard(unittest.TestCase):
     def test_header_states_the_three_things_review_asked_for(self):
         head = build.dry_run()["safe-wildcard.txt"].split("\n\n")[0]
         self.assertIn("NOT AN ADLIST", head)
-        self.assertIn("already carry their", head)      # derived from audited entries
-        self.assertIn("Optional and additive", head)    # drop it, nothing changes
-        self.assertIn("not a", head)                    # ...and not a replacement
+        self.assertIn("already carry their", head)  # derived from audited entries
+        self.assertIn("Optional and additive", head)  # drop it, nothing changes
+        self.assertIn("not a", head)  # ...and not a replacement
         self.assertIn("keep the list subscribed", head)
         out = build.dry_run()["safe-wildcard.txt"]
         body = [l for l in out.splitlines() if l and not l.startswith("#")]
-        self.assertIn(f"Entries: {len(body)}", head)    # count matches the body
+        self.assertIn(f"Entries: {len(body)}", head)  # count matches the body
 
     def test_strict_header_carries_the_widening_warning(self):
         strict_head = build.dry_run()["strict-wildcard.txt"].split("\n\n")[0]
@@ -543,7 +612,7 @@ class TestDnsmasqOutputs(unittest.TestCase):
                     with self.subTest(line=line):
                         self.assertTrue(line.startswith("address=/"), line)
                         self.assertTrue(line.endswith("/0.0.0.0"), line)
-                        domain = line[len("address=/"):-len("/0.0.0.0")]
+                        domain = line[len("address=/") : -len("/0.0.0.0")]
                         self.assertIsNotNone(build.HOSTNAME_RE.match(domain), line)
 
     def test_lines_parity_with_domains_output(self):
@@ -552,11 +621,16 @@ class TestDnsmasqOutputs(unittest.TestCase):
         out = build.dry_run()
         for tier in ("safe", "strict"):
             with self.subTest(tier=tier):
-                domains = [l for l in out[f"{tier}-domains.txt"].splitlines()
-                           if l and not l.startswith("#")]
-                dnsmasq = [l[len("address=/"):-len("/0.0.0.0")]
-                           for l in out[f"{tier}-dnsmasq.txt"].splitlines()
-                           if l and not l.startswith("#")]
+                domains = [
+                    l
+                    for l in out[f"{tier}-domains.txt"].splitlines()
+                    if l and not l.startswith("#")
+                ]
+                dnsmasq = [
+                    l[len("address=/") : -len("/0.0.0.0")]
+                    for l in out[f"{tier}-dnsmasq.txt"].splitlines()
+                    if l and not l.startswith("#")
+                ]
                 self.assertEqual(dnsmasq, domains)
 
     def test_outputs_are_deterministic(self):

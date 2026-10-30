@@ -5,6 +5,7 @@ Pure stdlib. Formats: plain domains, hosts (0.0.0.0), adblock (||x^).
 strict = safe + strict-delta (+ zone anchors). Zones become apex lines in
 domains/hosts outputs and ||zone^ in the adblock output.
 """
+
 import argparse
 import hashlib
 import re
@@ -17,14 +18,30 @@ SRC = ROOT / "src"
 LISTS = ROOT / "lists"
 # parse_src strips exactly one trailing dot (FQDN root) before matching, so
 # anything still ending in "." here (e.g. "host..") is malformed.
-HOSTNAME_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$")
-LG_SUFFIXES = ("lge.com", "lgappstv.com", "lgtvsdp.com", "lgtvcommon.com",
-               "lgtviot.com", "lgthinq.com", "nextlgsdp.com", "lgsmartad.com",
-               "lgsmartplatform.com", "lgeapi.com", "wiselg.com",
-               "lgechannel.com", "adtvc.app", "adsdtvc.com",
-               "lgunifiedsmart.com", "lggalleryplus.com", "lgsmartweb.com",
-               "ueiwsp.com",
-               "meethue.com")
+HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$"
+)
+LG_SUFFIXES = (
+    "lge.com",
+    "lgappstv.com",
+    "lgtvsdp.com",
+    "lgtvcommon.com",
+    "lgtviot.com",
+    "lgthinq.com",
+    "nextlgsdp.com",
+    "lgsmartad.com",
+    "lgsmartplatform.com",
+    "lgeapi.com",
+    "wiselg.com",
+    "lgechannel.com",
+    "adtvc.app",
+    "adsdtvc.com",
+    "lgunifiedsmart.com",
+    "lggalleryplus.com",
+    "lgsmartweb.com",
+    "ueiwsp.com",
+    "meethue.com",
+)
 
 LICENSE_LINE = "# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
 
@@ -122,19 +139,23 @@ def parse_src(filename: str) -> list[str]:
         if not line:
             continue
         host = line.lower()
-        if host.endswith("."):
-            host = host[:-1]
+        host = host.removesuffix(".")
         if not HOSTNAME_RE.match(host):
             raise ValueError(f"{filename}:{lineno}: malformed hostname: {line!r}")
-        if not any(host == suffix or host.endswith("." + suffix) for suffix in LG_SUFFIXES):
+        if not any(
+            host == suffix or host.endswith("." + suffix) for suffix in LG_SUFFIXES
+        ):
             raise ValueError(f"{filename}:{lineno}: not an LG family hostname: {host}")
         if host in FORBIDDEN_APEX_ENTRIES:
             raise ValueError(
                 f"{filename}:{lineno}: {host} must never be listed: adblock format "
                 f"would emit ||{host}^, covering every <cc>.{host} time host in "
-                f"every country; region hosts may be exact-name entries only")
+                f"every country; region hosts may be exact-name entries only"
+            )
         if host in seen:
-            raise ValueError(f"{filename}:{lineno}: duplicate of {host} (first at line {seen[host]})")
+            raise ValueError(
+                f"{filename}:{lineno}: duplicate of {host} (first at line {seen[host]})"
+            )
         seen[host] = lineno
     return sorted(seen)
 
@@ -159,7 +180,8 @@ def region_families(filename: str) -> list[str]:
     """
     families: dict[str, None] = {}
     for lineno, raw in enumerate(
-            (SRC / filename).read_text(encoding="utf-8").splitlines(), 1):
+        (SRC / filename).read_text(encoding="utf-8").splitlines(), 1
+    ):
         host, _, comment = raw.partition("#")
         # parse_src tolerates one trailing dot; without the same treatment here
         # the tag would emit a regex ending in an escaped dot, matching nothing.
@@ -169,27 +191,34 @@ def region_families(filename: str) -> list[str]:
         if REGION_TAG not in comment:
             raise ValueError(
                 f"{filename}:{lineno}: malformed region tag in {comment.strip()!r}; "
-                f"expected exactly {REGION_TAG}")
+                f"expected exactly {REGION_TAG}"
+            )
         if comment.count(REGION_TAG) > 1:
-            raise ValueError(f"{filename}:{lineno}: {REGION_TAG} appears more than once")
+            raise ValueError(
+                f"{filename}:{lineno}: {REGION_TAG} appears more than once"
+            )
         if not host:
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} on a line with no entry; the tag "
-                f"belongs on an audited hostname, not in prose")
+                f"belongs on an audited hostname, not in prose"
+            )
         if not TIER_TAG_RE.search(comment):
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} on an entry with no SAFE:/STRICT:/"
-                f"ZONE: annotation; only entries that already carry evidence may be tagged")
+                f"ZONE: annotation; only entries that already carry evidence may be tagged"
+            )
         first, dot, rest = host.partition(".")
         if not dot or not REGION_CODE_RE.match(first):
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} needs a two-letter first label to "
-                f"generalise, got {host!r}")
+                f"generalise, got {host!r}"
+            )
         if rest in FORBIDDEN_REGION_FAMILIES:
             raise ValueError(
                 f"{filename}:{lineno}: {REGION_TAG} on {host} would block the "
                 f"country variants of {rest}, which carry TV time/apps traffic "
-                f"on some models; this family must stay exact-host")
+                f"on some models; this family must stay exact-host"
+            )
         families.setdefault(rest, None)
     return sorted(families)
 
@@ -206,6 +235,7 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
     undefined in the POSIX ERE that Pi-hole's FTL compiles. HOSTNAME_RE already
     limits entries to [a-z0-9-] and dots, so escaping the dot is exact.
     """
+
     def pattern(host: str) -> str:
         return host.replace(".", r"\.")
 
@@ -215,7 +245,8 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
         raise ValueError(
             f"region wildcard forbidden for {', '.join(forbidden)}: these "
             f"families carry TV time/apps traffic in their country variants; do "
-            f"not tag this family")
+            f"not tag this family"
+        )
 
     def covered(family: str) -> bool:
         """True if a zone anchor in this file already covers the family.
@@ -224,11 +255,13 @@ def wildcard_lines(families: list[str], zones: list[str]) -> list[str]:
         covers itself and every descendant, while a bare string suffix such as
         notlge.com vs lge.com does not count.
         """
-        return any(family == zone or family.endswith("." + zone)
-                   for zone in zone_set)
+        return any(family == zone or family.endswith("." + zone) for zone in zone_set)
 
-    lines = [rf"^[a-z][a-z]\.{pattern(fam)}$"
-             for fam in sorted(set(families)) if not covered(fam)]
+    lines = [
+        rf"^[a-z][a-z]\.{pattern(fam)}$"
+        for fam in sorted(set(families))
+        if not covered(fam)
+    ]
     lines += [rf"(\.|^){pattern(zone)}$" for zone in sorted(zone_set)]
     return lines
 
@@ -248,7 +281,8 @@ def assert_stays_in_tier(lines: list[str], foreign: list[str]) -> None:
             if compiled.search(host):
                 raise ValueError(
                     f"wildcard line {line!r} matches {host}, which is not in this "
-                    f"tier; remove the [REGION-SCOPED] tag from that family")
+                    f"tier; remove the [REGION-SCOPED] tag from that family"
+                )
 
 
 def compile_wildcard(tier: str, families: list[str], zones: list[str]) -> str:
@@ -272,13 +306,24 @@ def compile_tier(tier: str, domains: list[str], zones: list[str]) -> dict[str, s
         domains = sorted(set(domains) | set(zones))
     title = f"LG TV Blocklist ({tier})"
     outputs: dict[str, str] = {}
-    outputs[f"{tier}-domains.txt"] = "\n".join(make_headers(title, len(domains)) + domains) + "\n"
-    outputs[f"{tier}-hosts.txt"] = "\n".join(
-        make_headers(title, len(domains)) + [f"0.0.0.0 {d}" for d in domains]) + "\n"
-    outputs[f"{tier}-adblock.txt"] = "\n".join(
-        make_headers(title, len(domains)) + [f"||{d}^" for d in domains]) + "\n"
-    outputs[f"{tier}-dnsmasq.txt"] = "\n".join(
-        make_headers(title, len(domains)) + [f"address=/{d}/0.0.0.0" for d in domains]) + "\n"
+    outputs[f"{tier}-domains.txt"] = (
+        "\n".join(make_headers(title, len(domains)) + domains) + "\n"
+    )
+    outputs[f"{tier}-hosts.txt"] = (
+        "\n".join(make_headers(title, len(domains)) + [f"0.0.0.0 {d}" for d in domains])
+        + "\n"
+    )
+    outputs[f"{tier}-adblock.txt"] = (
+        "\n".join(make_headers(title, len(domains)) + [f"||{d}^" for d in domains])
+        + "\n"
+    )
+    outputs[f"{tier}-dnsmasq.txt"] = (
+        "\n".join(
+            make_headers(title, len(domains))
+            + [f"address=/{d}/0.0.0.0" for d in domains]
+        )
+        + "\n"
+    )
     return outputs
 
 
@@ -288,7 +333,9 @@ def load_all() -> tuple[list[str], list[str], list[str]]:
     zones = parse_src("zones.txt")
     overlap = set(safe) & set(strict_delta)
     if overlap:
-        raise ValueError(f"strict.txt duplicates safe.txt: {sorted(overlap)} (strict is a delta)")
+        raise ValueError(
+            f"strict.txt duplicates safe.txt: {sorted(overlap)} (strict is a delta)"
+        )
     if set(zones) & set(safe):
         raise ValueError("zones.txt overlaps safe.txt — zones are strict-only")
     return safe, strict_delta, zones
@@ -306,13 +353,16 @@ def dry_run() -> dict[str, str]:
     safe_families = region_families("safe.txt")
     strict_families = region_families("strict.txt")
     if region_families("zones.txt"):
-        raise ValueError("zones.txt: [REGION-SCOPED] has nothing to generalise; "
-                         "zone anchors are already whole-subtree")
+        raise ValueError(
+            "zones.txt: [REGION-SCOPED] has nothing to generalise; "
+            "zone anchors are already whole-subtree"
+        )
     safe_wildcard = wildcard_lines(safe_families, [])
     assert_stays_in_tier(safe_wildcard, strict_delta + zones)
     all_outputs["safe-wildcard.txt"] = compile_wildcard("safe", safe_families, [])
     all_outputs["strict-wildcard.txt"] = compile_wildcard(
-        "strict", safe_families + strict_families, zones)
+        "strict", safe_families + strict_families, zones
+    )
     return all_outputs
 
 
@@ -328,7 +378,8 @@ def build() -> None:
     # newline="\n" like the list files above: without it Python translates to
     # CRLF on a Windows checkout and `sha256sum -c SHA256SUMS` cannot read it.
     (LISTS / "SHA256SUMS").write_text(
-        "\n".join(checksums) + "\n", encoding="utf-8", newline="\n")
+        "\n".join(checksums) + "\n", encoding="utf-8", newline="\n"
+    )
     for name in sorted(all_outputs):
         print(f"wrote lists/{name}")
 
@@ -338,14 +389,20 @@ def check() -> None:
     outputs = dry_run()
     safe_n = len(safe)
     strict_n = len(set(safe) | set(strict_delta) | set(zones))
-    print(f"check OK: safe={safe_n} strict={strict_n} zone-anchors={len(zones)} "
-          f"outputs={len(outputs)}")
+    print(
+        f"check OK: safe={safe_n} strict={strict_n} zone-anchors={len(zones)} "
+        f"outputs={len(outputs)}"
+    )
     print(f"source files: {[p.name for p in sorted(SRC.glob('*.txt'))]}")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compile LG TV blocklists")
-    parser.add_argument("mode", choices=["build", "check"], help="build writes lists/; check validates only")
+    parser.add_argument(
+        "mode",
+        choices=["build", "check"],
+        help="build writes lists/; check validates only",
+    )
     args = parser.parse_args(argv)
     try:
         if args.mode == "build":
