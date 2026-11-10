@@ -22,9 +22,9 @@ default), so the list stays current on its own.
 
 **Optional: regex rules.** The `-domains.txt` list is exact-name, so regional
 coverage depends on which prefixes were audited. The two regex files generalise
-the audited two-letter region prefixes; they are most useful outside `de.`/`us.`/`ca.`
-and in STRICT, where they can block whole families on purpose. They are not
-adlists: add the lines via **Domains → Add domain** (type **Regex**) or
+the audited two-letter region families. They supplement exact-name coverage
+(`de.`, `us.`, `ca.`, `au.`, `ae.`); STRICT also includes whole-family rules.
+They are not adlists: add the lines via **Domains → Add domain** (type **Regex**) or
 `pihole --regex '<line>'`. An adlist silently ignores them. When they help and
 what they widen: [region FAQ](faq.md#im-not-in-germany--do-the-lists-still-work-for-me).
 

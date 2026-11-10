@@ -25,7 +25,7 @@ LISTS = ROOT / "lists"
 DEFAULT_OUT_ROOT = ROOT / "lists-regions"
 
 # Labels observed in the audit; extend when src/ gains new region-prefixed entries.
-SOURCE_REGION_LABELS = ("de", "us", "ca")
+SOURCE_REGION_LABELS = ("de", "us", "ca", "au", "ae")
 REGION_RE = re.compile(r"^[a-z]{2}$")
 EXPECTED_FILES = (
     "safe-adblock.txt",

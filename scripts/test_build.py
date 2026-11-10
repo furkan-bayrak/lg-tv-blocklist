@@ -114,6 +114,24 @@ class TestParseSrc(unittest.TestCase):
                     build.parse_src("strict.txt")
                 self.assertIn("not an LG family hostname", str(ctx.exception))
 
+    def test_lgwebostv_hosts_accepted(self):
+        self.write(
+            "strict.txt",
+            "au.app.lgwebostv.com # STRICT: weak — observed in issue #23\n"
+            "au.elastic.lgwebostv.com # STRICT: weak — observed in issue #23\n",
+        )
+        self.assertEqual(
+            build.parse_src("strict.txt"),
+            ["au.app.lgwebostv.com", "au.elastic.lgwebostv.com"],
+        )
+
+    def test_lgwebostv_near_misses_rejected(self):
+        for host in ("notlgwebostv.com", "lgwebostv.com.evil.example"):
+            with self.subTest(host=host):
+                self.write("strict.txt", f"{host} # STRICT: near-miss fixture\n")
+                with self.assertRaisesRegex(ValueError, "not an LG family hostname"):
+                    build.parse_src("strict.txt")
+
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
         with self.assertRaises(ValueError):
@@ -167,6 +185,67 @@ class TestParseSrc(unittest.TestCase):
             build.parse_src("safe.txt")
         self.assertIn("safe.txt:2: duplicate", str(ctx.exception))
         self.assertIn("first at line 1", str(ctx.exception))
+
+
+class TestRegionalReports(unittest.TestCase):
+    """Reported hosts must reach exact-name users without widening SAFE."""
+
+    SAFE_HOSTS = (
+        "au.ad.lgsmartad.com",
+        "au.info.lgsmartad.com",
+        "ae.info.lgsmartad.com",
+    )
+    STRICT_HOSTS = (
+        "ngfts.tv.wiselg.com",
+        "au.rdx2.nextlgsdp.com",
+        "au.nextlgsdp.com",
+        "au.elastic.lgwebostv.com",
+        "au.app.lgwebostv.com",
+        "ae.nextlgsdp.com",
+        "ae.rdx2.nextlgsdp.com",
+        "ae.lgeapi.com",
+        "eic-gfts.tv.wiselg.com",
+        "connect-client.lgthinq.com",
+        "aic-gfts.tv.wiselg.com",
+        "kic-gfts.tv.wiselg.com",
+    )
+    FORMATS = {
+        "domains": "{host}",
+        "hosts": "0.0.0.0 {host}",
+        "adblock": "||{host}^",
+        "dnsmasq": "address=/{host}/0.0.0.0",
+    }
+
+    def test_reported_ad_hosts_ship_in_both_tiers_all_formats(self):
+        outputs = build.dry_run()
+        for tier in ("safe", "strict"):
+            for fmt, template in self.FORMATS.items():
+                body = outputs[f"{tier}-{fmt}.txt"].splitlines()
+                for host in self.SAFE_HOSTS:
+                    with self.subTest(tier=tier, fmt=fmt, host=host):
+                        self.assertIn(template.format(host=host), body)
+
+    def test_feature_and_unknown_hosts_ship_only_in_strict_all_formats(self):
+        outputs = build.dry_run()
+        for fmt, template in self.FORMATS.items():
+            safe_body = outputs[f"safe-{fmt}.txt"].splitlines()
+            strict_body = outputs[f"strict-{fmt}.txt"].splitlines()
+            for host in self.STRICT_HOSTS:
+                with self.subTest(fmt=fmt, host=host):
+                    line = template.format(host=host)
+                    self.assertNotIn(line, safe_body)
+                    self.assertIn(line, strict_body)
+
+    def test_new_webos_family_is_not_blocked_wholesale(self):
+        outputs = build.dry_run()
+        for tier in ("safe", "strict"):
+            self.assertNotIn(
+                "lgwebostv.com", outputs[f"{tier}-domains.txt"].splitlines()
+            )
+            for host in ("fr.app.lgwebostv.com", "fr.elastic.lgwebostv.com"):
+                for line in outputs[f"{tier}-wildcard.txt"].splitlines():
+                    if line and not line.startswith("#"):
+                        self.assertIsNone(re.search(line, host))
 
 
 class TestCompileTier(unittest.TestCase):

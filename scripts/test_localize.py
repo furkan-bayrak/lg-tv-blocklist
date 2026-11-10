@@ -83,6 +83,38 @@ class TestRewriteContent(unittest.TestCase):
                 self.assertEqual(count, 1)
                 self.assertEqual(out.splitlines()[-1], want)
 
+    def test_au_ae_reported_hosts_rewritten_in_all_formats(self):
+        hosts = (
+            "au.ad.lgsmartad.com",
+            "au.info.lgsmartad.com",
+            "au.rdx2.nextlgsdp.com",
+            "au.nextlgsdp.com",
+            "au.elastic.lgwebostv.com",
+            "au.app.lgwebostv.com",
+            "ae.nextlgsdp.com",
+            "ae.rdx2.nextlgsdp.com",
+            "ae.lgeapi.com",
+            "ae.info.lgsmartad.com",
+        )
+        for template in set(FORMATS.values()):
+            for host in hosts:
+                with self.subTest(template=template, host=host):
+                    raw = template.format(e=host)
+                    want = template.format(e="fr." + host.split(".", 1)[1])
+                    self.assertEqual(localize.rewrite_entry(raw, "fr"), want)
+
+    def test_new_region_twins_collapse_without_stale_prefixes(self):
+        for template in set(FORMATS.values()):
+            with self.subTest(template=template):
+                text = HEADER + "".join(
+                    template.format(e=f"{region}.info.lgsmartad.com") + "\n"
+                    for region in ("de", "au", "ae")
+                )
+                out, _ = localize.rewrite_content(text, "fr")
+                body = [line for line in out.splitlines() if line and not line.startswith("#")]
+                self.assertEqual(body, [template.format(e="fr.info.lgsmartad.com")])
+                self.assertIn("# Entries: 1", out)
+
     def test_dnsmasq_non_region_entries_unchanged(self):
         # A dnsmasq line whose label is not a source region stays byte-identical,
         # sinkhole target and all.

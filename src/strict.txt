@@ -37,6 +37,26 @@ ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; commu
 www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog); observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); breakage untested
 lgshopsvc.lgappstv.com # STRICT: weak — LG Shop service (SDX); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1
 
+# --- AU/UAE community observations (repo issues #23 and #24) ---------------
+# Capture/log observation proves contact, not payload purpose or SAFE status.
+# New uncertain services stay STRICT; no new whole-zone anchors are introduced.
+# The bare <cc>.nextlgsdp.com host can supply the clock (issue #6): the UAE
+# reporter needs ae.nextlgsdp.com allowlisted even with STRICT. See docs/faq.md.
+ngfts.tv.wiselg.com # STRICT: weak — file-transfer sibling, payload purpose unverified; repo issues #23 (@Merloko, LG C2 AU firmware 33.31.68, DNS + TLS SNI capture 2026-10-28) and #24 (@kdeldycke, LG B4 UAE webOS 25 10.3.2-33, gateway blocked-query observation); no isolated block test
+au.rdx2.nextlgsdp.com # STRICT: weak — SDP endpoint, function unverified; repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; TLS SNI capture 2026-10-28, 10-minute cadence; no live-block test
+au.nextlgsdp.com # STRICT: weak — SDP region endpoint, possible clock/store dependency (issue #6); repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; no live-block test, allowlist if time sync fails
+au.elastic.lgwebostv.com # STRICT: weak — webOS regional endpoint, function unverified; repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; encrypted payload, no live-block test
+au.app.lgwebostv.com # STRICT: weak — webOS regional app endpoint, app/store risk unverified; repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; encrypted payload, no live-block test
+ae.nextlgsdp.com # STRICT: SDP region endpoint, CLOCK DEPENDENCY — repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway logs (~3-minute cadence); reporter must allowlist this host for clock sync, not SAFE
+ae.rdx2.nextlgsdp.com # STRICT: weak — SDP endpoint, function unverified; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway log observation; no isolated block test
+ae.lgeapi.com # STRICT: weak — region API, store/billing interplay unproven; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway log observation, reporter runs STRICT; inherits de.lgeapi.com tier
+eic-gfts.tv.wiselg.com # STRICT: weak — file-transfer sibling, payload purpose unverified; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway blocked-query observation at power-on; no isolated block test
+connect-client.lgthinq.com # STRICT: ThinQ cloud connection endpoint — repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway blocked-query observation at power-on; ThinQ impact untested
+# DNS-only cluster twins of the observed eic-gfts.tv.wiselg.com; weak lineage
+# remains weak. Both resolved on Google + Cloudflare DoH on 2026-11-10.
+aic-gfts.tv.wiselg.com # STRICT: weak — file-transfer sibling, aic cluster; DNS existence only (Google + Cloudflare DoH 2026-11-10), no TV traffic observation
+kic-gfts.tv.wiselg.com # STRICT: weak — file-transfer sibling, kic cluster; DNS existence only (Google + Cloudflare DoH 2026-11-10), no TV traffic observation
+
 # --- Datacentre cluster endpoints (added 2026-09-12) -------------------------
 # LG fronts these services from three regional datacentre clusters: eic
 # (Europe), aic (Americas), kic (Korea). The G1 audit ran in Germany, so it only

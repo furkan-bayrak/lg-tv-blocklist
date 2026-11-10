@@ -17,6 +17,9 @@ eic.tv.wiselg.com # SAFE: TV telemetry (blocked live, apps fine)
 de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry — never generalised to a region regex: the two-letter region hosts carry TV time/apps traffic on some models (hagezi/dns-blocklists#11438)
 lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
 de.info.lgsmartad.com # SAFE: ad info endpoint [REGION-SCOPED]
+au.ad.lgsmartad.com # SAFE: regional ad endpoint in the dedicated lgsmartad.com ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; live-block test not performed
+au.info.lgsmartad.com # SAFE: regional ad info endpoint in the dedicated lgsmartad.com ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; live-block test not performed
+ae.info.lgsmartad.com # SAFE: regional ad info endpoint in the dedicated lgsmartad.com ad zone — repo issue #24 (@kdeldycke), LG B4 UAE, webOS 25 10.3.2-33; UniFi gateway log observation, reporter runs STRICT with this ad zone blocked
 de.emp.lgsmartplatform.com # SAFE: smart-platform telemetry [REGION-SCOPED]
 smart.adtvc.app # SAFE: ad serving (adtvc.app family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 adsdtvc.com # SAFE: ad zone | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.

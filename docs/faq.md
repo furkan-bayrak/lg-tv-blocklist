@@ -121,10 +121,11 @@ RESOLVER_IP=192.168.178.53 sh /var/lib/webosbrew/init.d/02-block-dns-egress
 
 ```text
 @@||<cc>.lgtvsdp.com^
+@@||<cc>.nextlgsdp.com^
 @@||<cc>.ibs.nextlgsdp.com^
 ```
 
-(the second line keeps the region store/billing path reachable).
+The bare region host (`<cc>.nextlgsdp.com`) may supply time too; the third line keeps the region store/billing path reachable. These are host-specific exceptions, not an allowlist for the entire `nextlgsdp.com` zone. In [issue #24](https://github.com/furkan-bayrak/lg-tv-blocklist/issues/24), a UAE B4 owner reports needing `ae.nextlgsdp.com` open for the clock while running STRICT. Use the hosts your TV actually queries; the Australian observations in [issue #23](https://github.com/furkan-bayrak/lg-tv-blocklist/issues/23) do not include a live-block test.
 
 **Quick check (root/SSH):** run `date` on the TV — if it shows a 2021 date, this is the same problem.
 
@@ -142,19 +143,19 @@ AdGuard Home evaluates `@@` exceptions at the engine level, but the official doc
 
 ## I'm not in Germany — do the lists still work for me?
 
-Depends on your tier and format. In the **adblock** and **dnsmasq** formats, **STRICT is region-complete**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
+Depends on your tier and format. In the **adblock** and **dnsmasq** formats, **STRICT is region-complete for its anchored families**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. The newly reported `au.app.lgwebostv.com` and `au.elastic.lgwebostv.com` are STRICT-only exact entries, with no `lgwebostv.com` zone anchor: other countries in that family are not automatically covered. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
 
 **SAFE's adblock and dnsmasq lists only cover region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` family wholesale (`||lgsmartad.com^`), so `fr.info.lgsmartad.com` is caught, and it no longer blocks the `lgtvsdp.com` family at all (the time-sync apex was removed 2026-09-16). But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock or dnsmasq lists — SAFE keeps only the audited exact `de.`/`ca.nextlgsdp.com` entries.
 
 The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
 
-For exact-name use outside Germany, the built lists cover the audited prefixes (`de.`, `us.`, `ca.` today). For anywhere else, localize them and repeat the run after every list update:
+For exact-name use outside Germany, the built lists cover the known source prefixes (`de.`, `us.`, `ca.`, `au.`, `ae.` today). For anywhere else, localize them and repeat the run after every list update:
 
 ```sh
 python scripts/localize.py --region fr
 ```
 
-That writes `lists-regions/fr/` (all 6 lists plus `SHA256SUMS`), rewriting only entries with an audited prefix (`de.`, `us.`, `ca.` today). The output header marks the result **unaudited**: most endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
+That writes `lists-regions/fr/` (all 8 non-regex lists plus `SHA256SUMS`), rewriting only entries with a known source prefix (`de.`, `us.`, `ca.`, `au.`, `ae.` today). The output header marks the result **unaudited**: most endpoints for your region were never observed in our German audit, so verify against your own query log before relying on them.
 
 **Use your TV's real prefix.** Take it from the query log: LG does not always serve a country under its ISO code, for example `uk.`, not `gb.`. A wrong prefix rewrites nothing and blocks nothing.
 
@@ -177,8 +178,8 @@ Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores
 
 One warning for `strict-wildcard.txt`: whole-zone blocking is new if you were on the exact-name lists, so read [keeping the Content Store](#i-want-strict-but-keep-the-lg-content-store) first. Note also that its `@@||host^` exceptions are AdGuard syntax; in Pi-hole an allowlist entry is an exact domain or its own regex.
 
-If you have a query log for your region, it is exactly the evidence needed to extend the `de.*`/`us.*`/`ca.*` entries upstream: see [regional query logs welcome](../CONTRIBUTING.md#1-evidence-over-guesses). A prefix confirmed by a query log is added to `SOURCE_REGION_LABELS` so future `localize.py` runs rewrite it automatically.
+If you have a query log for your region, it is exactly the evidence needed to extend the regional entries upstream: see [regional query logs welcome](../CONTRIBUTING.md#1-evidence-over-guesses). A prefix confirmed by a query log is added to `SOURCE_REGION_LABELS` so future `localize.py` runs rewrite it automatically.
 
 ## Why is a domain missing / how do I report a false positive?
 
-See [CONTRIBUTING](../CONTRIBUTING.md) — the evidence bar is the point of this project. Use the issue templates.
+See [CONTRIBUTING](../CONTRIBUTING.md) — the evidence bar is the point of this project. Use the issue templates. The [AU/UAE report notes](regional-reports.md) show how observed hosts are classified, how coverage differs by format, and what diagnostics a breakage report needs.

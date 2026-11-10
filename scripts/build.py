@@ -24,6 +24,7 @@ HOSTNAME_RE = re.compile(
 LG_SUFFIXES = (
     "lge.com",
     "lgappstv.com",
+    "lgwebostv.com",
     "lgtvsdp.com",
     "lgtvcommon.com",
     "lgtviot.com",
