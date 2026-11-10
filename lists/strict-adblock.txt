@@ -1,13 +1,18 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-10-30 15:01 UTC
-# Entries: 115
+# Updated: 2026-11-10 07:32 UTC
+# Entries: 130
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 ||a.lgappstv.com^
 ||ad.lgappstv.com^
 ||ads.lgtvcommon.com^
 ||adsdtvc.com^
+||ae.info.lgsmartad.com^
+||ae.lgeapi.com^
+||ae.nextlgsdp.com^
+||ae.rdx2.nextlgsdp.com^
 ||aic-gfts.lge.com^
+||aic-gfts.tv.wiselg.com^
 ||aic-ngfts.lge.com^
 ||aic-ngfts.nextlgsdp.com^
 ||aic-ngfts.tv.wiselg.com^
@@ -31,9 +36,16 @@
 ||aic.wiseconfig.lgtvcommon.com^
 ||alphonso.tv^
 ||am.lge.com^
+||au.ad.lgsmartad.com^
+||au.app.lgwebostv.com^
+||au.elastic.lgwebostv.com^
+||au.info.lgsmartad.com^
+||au.nextlgsdp.com^
+||au.rdx2.nextlgsdp.com^
 ||bss.lgechannel.com^
 ||ca.nextlgsdp.com^
 ||cdpbeacon.lgtvcommon.com^
+||connect-client.lgthinq.com^
 ||de.emp.lgsmartplatform.com^
 ||de.ibs.nextlgsdp.com^
 ||de.info.lgsmartad.com^
@@ -41,6 +53,7 @@
 ||de.nextlgsdp.com^
 ||discovery.meethue.com^
 ||eic-gfts.lge.com^
+||eic-gfts.tv.wiselg.com^
 ||eic-ngfts.lge.com^
 ||eic-ngfts.nextlgsdp.com^
 ||eic-ngfts.tv.wiselg.com^
@@ -69,6 +82,7 @@
 ||info.lgsmartad.com^
 ||initscr.lge.com^
 ||kic-gfts.lge.com^
+||kic-gfts.tv.wiselg.com^
 ||kic-ngfts.lge.com^
 ||kic-ngfts.nextlgsdp.com^
 ||kic-ngfts.tv.wiselg.com^
@@ -107,6 +121,7 @@
 ||nextlgsdp.com^
 ||ngfts.lge.com^
 ||ngfts.nextlgsdp.com^
+||ngfts.tv.wiselg.com^
 ||rdx2.lgtvsdp.com^
 ||recommend.lgtvcommon.com^
 ||service.lgtvcommon.com^

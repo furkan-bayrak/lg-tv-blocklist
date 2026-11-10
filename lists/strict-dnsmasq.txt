@@ -1,13 +1,18 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-10-30 15:01 UTC
-# Entries: 115
+# Updated: 2026-11-10 07:32 UTC
+# Entries: 130
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 address=/a.lgappstv.com/0.0.0.0
 address=/ad.lgappstv.com/0.0.0.0
 address=/ads.lgtvcommon.com/0.0.0.0
 address=/adsdtvc.com/0.0.0.0
+address=/ae.info.lgsmartad.com/0.0.0.0
+address=/ae.lgeapi.com/0.0.0.0
+address=/ae.nextlgsdp.com/0.0.0.0
+address=/ae.rdx2.nextlgsdp.com/0.0.0.0
 address=/aic-gfts.lge.com/0.0.0.0
+address=/aic-gfts.tv.wiselg.com/0.0.0.0
 address=/aic-ngfts.lge.com/0.0.0.0
 address=/aic-ngfts.nextlgsdp.com/0.0.0.0
 address=/aic-ngfts.tv.wiselg.com/0.0.0.0
@@ -31,9 +36,16 @@ address=/aic.tv.wiselg.com/0.0.0.0
 address=/aic.wiseconfig.lgtvcommon.com/0.0.0.0
 address=/alphonso.tv/0.0.0.0
 address=/am.lge.com/0.0.0.0
+address=/au.ad.lgsmartad.com/0.0.0.0
+address=/au.app.lgwebostv.com/0.0.0.0
+address=/au.elastic.lgwebostv.com/0.0.0.0
+address=/au.info.lgsmartad.com/0.0.0.0
+address=/au.nextlgsdp.com/0.0.0.0
+address=/au.rdx2.nextlgsdp.com/0.0.0.0
 address=/bss.lgechannel.com/0.0.0.0
 address=/ca.nextlgsdp.com/0.0.0.0
 address=/cdpbeacon.lgtvcommon.com/0.0.0.0
+address=/connect-client.lgthinq.com/0.0.0.0
 address=/de.emp.lgsmartplatform.com/0.0.0.0
 address=/de.ibs.nextlgsdp.com/0.0.0.0
 address=/de.info.lgsmartad.com/0.0.0.0
@@ -41,6 +53,7 @@ address=/de.lgeapi.com/0.0.0.0
 address=/de.nextlgsdp.com/0.0.0.0
 address=/discovery.meethue.com/0.0.0.0
 address=/eic-gfts.lge.com/0.0.0.0
+address=/eic-gfts.tv.wiselg.com/0.0.0.0
 address=/eic-ngfts.lge.com/0.0.0.0
 address=/eic-ngfts.nextlgsdp.com/0.0.0.0
 address=/eic-ngfts.tv.wiselg.com/0.0.0.0
@@ -69,6 +82,7 @@ address=/ig.lge.com/0.0.0.0
 address=/info.lgsmartad.com/0.0.0.0
 address=/initscr.lge.com/0.0.0.0
 address=/kic-gfts.lge.com/0.0.0.0
+address=/kic-gfts.tv.wiselg.com/0.0.0.0
 address=/kic-ngfts.lge.com/0.0.0.0
 address=/kic-ngfts.nextlgsdp.com/0.0.0.0
 address=/kic-ngfts.tv.wiselg.com/0.0.0.0
@@ -107,6 +121,7 @@ address=/lss.lgthinq.com/0.0.0.0
 address=/nextlgsdp.com/0.0.0.0
 address=/ngfts.lge.com/0.0.0.0
 address=/ngfts.nextlgsdp.com/0.0.0.0
+address=/ngfts.tv.wiselg.com/0.0.0.0
 address=/rdx2.lgtvsdp.com/0.0.0.0
 address=/recommend.lgtvcommon.com/0.0.0.0
 address=/service.lgtvcommon.com/0.0.0.0

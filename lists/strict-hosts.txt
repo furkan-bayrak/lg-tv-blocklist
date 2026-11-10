@@ -1,13 +1,18 @@
 # Title: LG TV Blocklist (strict)
-# Updated: 2026-10-30 15:01 UTC
-# Entries: 115
+# Updated: 2026-11-10 07:32 UTC
+# Entries: 130
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 0.0.0.0 a.lgappstv.com
 0.0.0.0 ad.lgappstv.com
 0.0.0.0 ads.lgtvcommon.com
 0.0.0.0 adsdtvc.com
+0.0.0.0 ae.info.lgsmartad.com
+0.0.0.0 ae.lgeapi.com
+0.0.0.0 ae.nextlgsdp.com
+0.0.0.0 ae.rdx2.nextlgsdp.com
 0.0.0.0 aic-gfts.lge.com
+0.0.0.0 aic-gfts.tv.wiselg.com
 0.0.0.0 aic-ngfts.lge.com
 0.0.0.0 aic-ngfts.nextlgsdp.com
 0.0.0.0 aic-ngfts.tv.wiselg.com
@@ -31,9 +36,16 @@
 0.0.0.0 aic.wiseconfig.lgtvcommon.com
 0.0.0.0 alphonso.tv
 0.0.0.0 am.lge.com
+0.0.0.0 au.ad.lgsmartad.com
+0.0.0.0 au.app.lgwebostv.com
+0.0.0.0 au.elastic.lgwebostv.com
+0.0.0.0 au.info.lgsmartad.com
+0.0.0.0 au.nextlgsdp.com
+0.0.0.0 au.rdx2.nextlgsdp.com
 0.0.0.0 bss.lgechannel.com
 0.0.0.0 ca.nextlgsdp.com
 0.0.0.0 cdpbeacon.lgtvcommon.com
+0.0.0.0 connect-client.lgthinq.com
 0.0.0.0 de.emp.lgsmartplatform.com
 0.0.0.0 de.ibs.nextlgsdp.com
 0.0.0.0 de.info.lgsmartad.com
@@ -41,6 +53,7 @@
 0.0.0.0 de.nextlgsdp.com
 0.0.0.0 discovery.meethue.com
 0.0.0.0 eic-gfts.lge.com
+0.0.0.0 eic-gfts.tv.wiselg.com
 0.0.0.0 eic-ngfts.lge.com
 0.0.0.0 eic-ngfts.nextlgsdp.com
 0.0.0.0 eic-ngfts.tv.wiselg.com
@@ -69,6 +82,7 @@
 0.0.0.0 info.lgsmartad.com
 0.0.0.0 initscr.lge.com
 0.0.0.0 kic-gfts.lge.com
+0.0.0.0 kic-gfts.tv.wiselg.com
 0.0.0.0 kic-ngfts.lge.com
 0.0.0.0 kic-ngfts.nextlgsdp.com
 0.0.0.0 kic-ngfts.tv.wiselg.com
@@ -107,6 +121,7 @@
 0.0.0.0 nextlgsdp.com
 0.0.0.0 ngfts.lge.com
 0.0.0.0 ngfts.nextlgsdp.com
+0.0.0.0 ngfts.tv.wiselg.com
 0.0.0.0 rdx2.lgtvsdp.com
 0.0.0.0 recommend.lgtvcommon.com
 0.0.0.0 service.lgtvcommon.com
