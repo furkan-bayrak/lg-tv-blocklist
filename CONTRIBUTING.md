@@ -61,7 +61,8 @@ changes, with stable checks `Validate blocklists` and `Validate hooks`.
 Structural violations (malformed, duplicate, or non-LG hostnames) fail the
 build; semantic tier placement is reviewed by maintainers. The generated
 `lists/` directory is off-limits to PRs (CI rejects changes to it) — edit
-`src/` instead. Protection and live rollout remain pending; see the
+`src/` instead. Live review rollout remains pending; branch protection is
+deferred to a separate optional phase. See the
 [maintainer runbook](docs/pr-review-workflow.md).
 
 ## Format semantics

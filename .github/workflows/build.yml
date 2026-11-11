@@ -82,49 +82,23 @@ jobs:
         run: python3 scripts/test_check_blocking.py
 
   publish:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.check.outputs.src_changed == 'true'
+    if: github.event_name != 'pull_request' && needs.check.outputs.src_changed == 'true'
     needs: check
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
-      # Provision the LG-only publisher App before enabling branch protection.
-      # Missing credentials fail publication; GITHUB_TOKEN is never a fallback.
-      - name: Create repository-scoped publisher token
-        id: publisher
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          app-id: ${{ vars.BLOCKLIST_PUBLISH_APP_ID }}
-          private-key: ${{ secrets.BLOCKLIST_PUBLISH_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
       - uses: actions/checkout@v7
-        with:
-          # Build the validated event revision, never a moving branch tip.
-          ref: ${{ github.sha }}
-          token: ${{ steps.publisher.outputs.token }}
       - name: Compile lists
         run: python3 scripts/build.py build
       - name: Verify checksums
         run: cd lists && sha256sum -c SHA256SUMS
       - name: Commit generated lists
-        env:
-          APP_SLUG: ${{ steps.publisher.outputs.app-slug }}
         run: |
-          set -euo pipefail
-          # Check index and worktree separately: either can contain pending
-          # tracked changes that the other view hides. Never publish those.
-          if ! git diff --quiet -- . ':(exclude)lists/' ||
-             ! git diff --cached --quiet -- . ':(exclude)lists/'; then
-            echo "::error::Refusing publication: pending tracked changes outside lists/."
-            exit 1
-          fi
-          git add -- lists/
-          if ! git diff --cached --quiet; then
-            git config user.name "${APP_SLUG}[bot]"
-            git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- lists; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add lists/
             git commit -m "chore: regenerate blocklists [skip ci]"
-            # A concurrent main update must fail, never be overwritten.
-            git push origin HEAD:refs/heads/main
+            git push
           fi

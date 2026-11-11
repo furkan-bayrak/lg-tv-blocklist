@@ -1,7 +1,7 @@
 # PR-Agent and Oh My Py workflow implementation plan
 
 Date: 2026-11-11
-Status: Planning only. No workflows, secrets, branch rules, or agent settings have been changed.
+Status: Implementation in progress. Owner revised scope: phase 1 is PR-Agent + DeepSeek and OMP review/authorization, preserving existing publication. Branch protection and publisher App provisioning move together to a separately approved phase 2. See `pr-review-workflow.md` for current implementation and observed evidence; the combined rollout and OpenAI baseline below are historical.
 Pilot repository: `furkan-bayrak/lg-tv-blocklist`
 Local checkout: `/home/macmini/projects/lg-tv-blocklist`
 
