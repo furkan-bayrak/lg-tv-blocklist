@@ -14,6 +14,7 @@ eic-ngfts.lge.com # STRICT: update-check/file-transfer telemetry (boot burst)
 eic-gfts.lge.com # STRICT: file-transfer telemetry
 ngfts.nextlgsdp.com # STRICT: update transfer on SDP family
 eic-ngfts.tv.wiselg.com # STRICT: update transfer (wiselg family)
+eic.tv.wiselg.com # STRICT: Content Store/app-update dependency reported on OLED65C34LA, webOS 26/11.2.0-3711; allowing this host reportedly restores both (issue #25, https://github.com/furkan-bayrak/lg-tv-blocklist/issues/25). Previously blocked on G1 with apps working; not independently reproduced on C3.
 lss.lgthinq.com # STRICT: ThinQ cloud sync backend
 eic-op-lss.lgthinq.com # STRICT: ThinQ operations telemetry
 bss.lgechannel.com # STRICT: LG Channels (FAST) backend — feature kill by design | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.

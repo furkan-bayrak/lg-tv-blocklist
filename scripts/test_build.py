@@ -196,6 +196,7 @@ class TestRegionalReports(unittest.TestCase):
         "ae.info.lgsmartad.com",
     )
     STRICT_HOSTS = (
+        "eic.tv.wiselg.com",  # Issue #25: Content Store/app updates on C3 webOS 26.
         "ngfts.tv.wiselg.com",
         "au.rdx2.nextlgsdp.com",
         "au.nextlgsdp.com",
