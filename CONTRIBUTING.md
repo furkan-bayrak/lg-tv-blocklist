@@ -56,11 +56,13 @@ untouched.
 Every line needs an inline annotation — format, tags, and examples in
 [Annotated domains](#annotated-domains) below.
 
-CI validates every PR that touches `src/` or `scripts/` — structural
-violations (malformed, duplicate, or non-LG hostnames) fail the build;
-semantic tier placement is reviewed by maintainers. The generated `lists/`
-directory is off-limits to PRs (CI rejects changes to it) — edit `src/`
-instead.
+CI validation is being extended to every PR, including documentation-only
+changes, with stable checks `Validate blocklists` and `Validate hooks`.
+Structural violations (malformed, duplicate, or non-LG hostnames) fail the
+build; semantic tier placement is reviewed by maintainers. The generated
+`lists/` directory is off-limits to PRs (CI rejects changes to it) — edit
+`src/` instead. Protection and live rollout remain pending; see the
+[maintainer runbook](docs/pr-review-workflow.md).
 
 ## Format semantics
 
@@ -170,6 +172,18 @@ exactly that. Rules:
    (requires Python 3.10+ — the scripts use modern union type syntax).
 4. Open the PR. The merge job regenerates `lists/` automatically — never
    commit generated files yourself.
+
+An advisory PR-Agent review is being introduced for ready PRs, including
+forks and documentation changes. It does not replace evidence, deterministic
+checks, or maintainer judgment. The maintainer/OMP evaluates each finding as
+accepted/fixed, rejected with evidence, or unresolved with a concrete reason;
+suggestions are not applied automatically. Corrections require relevant
+checks and review of the new revision, with at most two automatic correction
+rounds before escalation. Missing/failed/partial review is disclosed rather
+than called clean. Only an explicitly authorized current revision is merged.
+See the [review workflow and pending rollout status](docs/pr-review-workflow.md)
+for provenance, credentials, limitations, and recovery. These review steps do
+not weaken the empirical evidence or `src/`-only rules above.
 
 ## License
 

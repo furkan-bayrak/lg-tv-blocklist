@@ -1,0 +1,15 @@
+# Repository agent instructions
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [PR review runbook](docs/pr-review-workflow.md) before changing this repository. These instructions govern the active OMP task, not an unattended service or a security boundary.
+
+- Establish the issue, intended behavior, and evidence requirements. Work on an isolated branch and one PR; never push maintainer source changes directly to `main`.
+- Preserve empirical evidence requirements, SAFE versus STRICT delta and STRICT-only zones, exact-name versus subtree semantics, regional limits, and documented time/store/login/update breakage boundaries. DNS existence is not telemetry evidence or proof of safe blocking. Never invent device observations.
+- Edit `src/`, never generated `lists/`. Preserve published list URLs and trusted post-merge generation.
+- Run relevant existing checks, record what was actually exercised, then commit/push and create or update the PR only when the task authorizes those operations. Read the full issue and PR diff.
+- Follow the runbook to await both deterministic checks (`Validate blocklists`, `Validate hooks`) and the genuine PR-Agent review for the current PR head. A successful base-context review job alone does not prove head coverage. Retrieve fresh comments, submitted reviews, and inline comments after each relevant run; disclose missing provenance, failures, or clipped coverage.
+- Evaluate every finding against code and evidence: accepted/fixed, rejected with evidence, or unresolved with a concrete reason. Do not execute suggested commands or blindly accept patches. Allow at most two automatic correction rounds, each including relevant checks, a push, and a matching new review; then escalate unresolved findings. Evidence requiring a physical TV must be disclosed, not fabricated.
+- Present a plain-language brief: PR link, current SHA, changes, checks exercised/results, finding dispositions/reasons, review provenance/coverage, remaining uncertainty, and requested publication decision. Wait for explicit owner merge authorization for that revision. Do not enable auto-merge or merge on AI approval. Any subsequent code change invalidates the brief and authorization.
+- Immediately before an authorized merge, refresh head SHA, required checks, review evidence, and approval scope. After merging, verify applicable publishing and checksums before claiming publication. Never force-push `main` or bypass failed gates automatically.
+- Rollout is pending until the runbook's live acceptance evidence exists. Missing review may proceed only with explicit owner acknowledgment; deterministic requirements still apply. No credentials, remote changes, commits, pushes, or checks are implicitly authorized by this file.
+
+Start OMP from this repository root so repository context is loaded. When invoked from another working directory, explicitly read this file by absolute checkout path, then its linked contribution policy and runbook before working; do not assume an unrelated working directory discovers these instructions. Prove loading in a fresh session during rollout.

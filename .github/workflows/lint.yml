@@ -2,20 +2,20 @@ name: Lint example hooks
 
 on:
   pull_request:
-    paths: ['examples/**', 'scripts/**', '.github/workflows/lint.yml']
   push:
     branches: [main]
     paths: ['examples/**', 'scripts/**', '.github/workflows/lint.yml']
   workflow_dispatch:
 
-# This workflow's own file is in the paths filters above, so edits to it are
-# re-linted without a manual dispatch.
+# This workflow's own file is in the push paths filter above, so edits to it are
+# re-linted without a manual dispatch. Every PR runs validation regardless of paths.
 
 permissions:
   contents: read
 
 jobs:
   shellcheck:
+    name: Validate hooks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

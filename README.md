@@ -72,6 +72,7 @@ Full list: [docs/faq.md](docs/faq.md).
 - **Upstream tracker** — where these domains were submitted to community blocklists: [docs/upstream.md](docs/upstream.md).
 - **Source of truth** — annotated lists: [src/safe.txt](src/safe.txt), [src/strict.txt](src/strict.txt), [src/zones.txt](src/zones.txt). The comments tell you what every entry does and the evidence behind it, e.g. `snu.lge.com # STRICT: firmware OTA check server`.
 - **Contributing** — evidence rules and how to add a domain, edit `src/` only (CI regenerates the lists): [CONTRIBUTING.md](CONTRIBUTING.md) (templates: [new domain](.github/ISSUE_TEMPLATE/01_new_domain.md), [breakage](.github/ISSUE_TEMPLATE/02_breakage.md)).
+- **PR review workflow** — maintainer/OMP review triage, explicit merge authorization, and advisory PR-Agent pilot [runbook and pending rollout status](docs/pr-review-workflow.md). AI review does not validate telemetry evidence or guarantee TV compatibility.
 - **Join as a maintainer** — LG runs dozens of webOS versions and regional endpoints; captures or query logs from a C-series, G-series, or other model are exactly what this needs. [Open an issue](https://github.com/furkan-bayrak/lg-tv-blocklist/issues) or submit a PR.
 
 ## License
