@@ -1,6 +1,6 @@
 # Title: LG TV Blocklist (safe)
-# Updated: 2026-11-10 07:32 UTC
-# Entries: 23
+# Updated: 2026-11-11 05:56 UTC
+# Entries: 22
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 address=/ad.lgappstv.com/0.0.0.0
@@ -18,7 +18,6 @@ address=/de.nextlgsdp.com/0.0.0.0
 address=/eic.api.lgtviot.com/0.0.0.0
 address=/eic.lgtviot.com/0.0.0.0
 address=/eic.nudge.lgtvcommon.com/0.0.0.0
-address=/eic.tv.wiselg.com/0.0.0.0
 address=/eic.wiseconfig.lgtvcommon.com/0.0.0.0
 address=/homeprv.lgtvcommon.com/0.0.0.0
 address=/info.lgsmartad.com/0.0.0.0

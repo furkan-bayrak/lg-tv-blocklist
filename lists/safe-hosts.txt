@@ -1,6 +1,6 @@
 # Title: LG TV Blocklist (safe)
-# Updated: 2026-11-10 07:32 UTC
-# Entries: 23
+# Updated: 2026-11-11 05:56 UTC
+# Entries: 22
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 0.0.0.0 ad.lgappstv.com
@@ -18,7 +18,6 @@
 0.0.0.0 eic.api.lgtviot.com
 0.0.0.0 eic.lgtviot.com
 0.0.0.0 eic.nudge.lgtvcommon.com
-0.0.0.0 eic.tv.wiselg.com
 0.0.0.0 eic.wiseconfig.lgtvcommon.com
 0.0.0.0 homeprv.lgtvcommon.com
 0.0.0.0 info.lgsmartad.com
