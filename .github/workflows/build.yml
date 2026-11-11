@@ -8,7 +8,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: lists
+  # Required PR checks must never queue behind unrelated PRs/publication.
+  group: ${{ github.event_name == 'pull_request' && format('lists-pr-{0}', github.event.pull_request.number) || 'lists' }}
   cancel-in-progress: false
 
 # Workflow-file edits are covered by the push paths filter above. publish is gated

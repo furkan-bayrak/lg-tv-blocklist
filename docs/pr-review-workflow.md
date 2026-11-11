@@ -2,7 +2,7 @@
 
 ## Status and owner experience
 
-**Pending rollout (2026-11-11).** This branch prepares the pilot; it does not prove a deployed integration. No model/publisher credentials or branch rulesets are configured. Bootstrap merge, spending approval, model-access proof and live GitHub acceptance exercises remain prerequisites. Do not describe required checks as enforced or protected publication as working until demonstrated. The [approved plan](2026-11-11-pr-agent-workflow-plan.md) is the acceptance specification and historical planning record.
+**Pending rollout (2026-11-11).** This branch prepares the pilot; it does not prove a deployed integration. The DeepSeek secret's presence is confirmed (value never read); publisher credentials and branch rulesets are not configured. Bootstrap merge, model-access proof and live GitHub acceptance exercises remain prerequisites. Do not describe required checks as enforced or protected publication as working until demonstrated. The [approved plan](2026-11-11-pr-agent-workflow-plan.md) is the acceptance specification and historical planning record.
 
 The owner describes an issue; OMP implements on a branch, opens a PR, reads CI and advisory review, evaluates findings, and presents a publication decision. The owner explicitly authorizes merging a specified revision. GitHub can review while OMP is closed, but does not launch a local agent or automatically fix anything. Resume the active task to consume feedback. AI is not an independent GitHub approval, proof of safety, or evidence of real-TV behavior.
 
@@ -56,6 +56,10 @@ Prepare the branch/PR; separately review workflow security and run `actionlint` 
 Local verification on 2026-11-11: `actionlint` v1.7.12 passed; `scripts/build.py check` passed; the six existing Python suites ran 232 tests total, with one existing skip and no failures; ShellCheck passed for `examples/webos-hooks/*.sh`. This does not exercise hosted inference, GitHub events, protected publication or real-TV behavior.
 
 Fresh OMP CLI proof succeeded from `/tmp`: `omp --cwd /home/macmini/projects/lg-tv-blocklist -p --max-cost 0.10 --max-time 45 --no-session --no-tools` with a read-only instruction-loading prompt exited 0. It identified automatically loaded `AGENTS.md` through repository rules and correctly reported current-head review retrieval, finding dispositions, two-round correction limit, explicit merge approval and post-merge publication verification. It correctly distinguished linked contribution/runbook files from automatically loaded instructions. This proves context loading, not the live GitHub feedback loop.
+
+Bootstrap [PR #26](https://github.com/furkan-bayrak/lg-tv-blocklist/pull/26), initial head `34ad826`: hosted [Validate blocklists](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/runs/43092752620) and [Validate hooks](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/runs/43092752282) passed; publication correctly skipped on the PR. No PR-Agent run is expected until its trusted base workflow is merged. Initial settings inspection found no repository Actions secrets/variables and no rulesets; no remote settings were changed. Branch publication used the existing SSH identity because the existing CLI OAuth token lacks workflow-writing scope; no token scopes or global credential configuration were changed.
+
+Independent bootstrap review found required blocklist checks shared a global pending concurrency slot with unrelated PRs. Accepted and fixed: PR validation now uses `lists-pr-<number>` while trusted publishing retains `lists`; `actionlint` passed after the change. DeepSeek secret presence was subsequently confirmed by name-only API read, not decrypted or accessed. Provider calls remain unexercised until bootstrap approval.
 
 Record real PR/run/comment URLs, SHAs, dispositions and results here (all **pending**, no live acceptance claimed):
 
