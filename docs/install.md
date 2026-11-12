@@ -71,6 +71,14 @@ exact-host blocking use `-domains.txt` or `-hosts.txt` instead. Read the
 [store carve-out](faq.md#i-want-strict-but-keep-the-lg-content-store) before
 installing STRICT.
 
+**IPv6 limitation:** These rules specify only an IPv4 address. In dnsmasq
+2.86 and later, AAAA queries for a listed name can be forwarded upstream
+instead of being blocked, even when the query reaches dnsmasq. An upstream
+IPv6 answer can therefore bypass this list. An AAAA query can travel over
+IPv4, so IPv4-only DNS transport does not prevent this. Check your resolver's
+IPv6 filtering separately; see the [dnsmasq manual](https://dnsmasq.org/docs/dnsmasq-man.html)
+and the separate [IPv6 DNS-egress caveat](faq.md#can-ipv6-bypass-my-blocklist).
+
 ## NextDNS
 
 NextDNS has no custom list URLs (third-party lists reach it only through its
