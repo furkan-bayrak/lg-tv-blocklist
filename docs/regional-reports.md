@@ -73,3 +73,50 @@ A clock/date check can follow if the error suggests TLS or time-sync failure.
 Keep the issue open until the filter identity and a reproducible cause are
 established. Each public reply requires the repository owner's individual
 approval before posting.
+
+## Upstream comparison #28
+
+[#28](https://github.com/furkan-bayrak/lg-tv-blocklist/issues/28) compares this
+project with Life's Good Without Spying 0.12.2. @kdeldycke reports an LG
+OLED77B46LA (B4, UAE), webOS 25 `10.3.2-33`, but supplies no traffic capture or
+per-host blocking test for these 86 names. Enabling categories together is not
+an isolated compatibility test. No additions qualify for SAFE, including
+Alphonso children: the owner-directed apex exception is not a blanket promotion.
+
+**Disposition:** 79 names added to STRICT, seven deferred. `nsu.lge.com` and
+`snu-dev.lge.com` have firmware-purpose evidence in the reporter's update-daemon
+strings, not proof of live contact. The other 77 entries are tagged **weak**:
+their purpose comes from upstream notes, not this project's device audit.
+ThinQ, Home recommendations and Channels may break; shared third-party names
+can also affect non-TV clients when filtering is network-wide. No new zone
+anchors, regional regexes or SAFE entries are introduced.
+
+All 79 additions returned A records on **both Google and Cloudflare DoH on
+2026-11-17**. The following seven returned NOERROR but **no A, AAAA or CNAME
+answer on either provider**; NOERROR alone does not mean a reachable endpoint.
+They are not added, including as apex anchors:
+
+| Deferred name | Upstream category |
+|---|---|
+| `thetake.com` | livepick / ACR shopping |
+| `lgecloudapm.com` | Crash / APM |
+| `eic-rum.elsa.lgecloudapm.com` | Crash / APM |
+| `ibs.lgappstv.com` | SmartAd |
+| `ibsstat.lgappstv.com` | SmartAd |
+| `ibis.lgappstv.com` | SmartAd |
+| `smartclip-services.com` | Third-party ads |
+
+Source attribution: [Life's Good Without Spying at
+`45fc13a`](https://github.com/lewisdoesstuff/lifesgoodwithoutspying/tree/45fc13a20eca0035694e1aec79acef9301cc294a/app/init/blocklist.d),
+copyright 2026 Lewis Wood, MIT (notice retained in [LICENSE-MIT](../LICENSE-MIT)).
+Category notes were consulted from `10-smartad.txt`, `20-acr.txt`,
+`30-dashboard.txt`, `35-wiselg.txt`, `40-telemetry.txt`, `50-thinq.txt`,
+`80-lgchannels.txt` and `90-updates.txt` at that immutable revision.
+
+The 12 reported `ruc` names are included among the 79 live additions. Treat
+`ruc` as another cluster prefix to check, not a two-letter country label;
+its geographic meaning is not established here. `scripts/localize.py` therefore
+leaves it untouched, as it does `aic`/`eic`/`kic`. The existing `us` country
+label already handles `us.ibs.lgappstv.com`. The 517 country twins and 72
+Content Store hosts explicitly excluded by the reporter remain outside this
+change; their absence is not an endorsement to block them.

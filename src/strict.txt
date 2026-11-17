@@ -124,3 +124,90 @@ kic.service.lgtvcommon.com # STRICT: weak — common-services endpoint, store in
 kic.tv.wiselg.com # STRICT: weak — TV telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
 kic.wiseconfig.lgtvcommon.com # STRICT: weak — cloud-config telemetry — kic (Korea) datacentre cluster; DNS-verified 2026-09-12
 discovery.meethue.com # STRICT: interop: Philips Hue cloud bridge discovery (N-UPnP), called by LG TV background discovery; reported on webOS 25 (repo issue #12, @rugk); observed on G1 (webOS 6) 2026-06-11..2026-09-14 (pcap frame 25919: TLS SNI to 34.117.13.189:443; AGH ~4,100 lookups, ~5-min cadence); cloud discovery only, local mDNS unaffected; breakage unverified (no Hue bridge)
+
+# --- Upstream comparison (repo issue #28, 2026-11-17) ---------------------
+# Source: Life's Good Without Spying 0.12.2 (MIT), Lewis Wood; LICENSE-MIT.
+# Pinned upstream files and deferred names: docs/regional-reports.md#upstream-comparison-28
+# All entries returned A records on Google + Cloudflare DoH 2026-11-17.
+# No project traffic capture or isolated blocking tests; upstream purpose is
+# attributed, not independently verified. DNS-only additions stay weak unless
+# the update-daemon strings establish firmware purpose. No SAFE promotions.
+nsu.lge.com # STRICT: firmware OTA endpoint; named in B4 update-daemon strings; issue #28
+snu-dev.lge.com # STRICT: firmware OTA endpoint; named in B4 update-daemon strings; issue #28
+api.adts.lgtvcommon.com # STRICT: weak — adlogservice usage-report endpoint per upstream; issue #28
+aic.api.adts.lgtvcommon.com # STRICT: weak — adlogservice usage-report endpoint per upstream; issue #28
+eic.api.adts.lgtvcommon.com # STRICT: weak — adlogservice usage-report endpoint per upstream; issue #28
+kic.api.adts.lgtvcommon.com # STRICT: weak — adlogservice usage-report endpoint per upstream; issue #28
+aic.videoads.lgtvcommon.com # STRICT: weak — video-ad frontend per upstream; issue #28
+eic.videoads.lgtvcommon.com # STRICT: weak — video-ad frontend per upstream; issue #28
+kic.videoads.lgtvcommon.com # STRICT: weak — video-ad frontend per upstream; issue #28
+aic.cdpbeacon2.lgtvcommon.com # STRICT: weak — second-generation ad beacon per upstream; issue #28
+eic.cdpbeacon2.lgtvcommon.com # STRICT: weak — second-generation ad beacon per upstream; issue #28
+kic.cdpbeacon2.lgtvcommon.com # STRICT: weak — second-generation ad beacon per upstream; issue #28
+aic.cdpsvc.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+eic.cdpsvc.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+kic.cdpsvc.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+aic.rdl.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+eic.rdl.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+kic.rdl.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+ruc.homeprv.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+ruc.nudge.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+ruc.recommend.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+ruc.service.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+ruc.wiseconfig.lgtvcommon.com # STRICT: weak — ACR/recommendations/home-dashboard endpoint per upstream; issue #28
+aic.wau.lgtvcommon.com # STRICT: weak — wau endpoint; payload undocumented upstream; issue #28
+eic.wau.lgtvcommon.com # STRICT: weak — wau endpoint; payload undocumented upstream; issue #28
+kic.wau.lgtvcommon.com # STRICT: weak — wau endpoint; payload undocumented upstream; issue #28
+ruc.wau.lgtvcommon.com # STRICT: weak — wau endpoint; payload undocumented upstream; issue #28
+us.ibs.lgappstv.com # STRICT: weak — SmartAd/platform endpoint per upstream; issue #28
+smartclip.com # STRICT: weak — ad-network endpoint per upstream; issue #28
+yumenetworks.com # STRICT: weak — ad-network endpoint per upstream; issue #28
+acrdb.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+ad-inserter.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+ads.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+api.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+bl-server.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+clockskew.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+config-overlay-ads.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+eu-acr86.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+eulacheck.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+insights.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+prov.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+prov-lg.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+sync.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+tn.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+tr.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+tvads.alphonso.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+lgads.tv # STRICT: weak — LG Ad Solutions/Alphonso ACR endpoint per upstream; issue #28
+ruc.tv.wiselg.com # STRICT: weak — Home app-session endpoint; recommendations/previews may break per upstream; issue #28
+aic.push.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic.push.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic.push.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+ruc.push.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+aic.commonpush.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic.commonpush.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic.commonpush.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+ruc.commonpush.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+aic.sports.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic.sports.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic.sports.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+ruc.sports.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic.buddy.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+qt2-kic.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+ruc.api.lgtviot.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+common.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+aic-common.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic-common.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic-common.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+aic-iotservice.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic-iotservice.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic-iotservice.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+aic-service.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+eic-service.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+kic-service.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+noti.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+ruc-op-lss.lgthinq.com # STRICT: weak — ThinQ/IoT endpoint; pairing, push or smart-home features may break per upstream; issue #28
+sp.pluto.tv # STRICT: weak — LG Channels/Pluto plumbing per upstream; playback or shared-site functionality may break; issue #28
+app-lgwebos.pluto.tv # STRICT: weak — LG Channels/Pluto plumbing per upstream; playback or shared-site functionality may break; issue #28
+lg-channelplus-eu-beacons.xumo.com # STRICT: weak — LG Channels/Pluto plumbing per upstream; playback or shared-site functionality may break; issue #28
+tags.tiqcdn.com # STRICT: weak — LG Channels/Pluto plumbing per upstream; playback or shared-site functionality may break; issue #28

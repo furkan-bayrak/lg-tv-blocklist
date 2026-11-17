@@ -165,10 +165,11 @@ Watch region prefixes: endpoints are often region-scoped (`de.`, `fr.`,
 endpoints.
 
 **Also watch datacentre-cluster prefixes.** Separately from country codes, LG
-fronts many services from three regional clusters: `eic` (Europe), `aic`
-(Americas) and `kic` (Korea). The regional CNAME targets confirm the mapping —
+fronts many services from regional clusters: `eic` (Europe), `aic`
+(Americas) and `kic` (Korea). The regional CNAME targets confirm these mappings —
 `de.emp.lgsmartplatform.com` is a CNAME to `eic-emp-...`, and `us.` to
-`aic-emp-...`.
+`aic-emp-...`. Issue #28 adds a fourth observed prefix, `ruc`; its geographic
+meaning is not established by this project's evidence.
 
 This is the trap for anyone auditing from a single continent, and it caught this
 list. The G1 audit ran in Germany, so it only ever observed `eic.*` — 53 live
@@ -181,7 +182,7 @@ To check a family, take the stem and probe each prefix with both separators
 (`eic.nudge...` but `eic-ngfts...`):
 
 ```sh
-for p in eic aic kic; do
+for p in eic aic kic ruc; do
   for sep in . -; do
     host="$p$sep<stem>"
     printf '%-40s %s\n' "$host"       "$(curl -s "https://dns.google/resolve?name=$host&type=A" | grep -o '"Status":[0-9]*')"
@@ -191,12 +192,14 @@ done
 
 Use DNS-over-HTTPS as above rather than a plain lookup: you are running a DNS
 blocker that sinkholes these exact names, so `dig`/`nslookup` would report your
-own blocklist back at you with every endpoint apparently dead. Status 0 means it
-exists, 3 means NXDOMAIN.
+own blocklist back at you with every endpoint apparently dead. Status 3 means
+NXDOMAIN. Status 0 (NOERROR) alone is not proof of an address: inspect the
+answer and follow CNAMEs to A/AAAA records. NOERROR with no address is NODATA,
+not a live endpoint (see the deferred names from [issue #28](regional-reports.md#upstream-comparison-28)).
 
-Clusters are not countries. A two-letter prefix is a market; a three-letter
-`*ic` prefix is a datacentre. Both need enumerating, and neither implies the
-other.
+Clusters are not countries. A two-letter prefix can be a market; cluster
+prefixes include `eic`, `aic`, `kic` and `ruc`. Both need enumerating, and
+neither implies the other.
 
 ## Submitting your data
 
