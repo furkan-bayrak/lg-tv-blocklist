@@ -1,27 +1,27 @@
 # LG TV Blocklist — SAFE tier: telemetry/ad/ACR/promo names.
-# G1 audit: 44.8k-packet capture, 267k-query AdGuard log; live blocking
-# verified against Netflix/Prime/HBO/YouTube playback for the audited entries.
-# Exception: alphonso.tv is owner-directed and not independently smoke-tested;
-# compatibility is unverified. See docs/methodology.md and the entry below.
+# Historical G1 audit: 44.8k-packet capture, 267k-query AdGuard log; app smoke
+# tests apply to audited rules, not every later addition or model.
+# Exceptions: owner-directed alphonso.tv and observed AU/UAE exact-name
+# extensions of the dedicated ad-zone decision; no isolated project block tests.
 # License: CC BY 4.0. Additions require an inline annotation + evidence.
 
-cdpbeacon.lgtvcommon.com # SAFE: telemetry/ACR beacon (6-min heartbeat pattern observed) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names, which are DNS-verified only and therefore filed in src/strict.txt tagged weak — the SAFE tier no longer covers this service. Kept for the audit record.
-ads.lgtvcommon.com # SAFE: ad delivery (querylog family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names, which are DNS-verified only and therefore filed in src/strict.txt tagged weak — the SAFE tier no longer covers this service. Kept for the audit record.
-homeprv.lgtvcommon.com # SAFE: home-screen provisioning/promos | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names, which are DNS-verified only and therefore filed in src/strict.txt tagged weak — the SAFE tier no longer covers this service. Kept for the audit record.
+cdpbeacon.lgtvcommon.com # SAFE: historical telemetry/ACR beacon; ~6-min heartbeat observed on this bare host | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Cluster siblings returned addresses and remain weak STRICT; migration is not established by device evidence. Retained audit record; current status unknown.
+ads.lgtvcommon.com # SAFE: historical ad delivery (querylog family) | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Address-resolving cluster siblings are weak STRICT candidates, not device-established successors; current status unknown.
+homeprv.lgtvcommon.com # SAFE: historical home-screen provisioning/promos | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Address-resolving cluster siblings are weak STRICT candidates, not device-established successors; current status unknown.
 eic.nudge.lgtvcommon.com # SAFE: nudge/notification telemetry
-recommend.lgtvcommon.com # SAFE: recommendations/promos | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Service moved to the eic./aic./kic. cluster names, which are DNS-verified only and therefore filed in src/strict.txt tagged weak — the SAFE tier no longer covers this service. Kept for the audit record.
+recommend.lgtvcommon.com # SAFE: historical recommendations/promos | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH (A/AAAA/CNAME). Address-resolving cluster siblings are weak STRICT candidates, not device-established successors; current status unknown.
 eic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry (blocked live, apps fine)
 eic.lgtviot.com # SAFE: IoT telemetry (largest observed family, ~5.1k queries)
 eic.api.lgtviot.com # SAFE: IoT telemetry API
-lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
+lgsmartad.com # SAFE: adopted dedicated ad-zone decision; descendant reach in adblock/dnsmasq, apex only in domains/hosts
 de.info.lgsmartad.com # SAFE: ad info endpoint [REGION-SCOPED]
-au.ad.lgsmartad.com # SAFE: regional ad endpoint in the dedicated lgsmartad.com ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; live-block test not performed
-au.info.lgsmartad.com # SAFE: regional ad info endpoint in the dedicated lgsmartad.com ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; live-block test not performed
-ae.info.lgsmartad.com # SAFE: regional ad info endpoint in the dedicated lgsmartad.com ad zone — repo issue #24 (@kdeldycke), LG B4 UAE, webOS 25 10.3.2-33; UniFi gateway log observation, reporter runs STRICT with this ad zone blocked
+au.ad.lgsmartad.com # SAFE: observed exact-name extension of the adopted dedicated ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; no isolated live-block test
+au.info.lgsmartad.com # SAFE: observed exact-name extension of the adopted dedicated ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; no isolated live-block test
+ae.info.lgsmartad.com # SAFE: observed exact-name extension of the adopted dedicated ad zone — repo issue #24 (@kdeldycke), LG B4 UAE, webOS 25 10.3.2-33; gateway log; reporter runs STRICT with the ad zone blocked, no isolated host test
 de.emp.lgsmartplatform.com # SAFE: smart-platform telemetry [REGION-SCOPED]
-smart.adtvc.app # SAFE: ad serving (adtvc.app family) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-adsdtvc.com # SAFE: ad zone | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-initscr.lge.com # SAFE: initial-setup telemetry (boot-time only) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1 | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
+smart.adtvc.app # SAFE: historical ad-serving attribution (adtvc.app family) | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No candidate cluster successor found in that probe; current status and blocking impact unknown.
+adsdtvc.com # SAFE: historical ad-zone attribution | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. Current apex/descendant status and blocking impact unknown.
+ad.lgappstv.com # SAFE: historical ad delivery on the store CDN family; store unaffected in the G1 audit | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. Current status and blocking impact unknown.
+initscr.lge.com # SAFE: historical initial-setup telemetry (boot-time only) | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. Current status and blocking impact unknown.
+info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed on G5), not observed on G1 | DNS snapshot 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. Current status and blocking impact unknown.
 alphonso.tv # SAFE: owner-directed exception; LG TV Alphonso subdomains reported in https://www.reddit.com/r/pihole/comments/scsg2w/lg_tv_has_changed_ad_providers_january_2022/ and OLED65BX blocking reported functional in https://gist.github.com/mcrumm/972070dfe67d44ed61c4247563cbf07c; included in https://github.com/hagezi/dns-blocklists/blob/main/wildcard/native.lgwebos-onlydomains.txt; not independently smoke-tested by this project; compatibility unverified, may move to STRICT if breakage is reported

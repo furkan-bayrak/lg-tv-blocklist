@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test suite for build.py. Run: python scripts/test_build.py (stdlib only)."""
 
+import hashlib
 import io
 import re
 import sys
@@ -8,15 +9,20 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build
+
+UPDATED_AT = "2026-01-01 00:00 UTC"
 
 
 class TestParseSrc(unittest.TestCase):
     def setUp(self):
         self.orig_src = build.SRC
-        build.SRC = Path(tempfile.mkdtemp())
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        build.SRC = Path(temporary.name)
 
     def tearDown(self):
         build.SRC = self.orig_src
@@ -30,9 +36,9 @@ class TestParseSrc(unittest.TestCase):
             "safe.txt",
             (
                 "# comment line\n"
-                "snu.lge.com # STRICT: OTA\n"
+                "snu.lge.com # SAFE: synthetic admission\n"
                 "\n"
-                "LGSMARTAD.com # caps lowered, comment stripped\n"
+                "LGSMARTAD.com # SAFE: caps lowered, comment stripped\n"
             ),
         )
         self.assertEqual(build.parse_src("safe.txt"), ["lgsmartad.com", "snu.lge.com"])
@@ -78,7 +84,11 @@ class TestParseSrc(unittest.TestCase):
                 self.assertIn("not an LG family hostname", str(ctx.exception))
 
     def test_alphonso_family_and_near_misses(self):
-        self.write("safe.txt", "alphonso.tv\nprov-lg.alphonso.tv\n")
+        self.write(
+            "safe.txt",
+            "alphonso.tv # SAFE: synthetic apex\n"
+            "prov-lg.alphonso.tv # SAFE: synthetic host\n",
+        )
         self.assertEqual(
             build.parse_src("safe.txt"), ["alphonso.tv", "prov-lg.alphonso.tv"]
         )
@@ -142,7 +152,9 @@ class TestParseSrc(unittest.TestCase):
             "lg-channelplus-eu-beacons.xumo.com",
             "tags.tiqcdn.com",
         )
-        self.write("strict.txt", "\n".join(accepted) + "\n")
+        self.write(
+            "strict.txt", "".join(f"{host} # STRICT: fixture\n" for host in accepted)
+        )
         self.assertEqual(build.parse_src("strict.txt"), sorted(accepted))
         rejected = (
             "pluto.tv", "other.pluto.tv", "xumo.com", "other.xumo.com",
@@ -158,7 +170,7 @@ class TestParseSrc(unittest.TestCase):
 
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "safe.txt:1: malformed hostname"):
             build.parse_src("safe.txt")
 
     def test_non_lg_rejected(self):
@@ -192,7 +204,7 @@ class TestParseSrc(unittest.TestCase):
         self.assertEqual(build.parse_src("strict.txt"), ["rdx2.lgtvsdp.com"])
 
     def test_single_trailing_dot_stripped(self):
-        self.write("safe.txt", "snu.lge.com. # exactly one trailing dot\n")
+        self.write("safe.txt", "snu.lge.com. # SAFE: exactly one trailing dot\n")
         self.assertEqual(build.parse_src("safe.txt"), ["snu.lge.com"])
 
     def test_multiple_trailing_dots_rejected(self):
@@ -204,11 +216,63 @@ class TestParseSrc(unittest.TestCase):
                 self.assertIn("safe.txt:1: malformed hostname", str(ctx.exception))
 
     def test_duplicate_rejected_with_line_numbers(self):
-        self.write("safe.txt", "snu.lge.com # one\nsnu.lge.com # two\n")
+        self.write(
+            "safe.txt",
+            "SNU.lge.com. # SAFE: one\nsnu.lge.com # SAFE: two\n",
+        )
         with self.assertRaises(ValueError) as ctx:
             build.parse_src("safe.txt")
         self.assertIn("safe.txt:2: duplicate", str(ctx.exception))
         self.assertIn("first at line 1", str(ctx.exception))
+
+    def test_annotations_preserve_urls_fragments_and_region_tags(self):
+        annotation = (
+            "SAFE: synthetic purpose; https://example.test/evidence#section "
+            "[REGION-SCOPED] | weak signal in incidental prose"
+        )
+        self.write("safe.txt", f"DE.info.lgsmartad.com. # {annotation}\n")
+        self.assertEqual(
+            build.parse_annotated_src("safe.txt"),
+            {"de.info.lgsmartad.com": annotation},
+        )
+        self.assertEqual(build.parse_src("safe.txt"), ["de.info.lgsmartad.com"])
+
+    def test_missing_wrong_or_empty_annotations_rejected(self):
+        for filename, tag in (
+            ("safe.txt", "SAFE:"),
+            ("strict.txt", "STRICT:"),
+            ("zones.txt", "ZONE:"),
+        ):
+            for annotation in (
+                "", "# ordinary prose", "# OTHER: wrong", f"# {tag.lower()} wrong",
+                f"# prefix {tag} wrong", f"# {tag}   ",
+            ):
+                with self.subTest(filename=filename, annotation=annotation):
+                    self.write(filename, f"lgsmartad.com {annotation}\n")
+                    with self.assertRaisesRegex(ValueError, rf"{filename}:1:"):
+                        build.parse_annotated_src(filename)
+        for filename, wrong in (
+            ("safe.txt", "STRICT:"), ("strict.txt", "ZONE:"), ("zones.txt", "SAFE:")
+        ):
+            with self.subTest(filename=filename, wrong=wrong):
+                self.write(filename, f"lgsmartad.com # {wrong} description\n")
+                with self.assertRaisesRegex(ValueError, "expected leading"):
+                    build.parse_annotated_src(filename)
+
+    def test_safe_rejects_explicit_weak_classification_only(self):
+        for description in ("weak", "WEAK — inferred purpose", "Weak: sibling"):
+            with self.subTest(description=description):
+                self.write("safe.txt", f"lgsmartad.com # SAFE: {description}\n")
+                with self.assertRaisesRegex(ValueError, "must not be classified weak"):
+                    build.parse_src("safe.txt")
+        for description in ("ad purpose; weak signal", "weakness is incidental prose"):
+            with self.subTest(description=description):
+                self.write("safe.txt", f"lgsmartad.com # SAFE: {description}\n")
+                self.assertEqual(build.parse_src("safe.txt"), ["lgsmartad.com"])
+
+    def test_unknown_source_filename_rejected_before_reading(self):
+        with self.assertRaisesRegex(ValueError, "unknown source filename"):
+            build.parse_annotated_src("unknown.txt")
 
 
 class TestRegionalReports(unittest.TestCase):
@@ -291,7 +355,9 @@ class TestCompileTier(unittest.TestCase):
             )
 
     def test_safe_has_four_formats_no_zones(self):
-        out = build.compile_tier("safe", ["a.lge.com"], ["lge.com"])
+        out = build.compile_tier(
+            "safe", ["a.lge.com"], ["lge.com"], updated_at=UPDATED_AT
+        )
         self.assertIn("0.0.0.0 a.lge.com", out["safe-hosts.txt"])
         self.assertIn("||a.lge.com^", out["safe-adblock.txt"])
         self.assertIn("address=/a.lge.com/0.0.0.0", out["safe-dnsmasq.txt"])
@@ -302,13 +368,17 @@ class TestCompileTier(unittest.TestCase):
         self.assertNotIn("lge.com", body)
 
     def test_strict_merges_zones_as_apex_and_adblock_zone(self):
-        out = build.compile_tier("strict", ["snu.lge.com"], ["lge.com"])
+        out = build.compile_tier(
+            "strict", ["snu.lge.com"], ["lge.com"], updated_at=UPDATED_AT
+        )
         self.assertIn("0.0.0.0 lge.com", out["strict-hosts.txt"])
         self.assertIn("||lge.com^", out["strict-adblock.txt"])
         self.assertIn("address=/lge.com/0.0.0.0", out["strict-dnsmasq.txt"])
 
     def test_dnsmasq_wraps_every_domain_including_zones(self):
-        out = build.compile_tier("strict", ["snu.lge.com"], ["lge.com"])
+        out = build.compile_tier(
+            "strict", ["snu.lge.com"], ["lge.com"], updated_at=UPDATED_AT
+        )
         body = [
             l
             for l in out["strict-dnsmasq.txt"].splitlines()
@@ -319,7 +389,9 @@ class TestCompileTier(unittest.TestCase):
         )
 
     def test_headers_shape_and_counts(self):
-        out = build.compile_tier("safe", ["a.lge.com", "b.lge.com"], [])
+        out = build.compile_tier(
+            "safe", ["a.lge.com", "b.lge.com"], [], updated_at=UPDATED_AT
+        )
         first = out["safe-domains.txt"].splitlines()
         self.assertEqual(first[0], "# Title: LG TV Blocklist (safe)")
         self.assertEqual(first[2], "# Entries: 2")
@@ -333,9 +405,15 @@ class TestLoadAll(unittest.TestCase):
             old = build.SRC
             build.SRC = Path(td)
             try:
-                (build.SRC / "safe.txt").write_text("snu.lge.com\n", encoding="utf-8")
-                (build.SRC / "strict.txt").write_text("snu.lge.com\n", encoding="utf-8")
-                (build.SRC / "zones.txt").write_text("lge.com\n", encoding="utf-8")
+                (build.SRC / "safe.txt").write_text(
+                    "snu.lge.com # SAFE: fixture\n", encoding="utf-8"
+                )
+                (build.SRC / "strict.txt").write_text(
+                    "snu.lge.com # STRICT: fixture\n", encoding="utf-8"
+                )
+                (build.SRC / "zones.txt").write_text(
+                    "lge.com # ZONE: fixture\n", encoding="utf-8"
+                )
                 with self.assertRaises(ValueError):
                     build.load_all()
             finally:
@@ -346,9 +424,15 @@ class TestLoadAll(unittest.TestCase):
             old = build.SRC
             build.SRC = Path(td)
             try:
-                (build.SRC / "safe.txt").write_text("a.lge.com\n", encoding="utf-8")
-                (build.SRC / "strict.txt").write_text("snu.lge.com\n", encoding="utf-8")
-                (build.SRC / "zones.txt").write_text("lge.com\n", encoding="utf-8")
+                (build.SRC / "safe.txt").write_text(
+                    "a.lge.com # SAFE: fixture\n", encoding="utf-8"
+                )
+                (build.SRC / "strict.txt").write_text(
+                    "snu.lge.com # STRICT: fixture\n", encoding="utf-8"
+                )
+                (build.SRC / "zones.txt").write_text(
+                    "lge.com # ZONE: fixture\n", encoding="utf-8"
+                )
                 safe, delta, zones = build.load_all()
                 strict_total = len(set(safe) | set(delta) | set(zones))
                 self.assertEqual(
@@ -768,6 +852,120 @@ class TestDnsmasqOutputs(unittest.TestCase):
         # now_utc is pinned in setUp, so two compilations of the same src/
         # tree must be byte-identical in every output.
         self.assertEqual(build.dry_run(), build.dry_run())
+
+
+class TestInventoryAndWriter(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        self.sources = root / "src"
+        self.sources.mkdir()
+        self.lists = root / "lists"
+        for attribute, value in (("SRC", self.sources), ("LISTS", self.lists)):
+            patcher = patch.object(build, attribute, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for name, text in {
+            "safe.txt": "lgsmartad.com # SAFE: adopted ad zone\n"
+                        "de.info.lgsmartad.com # SAFE: regional [REGION-SCOPED]\n",
+            "strict.txt": "snu.lge.com # STRICT: weak — inferred update purpose\n",
+            "zones.txt": "lge.com # ZONE: synthetic umbrella\n",
+        }.items():
+            (self.sources / name).write_text(text, encoding="utf-8")
+
+    def test_inventory_reports_sources_union_and_anchor_without_writes(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(build.main(["inventory"]), 0)
+        report = output.getvalue()
+        rows = [[cell.strip() for cell in line.split("|")[1:-1]]
+                for line in report.splitlines() if line.startswith("| `src/")]
+        self.assertEqual(rows, [
+            ["`src/safe.txt`", "2", "0"],
+            ["`src/strict.txt`", "1", "1"],
+            ["`src/zones.txt`", "1", "0"],
+        ])
+        self.assertIn("Compiled SAFE names (deduplicated): 2", report)
+        self.assertIn("Compiled STRICT names (deduplicated): 4", report)
+        self.assertIn("`lge.com` — ZONE: synthetic umbrella", report)
+        self.assertFalse(self.lists.exists())
+        self.assertEqual(report, build.source_inventory())
+
+    def test_empty_sources_are_a_valid_zero_inventory(self):
+        for source in self.sources.iterdir():
+            source.write_text("# no entries\n", encoding="utf-8")
+        report = build.source_inventory()
+        self.assertEqual(report.count("| 0 | 0 |"), 3)
+        self.assertIn("Compiled STRICT names (deduplicated): 0", report)
+
+    def test_inventory_rejects_invalid_annotations_and_cross_source_overlap(self):
+        for source_text, diagnostic in (
+            ("snu.lge.com\n", "safe.txt:1:"),
+            ("snu.lge.com # SAFE: fixture\n", "strict.txt duplicates safe.txt"),
+            ("# [REGION-SCOPED]\n", "no entry"),
+        ):
+            with self.subTest(source_text=source_text):
+                (self.sources / "safe.txt").write_text(source_text, encoding="utf-8")
+                output, error = io.StringIO(), io.StringIO()
+                with redirect_stdout(output), redirect_stderr(error):
+                    self.assertEqual(build.main(["inventory"]), 1)
+                self.assertEqual(output.getvalue(), "")
+                self.assertIn(diagnostic, error.getvalue())
+                self.assertFalse(self.lists.exists())
+
+    def test_real_writer_checksums_counts_and_cross_format_parity(self):
+        with patch.object(build, "now_utc", return_value=UPDATED_AT), \
+             redirect_stdout(io.StringIO()):
+            build.build()
+            first = {path.name: path.read_bytes() for path in self.lists.iterdir()}
+            build.build()
+            self.assertEqual(
+                first, {path.name: path.read_bytes() for path in self.lists.iterdir()})
+        expected_names = {
+            f"{tier}-{format_name}.txt"
+            for tier in ("safe", "strict")
+            for format_name in ("domains", "hosts", "adblock", "dnsmasq", "wildcard")
+        }
+        self.assertEqual(set(first), expected_names | {"SHA256SUMS"})
+        manifest = [line.split() for line in first["SHA256SUMS"].decode().splitlines()]
+        self.assertEqual([name for _, name in manifest], sorted(expected_names))
+        for digest, name in manifest:
+            self.assertEqual(hashlib.sha256(first[name]).hexdigest(), digest)
+        for name, data in first.items():
+            self.assertNotIn(b"\r", data, name)
+            self.assertTrue(data.endswith(b"\n"), name)
+            text = data.decode("utf-8")
+            if name == "SHA256SUMS":
+                continue
+            body = [line for line in text.splitlines()
+                    if line and not line.startswith("#")]
+            self.assertIn(f"# Entries: {len(body)}", text.splitlines())
+            self.assertIn(f"# Updated: {UPDATED_AT}", text.splitlines())
+        for tier, expected in (
+            ("safe", ["de.info.lgsmartad.com", "lgsmartad.com"]),
+            ("strict", ["de.info.lgsmartad.com", "lge.com", "lgsmartad.com", "snu.lge.com"]),
+        ):
+            def body(format_name):
+                return [line for line in first[f"{tier}-{format_name}.txt"].decode().splitlines()
+                        if line and not line.startswith("#")]
+            self.assertEqual(body("domains"), expected)
+            self.assertEqual([line.removeprefix("0.0.0.0 ") for line in body("hosts")], expected)
+            self.assertEqual([line[2:-1] for line in body("adblock")], expected)
+            self.assertEqual([line[len("address=/"):-len("/0.0.0.0")]
+                              for line in body("dnsmasq")], expected)
+
+    def test_one_artifact_set_shares_a_timestamp_even_when_clock_changes(self):
+        clock = iter((UPDATED_AT, "2026-01-01 00:01 UTC"))
+        with patch.object(build, "now_utc", side_effect=lambda: next(clock)), \
+             redirect_stdout(io.StringIO()):
+            build.build()
+        timestamps = {
+            line for path in self.lists.glob("*.txt")
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.startswith("# Updated:")
+        }
+        self.assertEqual(timestamps, {f"# Updated: {UPDATED_AT}"})
 
 
 if __name__ == "__main__":

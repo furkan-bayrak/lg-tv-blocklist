@@ -4,52 +4,50 @@ Thanks for helping maintain the LG TV blocklist. Two ground rules:
 
 ## 1. Evidence over guesses
 
-This list is built from empirical observation, not speculation. Before adding
-a domain, collect evidence:
+Separate three evidence questions; none substitutes for the others:
 
-- **Querylog**: AdGuard/Pi-hole log line showing the domain, who queried it,
-  and when (a single random hit is not enough; boot-burst or heartbeat
-  patterns are ideal).
-- **Capture**: `dns.qry.name` or TLS SNI from a packet capture.
-- **Repro**: what you did to trigger it (power-on, standby, app launch).
+- **Contact:** an attributed query log or capture/SNI shows that a TV contacted
+  the hostname. Include sanitized timestamps and reproduction activity.
+- **Purpose:** explain what identifies ads, telemetry or a functional service.
+  DNS resolution and TLS identity identify infrastructure, not its purpose.
+- **Compatibility:** record what happened when blocking the actual matching
+  scope, including descendants for suffix rules.
 
-If you only have a hunch, open an issue with the `new-domain` template
-instead of a PR — maintainers can verify from their own probes.
+For new SAFE admissions/promotions, require established ad/telemetry purpose
+and a documented blocking test: model, exact firmware/webOS build, service
+region, blocker/version and format, rule(s), exercised features, result and
+date. Contact alone never promotes a sibling. Unknown details stay unknown.
+The original G1 audit did not record its exact firmware build. Existing
+exceptions are explicit: owner-directed `alphonso.tv` and three AU/UAE
+`lgsmartad.com` exact-name extensions of the adopted dedicated-ad-zone
+decision, not independent isolated smoke tests.
 
-**Check the domain still exists.** `python scripts/verify.py` resolves every
-shipped entry over DNS-over-HTTPS and reports which are NXDOMAIN, so a dead
-host gets annotated deliberately instead of sitting in the list unnoticed. DoH
-rather than a plain lookup is the whole point: you run a DNS blocker that
-sinkholes these exact names, so `dig`/`nslookup` hands your own blocklist back
-to you with every entry apparently dead. Add `--cross-check` to confirm each
-finding on a second provider, and `--fail-on-dead` to exit non-zero. It needs
-network access, so it is not part of `build.py check`; its own logic is tested
-offline by `scripts/test_verify.py`.
+STRICT retains aggressive functional-risk and weak-evidence coverage.
+For a new weak entry, supply attributed contact, attributed purpose evidence,
+or an explicit linked sibling-coverage rationale. Do not import every resolving
+twin automatically or infer its purpose from its name. Probe relevant
+`eic`/`aic`/`kic`/`ruc` siblings and record candidates; resolution alone does
+not require admission. A sibling of a non-weak entry does not inherit its
+evidence. Issue #28 does not establish `ruc`'s geographic meaning.
 
-**Regional query logs welcome:** include the region, timestamp, and client
-(TV model/name). Region-prefixed entries (`de.`, `us.`) can be extended with
-evidence from your region — regional coverage is the main gap in this list.
+Use `python3 scripts/verify.py --cross-check` for external **A-only** DoH
+findings, avoiding your own filtering resolver. A second provider is attempted
+only for non-LIVE findings. NO_A means NOERROR without an A record; neither it
+nor NXDOMAIN proves retirement, descendant inactivity or compatibility.
+`--fail-on-dead` exits nonzero for NXDOMAIN, not all inconclusive findings.
+This network diagnostic is separate from structural `build.py check`.
+Never automatically remove historical records based on DNS alone.
 
-**Datacentre clusters.** `eic` (Europe), `aic` (Americas) and `kic` (Korea)
-are established cluster prefixes; issue #28 also documents live `ruc` endpoints
-without establishing that prefix's geographic meaning. These are independent
-of country codes. When adding or verifying a clustered host, probe all four
-and include every one that resolves to an address — submitting only the
-cluster your own TV uses is how this list
-came to be missing 53 live endpoints. A twin found by probing is DNS-existence
-evidence, so it belongs in `strict.txt` tagged `weak` even where its sibling is
-SAFE — unless the twin's sibling is a non-weak STRICT entry, in which case the
-twin inherits that severity: `eic.lgtviot.com` is SAFE because it was observed,
-while `aic.`/`kic.` stay `weak` until a querylog or capture from that continent
-lands. See
-[methodology](docs/methodology.md#dns-log-correlation).
-New region prefixes must also be added to `SOURCE_REGION_LABELS` in
-`scripts/localize.py`; otherwise `localize.py` silently leaves those entries
-untouched.
+Regional reports need model, build, region and timestamps. New source-region
+labels also require updating `SOURCE_REGION_LABELS` in `scripts/localize.py`;
+that rewrite set is distinct from the optional `[REGION-SCOPED]` regex tag.
+Current compatibility and format scope: [project overview](docs/overview.md).
+Full evidence policy: [methodology](docs/methodology.md#from-data-to-tiers).
+Network-wide STRICT rules for shared/third-party sites can affect non-TV clients.
 
 ## 2. Edit src/, never lists/
 
-- `src/safe.txt` — telemetry/ad hostnames that are safe for stock TVs.
+- `src/safe.txt` — lower-disruption ad/telemetry coverage, with scoped evidence and explicit exceptions; not a universal compatibility guarantee.
 - `src/strict.txt` — the DELTA over safe (updates, ThinQ, LG Channels,
   weak-evidence entries). Do not repeat safe entries here.
 - `src/zones.txt` — strict-only family apexes for whole-zone blocking in the
@@ -59,61 +57,47 @@ Every line needs an inline annotation — format, tags, and examples in
 [Annotated domains](#annotated-domains) below.
 
 CI validates every PR that touches `src/` or `scripts/` — structural
-violations (malformed, duplicate, or non-LG hostnames) fail the build;
-semantic tier placement is reviewed by maintainers. The generated `lists/`
+violations (hostname, annotation, duplicate, overlap and regional-scope
+constraints) fail the build; semantic truth and tier placement still need
+evidence review. The generated `lists/`
 directory is off-limits to PRs (CI rejects changes to it) — edit `src/`
 instead.
 
 ## Format semantics
 
-Matching differs per generated format:
+Use the canonical [format-scope table](docs/overview.md#format-scope) before
+choosing a rule or testing compatibility. Domains/hosts are exact-name;
+adblock/dnsmasq reach descendants, while optional regex generalizes only
+explicitly tagged families and STRICT anchors. Current dnsmasq output is
+IPv4-only; it does not establish AAAA filtering.
 
-- `-domains.txt` / `-hosts.txt`: **exact-name** — `snu.lge.com` blocks that
-  host only, not the whole zone.
-- `-adblock.txt`: `||snu.lge.com^` also matches subdomains of that name.
-- `-dnsmasq.txt`: `address=/snu.lge.com/0.0.0.0` also matches subdomains of
-  that name, the same reach as the adblock format.
-- Generated list files start with `#` metadata headers (title,
-  date, entry count, license). AdGuard Home and uBlock Origin both treat
-  those lines as comments; `!` is the canonical adblock comment prefix, so
-  use `!` for comments when you extend a list in a custom filter. dnsmasq
-  reads `#` comments, so the dnsmasq files need no edits before use.
-- STRICT zone anchors (see `src/zones.txt`) only achieve whole-zone blocking
-  in the adblock and dnsmasq formats; in domains/hosts they block the apex
-  domain.
-
-All three source files use exact-name, lowercase, wildcard-free entries
-(see [section 2](#2-edit-src-never-lists)): `src/safe.txt` (SAFE),
-`src/strict.txt` (STRICT delta), `src/zones.txt` (STRICT-only zone
-anchors). So `-domains.txt` / `-hosts.txt` subdomain coverage depends on
-enumeration. In the adblock and dnsmasq formats, zone anchors match
-region-prefixed subdomains (`de.`, `us.`, …) — that is why STRICT is
-region-complete there for the families it anchors (the `lgtvsdp.com` time
-family is anchored nowhere and stays reachable by design), while the
-exact-name formats cover only the region prefixes present. Extending
-regional coverage is covered in
-[section 1](#1-evidence-over-guesses).
+Generated files have `#` metadata headers. AdGuard Home/uBlock Origin accept
+those comments (`!` is canonical for custom adblock comments); dnsmasq reads
+`#` header comments directly. STRICT anchors block only the apex in
+domains/hosts, not its descendants. Source entries themselves never contain
+wildcards.
 
 ## Annotated domains
 
 The source of truth is annotated: `src/safe.txt`, `src/strict.txt`,
-`src/zones.txt`. Reading the comments there tells you what every entry does
-and the evidence behind it; the [tier
-table](README.md#which-list-should-i-use) in the README summarizes the
-trade-offs.
+`src/zones.txt`. Annotations record attributed evidence and uncertainty, not
+machine-verified truth. See the canonical [compatibility table](docs/overview.md#compatibility)
+and run `python3 scripts/build.py inventory` for reproducible source counts
+and anchor descriptions; counts are not independently tested service counts.
 
 Every line needs an inline annotation:
 
     snu.lge.com # STRICT: firmware OTA check server
 
-Line format: hostname, space, `#`, space, `TAG: short description`. The
-description names the function; entries with hard evidence add it after an
-em-dash (`cdpbeacon.lgtvcommon.com # SAFE: ... (6-min heartbeat pattern
-observed)`). Tags: `SAFE`, `STRICT`, `ZONE` (e.g. `lge.com # ZONE: umbrella
-zone — kills all lge.com subdomains in adblock format`). Lowercase only, no
-trailing dot, no wildcards — this list is exact-name (see [Format
-semantics](#format-semantics)). Weak-evidence entries are tagged `weak` and
-belong in strict.txt by policy.
+Line format: hostname, space, `#`, space, `TAG: nonempty description`.
+The leading tag must match the source: `SAFE:`, `STRICT:` or `ZONE:`.
+For example, `lge.com # ZONE: umbrella family — descendant scope in suffix formats`.
+Write lowercase names without trailing dots or wildcards; the parser retains
+lowercase/single-trailing-dot normalization for existing inputs.
+Use `STRICT: weak ...` for explicitly weak evidence. `SAFE: weak ...` is
+rejected (case-insensitive `weak` immediately after the tag); incidental prose
+such as “weak signal” later in a description is not a classification.
+Absence of `weak` does not establish independent compatibility testing.
 
 One further tag is structural rather than evidential. `[REGION-SCOPED]`
 anywhere in the annotation marks an entry whose family LG also serves behind
@@ -128,8 +112,8 @@ exactly that. Rules:
 - Tag only an entry that already carries its own evidence and annotation. The
   tag adds regional reach to a host that was audited; it never introduces a
   family, and no untagged hostname is ever generalised. Position in the
-  annotation is free — entries grow a trailing `| DECOMMISSIONED …` note over
-  time, and that must not collide with the tag.
+  annotation is free — entries can acquire trailing dated DNS notes without
+  colliding with the tag.
 - The first label must be a two-letter code to generalise. A two-letter label
   is **not** proof of one: `ad.lgappstv.com` is an ad host on the store CDN and
   `su.lge.com` is the OTA server, so neither is tagged — tagging them would
@@ -150,9 +134,9 @@ exactly that. Rules:
   allowlist](docs/faq.md#i-want-strict-but-keep-the-lg-content-store) carves
   the region hosts of these families back out — the same rule seen from the
   other direction.
-- **Never list the bare `lgtvsdp.com` apex as an entry.** In the exact-name
-  formats it blocks nothing (delegated apex, SOA-only), but the adblock output
-  emits `||lgtvsdp.com^`, which covers every `<cc>.lgtvsdp.com` time host in
+- **Never list the bare `lgtvsdp.com` apex as an entry.** An apex address
+  snapshot does not establish the status of descendants. The adblock output
+  would emit `||lgtvsdp.com^`, covering every `<cc>.lgtvsdp.com` time host in
   every country. The build hard-errors on it in any `src/` file
   (`FORBIDDEN_APEX_ENTRIES`).
 - `zones.txt` is scanned only to reject tags: its entries are apexes with
@@ -167,11 +151,35 @@ exactly that. Rules:
 ## Workflow
 
 1. Fork, branch off `main`.
-2. Edit one or more files under `src/`.
-3. Run `python3 scripts/build.py check && python3 scripts/test_build.py` locally
-   (requires Python 3.10+ — the scripts use modern union type syntax).
-4. Open the PR. The merge job regenerates `lists/` automatically — never
-   commit generated files yourself.
+2. Edit `src/`, scripts or documentation, never generated `lists/`.
+3. With Python 3.10+, run the applicable verification below.
+4. Open the PR; CI regenerates lists after merge. Do not use automatic
+   issue-closing keywords; leave issue closure and public follow-ups to the owner.
+
+### Verification
+
+Common structural/offline checks (all five Python suites):
+
+```sh
+python3 scripts/build.py check
+python3 -m unittest discover -s scripts -p 'test_[bclnv]*.py'
+```
+
+For hook changes and applicable script CI:
+
+```sh
+python3 scripts/test_sync_clock.py
+shellcheck -s sh examples/webos-hooks/*.sh
+```
+
+Changed dnsmasq output also needs real offline resolver A/AAAA proof, not
+the A-only diagnostic. Keep integration prerequisites separate from stdlib
+unit tests. No automated check establishes webOS feature compatibility.
+
+When switching tiers, remove stale rules from the previous tier and refresh
+the blocker. NextDNS imports are additive-only: re-importing SAFE does not
+remove old STRICT entries; remove them manually. Detailed install/update/
+rollback guidance: [install guide](docs/install.md).
 
 ## License
 

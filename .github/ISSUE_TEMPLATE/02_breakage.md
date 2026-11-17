@@ -6,18 +6,36 @@ labels: breakage
 assignees: ''
 ---
 
-**App / feature affected**
+**App / feature and exact symptom / error**
 
-**Tier in use**
-- [ ] SAFE
-- [ ] STRICT
+**Environment**
+- TV model:
+- Exact firmware / webOS build (or unknown):
+- TV service country / region:
+- Blocker and version:
+- Exact list URL / tier / format:
+- `# Updated:` header or source revision:
+- Localized lists, regex, hosts file, other filters / exceptions:
 
-**Symptom** (e.g. "Netflix shows error nw-2-5 on launch", "Content Store won't load")
+**Reproduction**
+- Activity and time of failure:
+- Minimal sanitized queried/blocked hostnames and timestamps:
+- Suspected rule (unknown is acceptable):
 
-**List entry you suspect** (leave blank if unknown)
-
-**Did reverting that entry fix it?**
+**Did a narrow exception restore the feature?**
 - [ ] Yes
-- [ ] Not tested yet
+- [ ] No
+- [ ] Not tested
 
-**Device / webOS version**
+Change only the suspected rule if feasible, keeping other protection unchanged.
+Explain which scope was allowed; do not open a whole service zone just to test
+a single hostname. If no rule is identified, report that rather than broadly
+disabling protection without a bounded diagnostic and rollback.
+
+- Cache clear / expiry and retest steps:
+- Cold boot versus standby/wake outcome, if relevant:
+- Rollback steps and result:
+
+**Before posting:** minimal sanitized text only, not full raw captures or
+credentials. Remove tokens, MACs, SSIDs, public IPs and identifiable client
+details. State unknown/not tested instead of guessing.
