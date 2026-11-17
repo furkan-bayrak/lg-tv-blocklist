@@ -50,11 +50,20 @@ Choose matching semantics, not just a filename. Wider coverage can create wider 
 | `*-domains.txt` | Exact names | A zone anchor blocks only that apex, not descendants, under exact-name consumption. |
 | `*-hosts.txt` | Exact names, `0.0.0.0` IPv4 mapping | No wildcard or generated IPv6 mapping; TV daemons may bypass hosts resolution. Use generated files, not the annotated STRICT delta. |
 | `*-adblock.txt` | `||name^` matches name and descendants | Includes descendants never enumerated or observed. |
-| `*-dnsmasq.txt` | `address=/name/0.0.0.0` matches name and descendants | **IPv4-only answers today**: AAAA can be forwarded upstream on dnsmasq 2.86+. This is separate from IPv6 DNS-transport bypass. |
+| `*-dnsmasq.txt` | `address=/name/#` matches name and descendants; null A (`0.0.0.0`) and AAAA (`::`) answers | Same hostname membership and descendant scope as before. Requires a build accepting this syntax; dual-stack answers do not prevent IPv6 DNS-transport bypass or DoH. |
 | Optional `*-wildcard.txt` regex | Two-letter variants of explicitly `[REGION-SCOPED]` families; STRICT also includes the nine anchors | Not all country-looking names or all LG families. Paste as regex rules, not ordinary adlists; supplements rather than replaces a subscription. |
 | NextDNS denylist imports | Each name and descendants | No regex/custom list subscription; additive importer never prunes. Exact-name input does not produce exact-name enforcement here. |
 
 SAFE adblock/dnsmasq already cover descendants of listed apexes such as `lgsmartad.com`; regex is not required to cover country names beneath those apexes. Neither tier covers every possible regional endpoint. [Regional troubleshooting](faq.md#im-not-in-germany--do-the-lists-still-work-for-me) explains localization and explicitly unaudited extrapolation.
+
+Older downloaded dnsmasq snippets using `address=/name/0.0.0.0` retain their
+IPv4 limitation. Replace and reload them following the
+[install procedure](install.md#dnsmasq), including `dnsmasq --test` before
+replacing live router configuration. The
+[official manual](https://dnsmasq.org/docs/dnsmasq-man.html) documents the
+`#` null-address syntax; use a build that accepts it. Closing the AAAA gap
+can block features that previously escaped; no TV compatibility result is
+implied.
 
 ## What diagnostics do not prove
 

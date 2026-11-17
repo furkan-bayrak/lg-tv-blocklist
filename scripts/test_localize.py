@@ -48,11 +48,11 @@ ALL_FILES = (
 # Real per-file output formats, so file-level tests exercise format routing.
 FORMATS = {
     "safe-adblock.txt": "||{e}^",
-    "safe-dnsmasq.txt": "address=/{e}/0.0.0.0",
+    "safe-dnsmasq.txt": "address=/{e}/#",
     "safe-domains.txt": "{e}",
     "safe-hosts.txt": "0.0.0.0 {e}",
     "strict-adblock.txt": "||{e}^",
-    "strict-dnsmasq.txt": "address=/{e}/0.0.0.0",
+    "strict-dnsmasq.txt": "address=/{e}/#",
     "strict-domains.txt": "{e}",
     "strict-hosts.txt": "0.0.0.0 {e}",
 }
@@ -76,6 +76,7 @@ class TestRewriteContent(unittest.TestCase):
             ("||de.nextlgsdp.com^", "||fr.nextlgsdp.com^"),
             ("address=/de.nextlgsdp.com/0.0.0.0",
              "address=/fr.nextlgsdp.com/0.0.0.0"),
+            ("address=/de.example.lge.com/#", "address=/fr.example.lge.com/#"),
         )
         for raw, want in cases:
             with self.subTest(raw=raw):
@@ -119,12 +120,12 @@ class TestRewriteContent(unittest.TestCase):
         # A dnsmasq line whose label is not a source region stays byte-identical,
         # sinkhole target and all.
         text = (HEADER
-                + "address=/ad.lgappstv.com/0.0.0.0\n"
-                + "address=/su.lge.com/0.0.0.0\n")
+                + "address=/ad.lgappstv.com/#\n"
+                + "address=/su.lge.com/#\n")
         out, count = localize.rewrite_content(text, "fr")
         self.assertEqual(count, 0)
-        self.assertIn("address=/ad.lgappstv.com/0.0.0.0\n", out)
-        self.assertIn("address=/su.lge.com/0.0.0.0\n", out)
+        self.assertIn("address=/ad.lgappstv.com/#\n", out)
+        self.assertIn("address=/su.lge.com/#\n", out)
 
     def test_non_region_two_letter_labels_untouched(self):
         text = HEADER + "".join(f"{h}\n" for h in FALSE_POSITIVES)
@@ -308,8 +309,8 @@ class TestLocalizeFiles(unittest.TestCase):
                 "strict-hosts.txt": "0.0.0.0 fr.nextlgsdp.com",
                 "safe-adblock.txt": "||fr.nextlgsdp.com^",
                 "strict-adblock.txt": "||fr.nextlgsdp.com^",
-                "safe-dnsmasq.txt": "address=/fr.nextlgsdp.com/0.0.0.0",
-                "strict-dnsmasq.txt": "address=/fr.nextlgsdp.com/0.0.0.0",
+                "safe-dnsmasq.txt": "address=/fr.nextlgsdp.com/#",
+                "strict-dnsmasq.txt": "address=/fr.nextlgsdp.com/#",
             }
             for name, want in expected.items():
                 with self.subTest(name=name):

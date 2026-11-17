@@ -68,8 +68,16 @@ instead.
 Use the canonical [format-scope table](docs/overview.md#format-scope) before
 choosing a rule or testing compatibility. Domains/hosts are exact-name;
 adblock/dnsmasq reach descendants, while optional regex generalizes only
-explicitly tagged families and STRICT anchors. Current dnsmasq output is
-IPv4-only; it does not establish AAAA filtering.
+explicitly tagged families and STRICT anchors. Current dnsmasq output uses
+`address=/name/#`: null A (`0.0.0.0`) and AAAA (`::`) answers for the same
+names and descendants, without membership changes. Hosts output remains
+IPv4-only. Use a dnsmasq build accepting this syntax, as documented in the
+[official manual](https://dnsmasq.org/docs/dnsmasq-man.html).
+Older downloaded IPv4-only snippets need replacement and reload; run
+`dnsmasq --test` on staged configuration before replacing live router
+configuration. See the [installation procedure](docs/install.md#dnsmasq).
+Dual-stack answers do not prevent IPv6 DNS-transport bypass or DoH;
+the diagnostic scripts remain A-only.
 
 Generated files have `#` metadata headers. AdGuard Home/uBlock Origin accept
 those comments (`!` is canonical for custom adblock comments); dnsmasq reads
@@ -173,8 +181,14 @@ shellcheck -s sh examples/webos-hooks/*.sh
 ```
 
 Changed dnsmasq output also needs real offline resolver A/AAAA proof, not
-the A-only diagnostic. Keep integration prerequisites separate from stdlib
-unit tests. No automated check establishes webOS feature compatibility.
+the A-only diagnostic. Install `dnsmasq` and `dig` (required; no silent skip),
+then run separately from the stdlib unit tests:
+
+```sh
+python3 scripts/test_dnsmasq.py
+```
+
+No automated check establishes webOS feature compatibility.
 
 When switching tiers, remove stale rules from the previous tier and refresh
 the blocker. NextDNS imports are additive-only: re-importing SAFE does not

@@ -54,8 +54,13 @@ switching to SAFE does not remove stale manually imported STRICT rules.
    IPv6 or stale DNAT targets. Use generated `*-hosts.txt` for hosts-file
    deployments, not `src/strict.txt` (only a delta).
 2. **Format changes coverage.** Domains/hosts are exact-name; adblock and
-   dnsmasq reach descendants. Current dnsmasq rules use
-   `address=/name/0.0.0.0` and cover IPv4 answers only; AAAA can escape.
+   dnsmasq reach descendants. Current dnsmasq rules use `address=/name/#`
+   for null A (`0.0.0.0`) and AAAA (`::`) answers, with unchanged names
+   and descendant scope. Hosts output remains IPv4-only. Older downloaded
+   dnsmasq snippets retain their IPv4 limitation: replace and reload them,
+   using a build accepting this syntax and `dnsmasq --test` before replacing
+   live configuration. See the [install steps](docs/install.md#dnsmasq) and
+   [official manual](https://dnsmasq.org/docs/dnsmasq-man.html).
    STRICT zone/regex rules reach unenumerated descendants, including shared
    services. Network-wide rules can affect non-TV devices.
    [Format scope and limitations](docs/overview.md#format-scope).
