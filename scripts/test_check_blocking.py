@@ -24,9 +24,9 @@ TXID = 0x1234
 SERVER = "192.0.2.53"
 
 
-def response_bytes(txid=TXID, rcode=0, addrs=("93.184.216.34",)):
+def response_bytes(txid=TXID, rcode=0, addrs=("93.184.216.34",), flags=0x8180):
     """A DNS response for example.com: echoed question plus A answers."""
-    header = struct.pack(">HHHHHH", txid, 0x8180 | rcode, 1, len(addrs), 0, 0)
+    header = struct.pack(">HHHHHH", txid, flags | rcode, 1, len(addrs), 0, 0)
     question = b"\x07example\x03com\x00\x00\x01\x00\x01"
     body = b""
     for addr in addrs:
@@ -151,6 +151,11 @@ class TestParseResponse(unittest.TestCase):
         with self.assertRaises(ValueError):
             check_blocking.parse_response(response_bytes(txid=0x9999), TXID)
 
+    def test_query_or_truncated_flags_are_malformed(self):
+        for flags in (0x0180, 0x8380):
+            with self.subTest(flags=flags), self.assertRaises(ValueError):
+                check_blocking.parse_response(response_bytes(flags=flags), TXID)
+
     def test_truncated_rdata_is_malformed(self):
         with self.assertRaises(ValueError):
             check_blocking.parse_response(response_bytes()[:-2], TXID)
@@ -272,6 +277,21 @@ class TestQueryLocal(unittest.TestCase):
         self.assertEqual(state, check_blocking.L_FAILED)
         self.assertIn("malformed", detail)
 
+    def test_invalid_flags_exhaust_attempts_without_a_blocking_verdict(self):
+        for flags in (0x0180, 0x8380):
+            for rcode, addrs in ((0, ("0.0.0.0",)), (3, ())):
+                with self.subTest(flags=flags, rcode=rcode):
+                    packet = response_bytes(flags=flags, rcode=rcode, addrs=addrs)
+                    local, fake = self.query([packet, packet])
+                    self.assertEqual(local[0], check_blocking.L_FAILED)
+                    self.assertIn("malformed", local[1])
+                    self.assertEqual(len(fake.sent), 2)
+                    for cross in ((check_blocking.X_RESOLVES, "192.0.2.1"),
+                                  (check_blocking.X_NXDOMAIN, "NXDOMAIN")):
+                        self.assertEqual(
+                            check_blocking.classify_local(local, cross)[0],
+                            check_blocking.ERROR)
+
     def test_send_oserror_is_a_failure(self):
         fake = FakeSocket([])
         fake.sendto = mock.Mock(side_effect=OSError("network down"))
@@ -317,10 +337,14 @@ class TestCrossClassify(unittest.TestCase):
 
     def test_noerror_without_a_record_exists(self):
         for payload in ({"Status": 0}, {"Status": 0, "Answer": []},
-                        {"Status": 0, "Answer": [{"type": 6, "data": "soa"}]}):
+                        {"Status": 0, "Answer": [{"type": 6, "data": "soa"}]},
+                        {"Status": 0, "Answer": [{"type": 5, "data": "alias.example"}]}):
             with self.subTest(payload=payload):
-                state, _ = check_blocking.cross_classify(payload)
+                state, detail = check_blocking.cross_classify(payload)
                 self.assertEqual(state, check_blocking.X_EXISTS)
+                self.assertIn("NOERROR", detail)
+                self.assertIn("without an A record", detail)
+                self.assertNotIn("delegat", detail.lower())
 
     def test_unexpected_status_is_an_error(self):
         for payload in ({"Status": 2}, {"Status": None}, {}):
@@ -415,13 +439,19 @@ class TestClassifyLocal(unittest.TestCase):
         self.assertEqual(verdict, check_blocking.ERROR)
         self.assertNotEqual(verdict, check_blocking.BLOCKED)
 
-    def test_sinkhole_on_both_sides_is_dead(self):
-        for cross in ((check_blocking.X_NXDOMAIN, "NXDOMAIN"),
-                      (check_blocking.X_EXISTS, "no A record")):
-            with self.subTest(cross=cross):
-                verdict, _ = self.verdict(
-                    (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"), cross)
-                self.assertEqual(verdict, check_blocking.DEAD)
+    def test_sinkholed_with_external_nxdomain_is_dead(self):
+        verdict, _ = self.verdict(
+            (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"),
+            (check_blocking.X_NXDOMAIN, "NXDOMAIN"))
+        self.assertEqual(verdict, check_blocking.DEAD)
+
+    def test_sinkholed_with_external_no_a_is_inconclusive(self):
+        verdict, detail = self.verdict(
+            (check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0"),
+            (check_blocking.X_EXISTS, "NOERROR without an A record"))
+        self.assertEqual(verdict, check_blocking.ERROR)
+        self.assertIn("0.0.0.0", detail)
+        self.assertIn("NOERROR without an A record", detail)
 
     def test_sinkholed_with_failed_cross_check_is_not_blocked(self):
         verdict, _ = self.verdict(
@@ -611,7 +641,7 @@ class TestArgparseTypes(unittest.TestCase):
 
     def test_timeout_must_be_positive(self):
         self.assertEqual(check_blocking.positive_seconds("1.5"), 1.5)
-        for value in ("0", "-1", "fast"):
+        for value in ("0", "-1", "fast", "nan", "inf", "-inf"):
             with self.subTest(value=value), \
                  self.assertRaises(argparse.ArgumentTypeError):
                 check_blocking.positive_seconds(value)
@@ -710,13 +740,32 @@ class TestMain(unittest.TestCase):
              "example.com": (check_blocking.BLOCKED, "sinkholed to 0.0.0.0")})
         self.assertEqual(rc, 1)
 
+    def test_expect_blocked_exits_one_on_inconclusive_sinkhole(self):
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(
+                check_blocking, "query_local",
+                return_value=(check_blocking.L_SINKHOLED, "sinkholed to 0.0.0.0")), \
+             mock.patch.object(
+                check_blocking, "cross_lookup",
+                return_value=(check_blocking.X_EXISTS, "NOERROR without an A record")), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = check_blocking.main([
+                "--domains", "example.com", "--server", SERVER,
+                "--expect-blocked", "--json"])
+        self.assertEqual(rc, 1)
+        self.assertEqual(json.loads(out.getvalue())["results"][0]["classification"],
+                         check_blocking.ERROR)
+        self.assertIn("not confirmed BLOCKED", err.getvalue())
+
     def test_without_expect_blocked_not_blocked_still_exits_zero(self):
         rc, out, _, _ = self.run_main(
             ["--file", str(self.list_file)],
             {"snu.lge.com": (check_blocking.BLOCKED, "sinkholed to 0.0.0.0"),
              "example.com": (check_blocking.RESOLVES, "resolves to 93.184.216.34")})
         self.assertEqual(rc, 0)
-        lines = out.strip().splitlines()
+        self.assertIn("A-record-only", out)
+        self.assertIn("not AAAA filtering, TV routing, or TV caches", out)
+        lines = out.strip().splitlines()[1:]
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0].startswith("BLOCKED"))
         self.assertIn("snu.lge.com", lines[0])
@@ -731,6 +780,7 @@ class TestMain(unittest.TestCase):
         report = json.loads(out)  # stdout must be pure JSON
         self.assertEqual(report["server"], "192.0.2.53")
         self.assertEqual(report["port"], 53)
+        self.assertEqual(report["query_type"], "A")
         self.assertEqual(report["cross_check"], "google")
         self.assertEqual(report["counts"], {
             check_blocking.BLOCKED: 1, check_blocking.DEAD: 0,
@@ -742,6 +792,8 @@ class TestMain(unittest.TestCase):
                          check_blocking.BLOCKED)
         self.assertEqual(report["results"][0]["detail"], "sinkholed to 0.0.0.0")
         self.assertIn("BLOCKED=1", err)
+        self.assertIn("A records", err)
+        self.assertIn("not AAAA filtering, TV routing, or TV caches", err)
 
     def test_domains_flag_replaces_the_file(self):
         rc, out, _, captured = self.run_main(
@@ -750,7 +802,7 @@ class TestMain(unittest.TestCase):
              "snu.lge.com": (check_blocking.BLOCKED, "sinkholed to 0.0.0.0")})
         self.assertEqual(rc, 0)
         self.assertEqual(captured["domains"], ["example.com", "snu.lge.com"])
-        self.assertEqual([line.split()[1] for line in out.strip().splitlines()],
+        self.assertEqual([line.split()[1] for line in out.strip().splitlines()[1:]],
                          ["example.com", "snu.lge.com"])
 
     def test_explicit_server_and_options_are_passed_through(self):
@@ -799,6 +851,31 @@ class TestMain(unittest.TestCase):
                      self.assertRaises(SystemExit) as caught:
                     check_blocking.main(argv + ["--domains", "example.com"])
                 self.assertEqual(caught.exception.code, 2)
+
+    def test_nonfinite_timeouts_fail_before_network(self):
+        for value in ("nan", "inf", "-inf"):
+            with self.subTest(value=value), \
+                 mock.patch.object(check_blocking.socket, "socket") as udp, \
+                 mock.patch.object(check_blocking.urllib.request, "urlopen") as http, \
+                 mock.patch.object(check_blocking, "system_resolver") as resolver, \
+                 contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as caught:
+                    check_blocking.main([
+                        "--domains", "example.com", f"--timeout={value}"])
+                self.assertEqual(caught.exception.code, 2)
+                udp.assert_not_called()
+                http.assert_not_called()
+                resolver.assert_not_called()
+
+    def test_help_describes_a_only_scope(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), \
+             self.assertRaises(SystemExit) as caught:
+            check_blocking.main(["--help"])
+        self.assertEqual(caught.exception.code, 0)
+        help_text = " ".join(out.getvalue().split())
+        for scope in ("A-record", "IPv4", "AAAA filtering", "TV routing", "TV caches"):
+            self.assertIn(scope, help_text)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Test suite for verify.py. Run: python scripts/test_verify.py (stdlib only).
 
-Deliberately offline: verify.py's judgement lives in classify(), which is a
-pure function over a DoH payload, so the logic that decides "this entry is
-dead" is tested without a network round-trip. Nothing here makes a request.
+Deliberately offline: classify() consumes DoH payloads, and orchestration tests
+mock resolve() to exercise provider agreement, disagreement, and failures.
+Nothing here makes a request.
 """
 import contextlib
 import io
@@ -34,8 +34,8 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(detail, "52.30.34.160")
 
     def test_noerror_without_a_record_is_not_dead(self):
-        # A delegated apex (lgtvsdp.com is SOA-only) answers NOERROR with no A.
-        # Calling that NXDOMAIN would wrongly condemn a deliberately blocked zone.
+        # Empty, SOA-only, and CNAME-only answers all lack an A record.
+        # None alone establishes delegation, retirement, or AAAA reachability.
         for payload in ({"Status": 0},
                         {"Status": 0, "Answer": []},
                         {"Status": 0, "Answer": [{"type": 6, "data": "soa..."}]},
@@ -117,19 +117,123 @@ class TestReadEntries(unittest.TestCase):
                          ["a.lge.com", "b.lge.com"])
 
 
+class TestVerifyOrchestration(unittest.TestCase):
+    def cross_check(self, first, second):
+        outcomes = {
+            ("candidate.lge.com", "google"): first,
+            ("candidate.lge.com", "cloudflare"): second,
+        }
+        with mock.patch.object(verify, "resolve",
+                               side_effect=lambda name, provider: outcomes[name, provider]) as resolve:
+            results = verify.verify(["candidate.lge.com"], workers=2, cross_check=True)
+        self.assertCountEqual(resolve.call_args_list, [
+            mock.call("candidate.lge.com", "google"),
+            mock.call("candidate.lge.com", "cloudflare"),
+        ])
+        return results
+
+    def assert_provider_diagnostics(self, results, first, second):
+        detail = results["candidate.lge.com"][1]
+        out = verify.render(results, cross_check=True)
+        entry = next(line for line in out.splitlines()
+                     if line.startswith("- `candidate.lge.com`"))
+        for provider, (classification, diagnostic) in (("google", first),
+                                                       ("cloudflare", second)):
+            with self.subTest(provider=provider):
+                self.assertIn(f"{provider}={classification}", detail)
+                self.assertIn(diagnostic, detail)
+                self.assertIn(f"{provider}={classification}", entry)
+                self.assertIn(diagnostic, entry)
+
+    def test_agreement_keeps_classification_and_both_diagnostics(self):
+        for classification in (verify.NO_A, verify.NXDOMAIN):
+            with self.subTest(classification=classification):
+                first = (classification, "primary evidence")
+                second = (classification, "secondary evidence")
+                results = self.cross_check(first, second)
+                self.assertEqual(results["candidate.lge.com"][0], classification)
+                self.assert_provider_diagnostics(results, first, second)
+
+    def test_disagreement_and_single_provider_failure_are_inconclusive(self):
+        for first_class, second_class in (
+            (verify.NXDOMAIN, verify.LIVE),
+            (verify.NO_A, verify.NXDOMAIN),
+            (verify.ERROR, verify.NXDOMAIN),
+            (verify.NO_A, verify.ERROR),
+        ):
+            with self.subTest(first=first_class, second=second_class):
+                first = (first_class, "primary diagnostic")
+                second = (second_class, "secondary diagnostic")
+                results = self.cross_check(first, second)
+                self.assertEqual(results["candidate.lge.com"][0], verify.ERROR)
+                self.assert_provider_diagnostics(results, first, second)
+
+    def test_both_provider_failures_keep_both_errors(self):
+        first = (verify.ERROR, "TimeoutError: primary timed out")
+        second = (verify.ERROR, "rcode 2")
+        results = self.cross_check(first, second)
+        self.assertEqual(results["candidate.lge.com"][0], verify.ERROR)
+        self.assert_provider_diagnostics(results, first, second)
+
+    def test_live_skips_second_provider_while_non_live_is_checked(self):
+        outcomes = {
+            ("live.lge.com", "google"): (verify.LIVE, "192.0.2.1"),
+            ("candidate.lge.com", "google"): (verify.NO_A, "primary no A"),
+            ("candidate.lge.com", "cloudflare"): (verify.NO_A, "secondary no A"),
+        }
+        with mock.patch.object(verify, "resolve",
+                               side_effect=lambda name, provider: outcomes[name, provider]) as resolve:
+            results = verify.verify(["live.lge.com", "candidate.lge.com"],
+                                    workers=2, cross_check=True)
+        self.assertEqual(results["live.lge.com"], (verify.LIVE, "192.0.2.1"))
+        self.assertEqual(results["candidate.lge.com"][0], verify.NO_A)
+        self.assertCountEqual(resolve.call_args_list, [
+            mock.call("live.lge.com", "google"),
+            mock.call("candidate.lge.com", "google"),
+            mock.call("candidate.lge.com", "cloudflare"),
+        ])
+
+    def test_without_cross_check_preserves_primary_result(self):
+        first = (verify.ERROR, "TimeoutError: primary timed out")
+        with mock.patch.object(verify, "resolve", return_value=first) as resolve:
+            results = verify.verify(["candidate.lge.com"], workers=1, cross_check=False)
+        self.assertEqual(results, {"candidate.lge.com": first})
+        resolve.assert_called_once_with("candidate.lge.com", "google")
+
+
 class TestRender(unittest.TestCase):
     def test_report_states_counts_and_lists_dead_names(self):
         out = verify.render({
             "live.lge.com": (verify.LIVE, "1.2.3.4"),
-            "apex.lge.com": (verify.NO_A, "no A record"),
+            "cname.lge.com": verify.classify({
+                "Status": 0, "Answer": [{"type": 5, "data": "target.example"}],
+            }),
             "dead.lge.com": (verify.NXDOMAIN, "name does not exist"),
         }, cross_check=True)
         self.assertIn("| LIVE | 1 |", out)
         self.assertIn("| NXDOMAIN | 1 |", out)
         self.assertIn("`dead.lge.com`", out)
-        self.assertIn("confirmed on a second provider", out)
-        # A NO_A apex must not be presented as a problem to fix.
-        self.assertIn("Not dead", out)
+        self.assertIn("| NO_A | 1 |", out)
+        self.assertIn("`cname.lge.com`", out)
+        self.assertIn("NOERROR", out)
+        self.assertIn("A-only", out)
+        self.assertIn("AAAA", out)
+        self.assertIn("TV routing", out)
+        self.assertIn("TV caches", out)
+        self.assertIn("attempted", out)
+        self.assertIn("non-LIVE", out)
+        self.assertNotIn("confirmed", out)
+        self.assertNotIn("No action needed", out)
+        self.assertNotIn("Delegated apexes", out)
+        self.assertNotIn("decommissioned", out)
+
+    def test_error_diagnostic_is_rendered_beside_domain(self):
+        out = verify.render({
+            "error.lge.com": (verify.ERROR, "TimeoutError: provider unavailable"),
+        }, cross_check=False)
+        entry = next(line for line in out.splitlines()
+                     if line.startswith("- `error.lge.com`"))
+        self.assertIn("TimeoutError: provider unavailable", entry)
 
     def test_empty_buckets_are_omitted(self):
         out = verify.render({"live.lge.com": (verify.LIVE, "1.2.3.4")}, cross_check=False)
@@ -161,6 +265,24 @@ class TestMainExitCodes(unittest.TestCase):
         rc = self.run_main(["--file", str(self.list_file), "--fail-on-dead"],
                            {"dead.lge.com": (verify.NXDOMAIN, "name does not exist")})
         self.assertEqual(rc, 1)
+
+    def test_fail_on_dead_does_not_fail_for_no_a_or_errors(self):
+        rc = self.run_main(["--file", str(self.list_file), "--fail-on-dead"],
+                           {"no-a.lge.com": (verify.NO_A, "NOERROR without an A record"),
+                            "error.lge.com": (verify.ERROR, "rcode 2")})
+        self.assertEqual(rc, 0)
+
+    def test_help_states_a_only_and_non_live_cross_check_without_lookup(self):
+        stdout = io.StringIO()
+        with mock.patch.object(verify, "verify") as run_verify, \
+             contextlib.redirect_stdout(stdout), \
+             self.assertRaises(SystemExit) as caught:
+            verify.main(["--help"])
+        self.assertEqual(caught.exception.code, 0)
+        run_verify.assert_not_called()
+        help_text = " ".join(stdout.getvalue().split())
+        for limit in ("A-only", "AAAA", "non-LIVE", "TV routing", "TV caches"):
+            self.assertIn(limit, help_text)
 
     def test_refuses_out_inside_lists_dir(self):
         rc = self.run_main(["--file", str(self.list_file), "--out",
