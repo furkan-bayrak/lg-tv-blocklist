@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 LISTS = ROOT / "lists"
-# parse_src strips exactly one trailing dot (FQDN root) before matching, so
+# parse_annotated_src strips exactly one trailing dot (FQDN root) before matching, so
 # anything still ending in "." here (e.g. "host..") is malformed.
 HOSTNAME_RE = re.compile(
     r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$"
@@ -66,6 +66,8 @@ REGION_TAG = "[REGION-SCOPED]"
 REGION_TAG_PROBE = re.compile(r"\[\s*region[-_ ]?scoped", re.IGNORECASE)
 REGION_CODE_RE = re.compile(r"^[a-z]{2}$")
 TIER_TAG_RE = re.compile(r"\b(?:SAFE|STRICT|ZONE):")
+SOURCE_TAGS = {"safe.txt": "SAFE:", "strict.txt": "STRICT:", "zones.txt": "ZONE:"}
+WEAK_CLASSIFICATION_RE = re.compile(r"^weak\b", re.IGNORECASE)
 # Families a [REGION-SCOPED] tag must never generalise, even though they live
 # in src/ (exact-name entries stay allowed): their two-letter region hosts
 # (at./de./us.lgtvsdp.com, de.nextlgsdp.com) are the TV's time-sync channel on
@@ -74,20 +76,18 @@ TIER_TAG_RE = re.compile(r"\b(?:SAFE|STRICT|ZONE):")
 # Reddit Austria report; hagezi/dns-blocklists#11438).
 FORBIDDEN_REGION_FAMILIES = {"lgtvsdp.com", "nextlgsdp.com"}
 
-# The lgtvsdp.com apex must never appear as an entry in any src file. In the
-# exact-name formats it would block nothing (delegated apex, SOA-only —
-# docs/upstream.md), but the adblock output emits ||lgtvsdp.com^, which covers
-# every <cc>.lgtvsdp.com subdomain: the same time hosts, reached via an entry
-# instead of a tag.
+# The lgtvsdp.com apex must never appear as an entry in any src file:
+# suffix formats would cover every regional time host regardless of the
+# apex's own dated address status.
 FORBIDDEN_APEX_ENTRIES = {"lgtvsdp.com"}
 
 
-def wildcard_header(tier: str, n: int) -> list[str]:
+def wildcard_header(tier: str, n: int, *, updated_at: str) -> list[str]:
     """Header for the regex files. Every warning a first-time reader needs is
     above the first line of content, because the failure modes are silent."""
     head = [
         f"# Title: LG TV Blocklist ({tier}) — Pi-hole regex filters",
-        f"# Updated: {now_utc()}",
+        f"# Updated: {updated_at}",
         f"# Entries: {n}",
         "#",
         "# PASTE THESE INTO PI-HOLE'S REGEX FILTERS, NOT AN ADLIST. An adlist takes",
@@ -137,16 +137,21 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
-def parse_src(filename: str) -> list[str]:
-    """Return sorted, validated hostnames from an annotated src file.
+def parse_annotated_src(filename: str) -> dict[str, str]:
+    """Return normalized hostnames and their full, structurally valid annotations.
 
-    Raises ValueError (with line numbers) on duplicate, malformed, or
-    non-LG-related hostnames.
+    Validation checks syntax and policy structure, not the truth of evidence.
+    Hostname errors take precedence over annotation errors on the same line.
     """
+    if filename not in SOURCE_TAGS:
+        raise ValueError(f"unknown source filename: {filename}")
+    tag = SOURCE_TAGS[filename]
     path = SRC / filename
     seen: dict[str, int] = {}
+    annotations: dict[str, str] = {}
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        line = raw.split("#", 1)[0].strip()
+        hostname, _, annotation = raw.partition("#")
+        line = hostname.strip()
         if not line:
             continue
         host = line.lower()
@@ -168,7 +173,23 @@ def parse_src(filename: str) -> list[str]:
                 f"{filename}:{lineno}: duplicate of {host} (first at line {seen[host]})"
             )
         seen[host] = lineno
-    return sorted(seen)
+        annotation = annotation.strip()
+        if not annotation.startswith(tag):
+            raise ValueError(
+                f"{filename}:{lineno}: expected leading {tag} annotation"
+            )
+        description = annotation[len(tag):].strip()
+        if not description:
+            raise ValueError(f"{filename}:{lineno}: {tag} annotation needs a description")
+        if tag == "SAFE:" and WEAK_CLASSIFICATION_RE.match(description):
+            raise ValueError(f"{filename}:{lineno}: SAFE: must not be classified weak")
+        annotations[host] = annotation
+    return annotations
+
+
+def parse_src(filename: str) -> list[str]:
+    """Return the sorted hostname projection of an annotated source."""
+    return sorted(parse_annotated_src(filename))
 
 
 def region_families(filename: str) -> list[str]:
@@ -185,9 +206,8 @@ def region_families(filename: str) -> list[str]:
     a host with no two-letter first label to generalise, or on a forbidden
     family (FORBIDDEN_REGION_FAMILIES) raises -- silently ignoring one would
     quietly drop a family's regional coverage, or quietly invent one. Position
-    within the annotation is free: entries here grow a
-    trailing " | DECOMMISSIONED ..." note over time, and a tagged host getting
-    decommissioned must not break the build.
+    within the annotation is free: a later dated DNS note must not invalidate
+    an otherwise valid tag.
     """
     families: dict[str, None] = {}
     for lineno, raw in enumerate(
@@ -296,41 +316,53 @@ def assert_stays_in_tier(lines: list[str], foreign: list[str]) -> None:
                 )
 
 
-def compile_wildcard(tier: str, families: list[str], zones: list[str]) -> str:
+def compile_wildcard(
+    tier: str, families: list[str], zones: list[str], *, updated_at: str
+) -> str:
     lines = wildcard_lines(families, zones)
-    return "\n".join(wildcard_header(tier, len(lines)) + lines) + "\n"
+    return "\n".join(
+        wildcard_header(tier, len(lines), updated_at=updated_at) + lines
+    ) + "\n"
 
 
-def make_headers(title: str, entries: int) -> list[str]:
+def make_headers(title: str, entries: int, *, updated_at: str) -> list[str]:
     return [
         f"# Title: {title}",
-        f"# Updated: {now_utc()}",
+        f"# Updated: {updated_at}",
         f"# Entries: {entries}",
         LICENSE_LINE,
         "",
     ]
 
 
-def compile_tier(tier: str, domains: list[str], zones: list[str]) -> dict[str, str]:
+def compile_tier(
+    tier: str, domains: list[str], zones: list[str], *, updated_at: str
+) -> dict[str, str]:
     """Return output filename -> content for one tier."""
     if tier == "strict":
         domains = sorted(set(domains) | set(zones))
     title = f"LG TV Blocklist ({tier})"
     outputs: dict[str, str] = {}
     outputs[f"{tier}-domains.txt"] = (
-        "\n".join(make_headers(title, len(domains)) + domains) + "\n"
+        "\n".join(make_headers(title, len(domains), updated_at=updated_at) + domains) + "\n"
     )
     outputs[f"{tier}-hosts.txt"] = (
-        "\n".join(make_headers(title, len(domains)) + [f"0.0.0.0 {d}" for d in domains])
+        "\n".join(
+            make_headers(title, len(domains), updated_at=updated_at)
+            + [f"0.0.0.0 {d}" for d in domains]
+        )
         + "\n"
     )
     outputs[f"{tier}-adblock.txt"] = (
-        "\n".join(make_headers(title, len(domains)) + [f"||{d}^" for d in domains])
+        "\n".join(
+            make_headers(title, len(domains), updated_at=updated_at)
+            + [f"||{d}^" for d in domains]
+        )
         + "\n"
     )
     outputs[f"{tier}-dnsmasq.txt"] = (
         "\n".join(
-            make_headers(title, len(domains))
+            make_headers(title, len(domains), updated_at=updated_at)
             + [f"address=/{d}/0.0.0.0" for d in domains]
         )
         + "\n"
@@ -338,10 +370,9 @@ def compile_tier(tier: str, domains: list[str], zones: list[str]) -> dict[str, s
     return outputs
 
 
-def load_all() -> tuple[list[str], list[str], list[str]]:
-    safe = parse_src("safe.txt")
-    strict_delta = parse_src("strict.txt")
-    zones = parse_src("zones.txt")
+def _load_annotated_sources() -> dict[str, dict[str, str]]:
+    sources = {name: parse_annotated_src(name) for name in SOURCE_TAGS}
+    safe, strict_delta, zones = (sources[name] for name in SOURCE_TAGS)
     overlap = set(safe) & set(strict_delta)
     if overlap:
         raise ValueError(
@@ -349,18 +380,18 @@ def load_all() -> tuple[list[str], list[str], list[str]]:
         )
     if set(zones) & set(safe):
         raise ValueError("zones.txt overlaps safe.txt — zones are strict-only")
-    return safe, strict_delta, zones
+    return sources
 
 
-def dry_run() -> dict[str, str]:
-    safe, strict_delta, zones = load_all()
-    all_outputs: dict[str, str] = {}
-    all_outputs.update(compile_tier("safe", safe, []))
-    all_outputs.update(compile_tier("strict", safe + strict_delta, zones))
-    # Optional Pi-hole regex variants, built from the same src/ and never fed
-    # back into the eight lists above. Whole-subtree reach comes only from
-    # zones.txt, which is STRICT-only -- so the SAFE file is region lines and
-    # nothing else, and cannot block a host SAFE has not audited.
+def load_all() -> tuple[list[str], list[str], list[str]]:
+    sources = _load_annotated_sources()
+    return tuple(sorted(sources[name]) for name in SOURCE_TAGS)
+
+
+def _tier_region_families(
+    strict_delta: list[str], zones: list[str]
+) -> tuple[list[str], list[str]]:
+    """Validate optional regex reach without compiling or writing artifacts."""
     safe_families = region_families("safe.txt")
     strict_families = region_families("strict.txt")
     if region_families("zones.txt"):
@@ -370,9 +401,62 @@ def dry_run() -> dict[str, str]:
         )
     safe_wildcard = wildcard_lines(safe_families, [])
     assert_stays_in_tier(safe_wildcard, strict_delta + zones)
-    all_outputs["safe-wildcard.txt"] = compile_wildcard("safe", safe_families, [])
+    return safe_families, strict_families
+
+
+def source_inventory() -> str:
+    """Describe the current sources reproducibly, without DNS or device tests."""
+    sources = _load_annotated_sources()
+    safe, strict_delta, zones = (sorted(sources[name]) for name in SOURCE_TAGS)
+    _tier_region_families(strict_delta, zones)
+    lines = [
+        "# Source inventory",
+        "",
+        "| Source file | Names | Explicit weak annotations |",
+        "| --- | ---: | ---: |",
+    ]
+    for name, annotations in sources.items():
+        tag = SOURCE_TAGS[name]
+        weak = sum(
+            bool(WEAK_CLASSIFICATION_RE.match(annotation[len(tag):].strip()))
+            for annotation in annotations.values()
+        )
+        lines.append(f"| `src/{name}` | {len(annotations)} | {weak} |")
+    lines += [
+        "",
+        f"Compiled SAFE names (deduplicated): {len(set(safe))}",
+        f"Compiled STRICT names (deduplicated): {len(set(safe) | set(strict_delta) | set(zones))}",
+        "",
+        f"## STRICT anchors ({len(zones)})",
+        "",
+    ]
+    for zone in zones:
+        lines.append(f"- `{zone}` — {sources['zones.txt'][zone]}")
+    lines += [
+        "",
+        "Suffix-matching formats widen coverage to unenumerated descendants.",
+        "Entries without an explicit weak classification are not necessarily independently tested.",
+        "Source validation is structural, not a claim that evidence is semantically true.",
+        "No DNS or device tests were performed by this inventory command.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def dry_run() -> dict[str, str]:
+    safe, strict_delta, zones = load_all()
+    updated_at = now_utc()
+    all_outputs: dict[str, str] = {}
+    all_outputs.update(compile_tier("safe", safe, [], updated_at=updated_at))
+    all_outputs.update(
+        compile_tier("strict", safe + strict_delta, zones, updated_at=updated_at)
+    )
+    # Optional regex outputs never feed back into the eight standard lists.
+    safe_families, strict_families = _tier_region_families(strict_delta, zones)
+    all_outputs["safe-wildcard.txt"] = compile_wildcard(
+        "safe", safe_families, [], updated_at=updated_at
+    )
     all_outputs["strict-wildcard.txt"] = compile_wildcard(
-        "strict", safe_families + strict_families, zones
+        "strict", safe_families + strict_families, zones, updated_at=updated_at
     )
     return all_outputs
 
@@ -411,13 +495,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compile LG TV blocklists")
     parser.add_argument(
         "mode",
-        choices=["build", "check"],
-        help="build writes lists/; check validates only",
+        choices=["build", "check", "inventory"],
+        help="build writes lists/; check validates only; inventory prints source evidence counts",
     )
     args = parser.parse_args(argv)
     try:
         if args.mode == "build":
             build()
+        elif args.mode == "inventory":
+            print(source_inventory(), end="")
         else:
             check()
     except (OSError, ValueError) as exc:

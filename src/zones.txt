@@ -1,7 +1,7 @@
 # LG TV Blocklist — STRICT-only zone anchors. Apex domains whose FULL subdomain
-# space we do not enumerate. In the adblock output these become ||zone^ (whole
-# zone); in domains/hosts outputs they block the apex only (exact-name
-# semantics) — documented in README.
+# space we do not enumerate. Adblock/dnsmasq/STRICT regex match descendants;
+# domains/hosts block only the apex. Intended functional reach is not proof
+# of telemetry-only purpose or compatibility; see docs/overview.md.
 # License: CC BY 4.0.
 
 lge.com # ZONE: umbrella zone — kills all lge.com subdomains in adblock format
@@ -10,6 +10,6 @@ wiselg.com # ZONE: TV/wiselg telemetry umbrella
 lgthinq.com # ZONE: ThinQ umbrella
 lgtviot.com # ZONE: IoT umbrella
 nextlgsdp.com # ZONE: SDP umbrella
-lgunifiedsmart.com # ZONE: smart-family umbrella | ZONE RETIRED 2026-09-12: the apex itself is NXDOMAIN on Google+Cloudflare DoH, so the whole zone is gone (fms.lgunifiedsmart.com with it). Kept as an anchor in case LG revives it; costs nothing while the zone does not exist.
+lgunifiedsmart.com # ZONE: smart-family umbrella | DNS snapshot 2026-09-12: apex NXDOMAIN on Google+Cloudflare DoH. This does not prove all descendants are gone; retained anchor, current reachability and blocking impact unknown.
 lgsmartplatform.com # ZONE: smart-platform telemetry umbrella — de.emp.lgsmartplatform.com observed; regional siblings otherwise uncovered
-lgtvcommon.com # ZONE: common-services telemetry umbrella — live-blocked on G1 AGH since 2026-09-09 (no breakage); hagezi umbrella 2026-09; wildcard-safe per Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05)
+lgtvcommon.com # ZONE: common-services umbrella — G1 AGH whole-zone blocking since 2026-09-09 reported no breakage in that audit; hagezi umbrella 2026-09 and Level1Techs #255178 (wendell, 2026-09-05) are attributed supporting decisions, not universal compatibility proof

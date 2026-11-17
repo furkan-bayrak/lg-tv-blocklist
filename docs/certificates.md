@@ -1,10 +1,10 @@
 # Endpoint certificates
 
-TLS evidence for the datacentre-cluster entries (`eic.`, `aic.`, `kic.`): does a
-live service answer on port 443 with a certificate valid for that exact
-hostname? Checked **2026-09-13**: 62 of 65 do. The set spans both tiers: 60
-endpoints live in `src/strict.txt`, 5 in `src/safe.txt`, so the totals below
-cover the union — a `strict.txt`-only grep shows 60, not 65.
+Historical TLS measurement snapshot, **2026-09-13**: 62 of 65 endpoints
+answered on port 443 with a certificate valid for the queried name.
+The then-current source split was 60 STRICT-delta and five SAFE endpoints;
+those historical counts are not today's tier inventory. For current source
+counts run `python3 scripts/build.py inventory`.
 
 All of it is public data. DNS records are queryable by anyone, and a TLS
 certificate is what a server presents to every client that connects. Nothing
@@ -17,22 +17,20 @@ in one continent, so the `aic.`/`kic.` twins of its `eic.` hosts were inferred
 and then DNS-verified. That raises a fair question — are those names real
 services, or just plausible strings that happen to resolve?
 
-Three grades of evidence, and it is worth being precise about which one any
-given entry has:
+These measurements answer an infrastructure question, not all three
+[evidence-policy questions](methodology.md#from-data-to-tiers):
 
-| Grade | Claim | Cluster entries |
+| Measurement | Snapshot result | Limit |
 |---|---|---|
-| 1. DNS resolves | An A record exists for this name | 65/65 |
-| 2. Live LG-controlled TLS service | Something answers on 443 with a certificate LG controls, valid for this name | **62/65 — this document** |
-| 3. Traffic observed | A real TV on that continent queried it | the audited `eic.` hosts only |
+| DNS A record | 65/65 queried names | Address existence, not TV contact or purpose. |
+| TLS endpoint/certificate | 62/65 answered with matching SANs | Endpoint identity at that time, not telemetry purpose, current ownership or compatibility. |
+| TV contact / blocking compatibility | Not measured here | Some individually attributed G1 hosts have traffic evidence elsewhere; not every `eic` host was observed. |
 
-Grade 2 rules out two things grade 1 cannot: a stale DNS record pointing at
-decommissioned infrastructure, and the name being parked or held by a third
-party. It does **not** establish grade 3, and nothing here should be read as
-claiming it does. Proving that a TV in the Americas contacts
-`aic.cdpbeacon.lgtvcommon.com` requires a TV in the Americas — which is why the
-`aic.`/`kic.` entries are tagged `weak` in `src/strict.txt` and a querylog from
-those regions is the most valuable thing anyone can contribute.
+A matching certificate does not rule out shared infrastructure, a parked
+service, future ownership changes or functional dependencies. Probing a
+cluster twin does not inherit the observed sibling's contact or blocking-test
+evidence. SAFE promotion requires established purpose and an actual-scope
+blocking test, not DNS/TLS identity alone.
 
 ## Results
 
@@ -57,22 +55,21 @@ CN-only.
 
 ## The three that do not answer
 
-`aic.`, `eic.` and `kic.lgthinq.com` resolve — into Azure ranges, unlike every
-other family here, which is on AWS — but never complete a handshake on 443: the
-connection times out rather than being refused. They stay in the lists as grade
-1 only. Nothing here establishes which port or protocol ThinQ's
-cluster entry points actually use.
+In this snapshot, `aic.`, `eic.` and `kic.lgthinq.com` resolved into Azure
+ranges but timed out during port-443 handshakes. No certificate was measured
+for those three. This establishes neither their current status nor which
+port/protocol ThinQ uses; DNS/TLS alone is not device evidence.
 
 ## Two absences worth recording
 
-`kic.lgshopsvc.lgappstv.com` does not exist (NXDOMAIN on both providers) while
-`aic.` and `eic.` are live. It is the only asymmetric stem in the set — every
-other clustered service is fronted from all three. That is why each cluster name
-is probed and listed individually rather than generated from a pattern.
+At the snapshot date, `kic.lgshopsvc.lgappstv.com` returned NXDOMAIN on both
+providers while the `aic.`/`eic.` candidates resolved. Names were probed
+individually, not assumed from a pattern.
 
-Of 18 candidate three-letter prefixes probed against these families, exactly
-`eic`, `aic` and `kic` exist. The rest are NXDOMAIN, so no wildcard record is
-making invented names appear to resolve.
+Of 18 candidate three-letter prefixes probed then, exactly `eic`, `aic` and
+`kic` resolved for these families. This is bounded historical evidence, not
+a claim that no other clusters or wildcard records exist today; later
+issue #28 includes `ruc` candidates.
 
 ## Reproducing this
 

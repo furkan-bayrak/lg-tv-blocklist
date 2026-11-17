@@ -20,7 +20,7 @@ Classification rationale for [#22](https://github.com/furkan-bayrak/lg-tv-blockl
 
 | Hosts | Tier | Reason |
 |---|---|---|
-| `au.ad.lgsmartad.com`, `au.info.lgsmartad.com`, `ae.info.lgsmartad.com` | SAFE | Observed endpoints in the existing dedicated ad zone. SAFE adblock/dnsmasq already cover them via `lgsmartad.com`; explicit entries fill the domains/hosts gap. |
+| `au.ad.lgsmartad.com`, `au.info.lgsmartad.com`, `ae.info.lgsmartad.com` | SAFE | Observed exact-name extensions of the existing dedicated-ad-zone decision. SAFE adblock/dnsmasq already cover them via `lgsmartad.com`; entries fill the domains/hosts gap. No isolated blocking tests are established. |
 | `au.nextlgsdp.com`, `ae.nextlgsdp.com` | STRICT | Shared SDP service with possible clock/store dependencies. The UAE reporter explicitly needs the latter open for time sync. Never generalise these hosts into a SAFE regex. |
 | `au.rdx2.nextlgsdp.com`, `ae.rdx2.nextlgsdp.com` | STRICT, weak | Observed regional SDP hosts; cadence/contact alone does not prove telemetry. |
 | `ae.lgeapi.com` | STRICT, weak | Same API family and unproven store/billing risks as `de.lgeapi.com`. |
@@ -29,10 +29,10 @@ Classification rationale for [#22](https://github.com/furkan-bayrak/lg-tv-blockl
 | `au.app.lgwebostv.com`, `au.elastic.lgwebostv.com` | STRICT, weak | Observed webOS endpoints with unknown function/app-store impact. Accept the family in the validator, but do not add an apex block or regional regex. |
 
 The new `aic-gfts.tv.wiselg.com` and `kic-gfts.tv.wiselg.com` cluster twins also
-returned A records on both DoH providers on 2026-11-10. They inherit the
-observed `eic-` sibling's **weak STRICT** classification; neither was observed
-in TV traffic. Existing `aic-`/`eic-`/`kic-ngfts.tv.wiselg.com` entries already
-cover that cluster family.
+returned A records on both DoH providers on 2026-11-10. They remain
+**weak STRICT** under an explicit file-transfer-sibling coverage rationale,
+not inherited proof of purpose: neither was observed in TV traffic or
+independently block-tested. Existing ngfts cluster entries retain their scope.
 
 All new `au.` / `ae.` entries participate in `scripts/localize.py`. The
 localizer extrapolates names, not evidence: generated regional variants remain
@@ -70,9 +70,8 @@ Before proposing a fix, request:
    local/public IPs, device identifiers and other private details as needed.
 
 A clock/date check can follow if the error suggests TLS or time-sync failure.
-Keep the issue open until the filter identity and a reproducible cause are
-established. Each public reply requires the repository owner's individual
-approval before posting.
+The cause remains unresolved. Issue state and public follow-ups remain the
+owner's decision; do not automatically close, reopen or post a reply.
 
 ## Upstream comparison #28
 

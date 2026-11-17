@@ -113,21 +113,30 @@ the TV's queries from every other device on the network.
 
 ## From data to tiers
 
-For each observed domain:
+For each candidate, separate **contact**, **purpose**, and **compatibility**:
+an attributed TV query/SNI shows contact, not tracking; DNS/TLS identity
+shows infrastructure, not contact or service purpose. A blocking test answers
+compatibility only for the exercised device, features and matching scope.
 
-1. **Annotate it** — function plus evidence, per the
+1. Annotate attributed evidence and uncertainty, per the
    [contribution contract](../CONTRIBUTING.md#2-edit-src-never-lists).
-2. **Assign a tier:**
-   - **SAFE** — only after app smoke tests verify no functional impact:
-     Netflix, Prime, HBO, YouTube, Content Store, app install/update all
-     still work.
-   - **STRICT** — functional risk (OTA, ThinQ, LG Channels) or weak
-     evidence. Weak entries never risk the SAFE promise.
-   - **ZONE** — family apexes for whole-zone blocking where we haven't
-     enumerated the whole family. Note: whole-zone blocking only works in
-     the adblock and dnsmasq formats — `-domains.txt` / `-hosts.txt` block
-     the apex name only (see [Format
-      semantics](../CONTRIBUTING.md#format-semantics)).
+2. For new **SAFE** admissions/promotions, require established ad/telemetry
+   purpose and a documented actual-scope blocking test: model, exact firmware/
+   webOS build, service region, blocker/version/format, rule(s), exercised
+   features, outcome and date. Contact alone never promotes a twin.
+3. **STRICT** retains feature-affecting and weak/inferred candidates. New weak
+   admissions need attributed contact, attributed purpose or an explicit linked
+   sibling-coverage rationale; resolution alone does not mandate admission.
+   Absence of `weak` does not mean compatibility-tested.
+4. **ZONE** is an intentionally broader STRICT policy decision. See the
+   canonical [format-scope table](overview.md#format-scope); domains/hosts
+   block the apex only, while suffix/zone regex formats reach descendants.
+
+Source/build validation enforces structural contracts, not semantic truth.
+Network-wide shared/third-party STRICT rules can affect non-TV clients.
+Historical G1 smoke tests are not certification of today's enlarged lists;
+current observations and unknown metadata are in the
+[compatibility table](overview.md#compatibility).
 
 **Owner-directed exception — `alphonso.tv` (issue #19):** This entry is in
 SAFE despite not having this project's normal smoke-test evidence. Community
@@ -138,6 +147,12 @@ entry may be moved to STRICT if reported. Domains/hosts formats block the apex
 only; adblock/dnsmasq also cover subdomains. See its source annotation for
 the reports and upstream inclusion. This exception does not relax the policy
 for other entries.
+
+**Dedicated-ad-zone extensions:** the observed AU/UAE `lgsmartad.com` names
+remain SAFE as exact-name extensions of an already adopted zone decision.
+Adblock/dnsmasq already reached them via the apex; no isolated per-host
+blocking tests were supplied. This is explicit historical scope, not a
+general exception allowing contact-only SAFE promotions.
 
 ## Firmware diff: "what's new in this update"
 
@@ -171,12 +186,13 @@ fronts many services from regional clusters: `eic` (Europe), `aic`
 `aic-emp-...`. Issue #28 adds a fourth observed prefix, `ruc`; its geographic
 meaning is not established by this project's evidence.
 
-This is the trap for anyone auditing from a single continent, and it caught this
-list. The G1 audit ran in Germany, so it only ever observed `eic.*` — 53 live
-`aic.*`/`kic.*` twins were missing. Worse, five hosts had *moved*: bare
-`cdpbeacon.lgtvcommon.com` is now NXDOMAIN while
-`eic`/`aic`/`kic.cdpbeacon.lgtvcommon.com` are live, so the exact-name formats
-had stopped blocking the ACR beacon entirely.
+The German G1 audit observed particular attributed hosts, not every `eic`
+endpoint. Subsequent sibling probing found additional address-resolving names.
+On 2026-09-12 the bare `cdpbeacon`, `ads`, `homeprv`, `recommend` and
+`service.lgtvcommon.com` names returned NXDOMAIN while clustered candidates
+returned addresses. This is not device evidence of service migration.
+The ~6-minute heartbeat belongs to the originally observed bare beacon;
+the ~5.1k-query volume belongs to `eic.lgtviot.com`, not its DNS-only twins.
 
 To check a family, take the stem and probe each prefix with both separators
 (`eic.nudge...` but `eic-ngfts...`):
@@ -190,16 +206,19 @@ for p in eic aic kic ruc; do
 done
 ```
 
-Use DNS-over-HTTPS as above rather than a plain lookup: you are running a DNS
-blocker that sinkholes these exact names, so `dig`/`nslookup` would report your
-own blocklist back at you with every endpoint apparently dead. Status 3 means
-NXDOMAIN. Status 0 (NOERROR) alone is not proof of an address: inspect the
-answer and follow CNAMEs to A/AAAA records. NOERROR with no address is NODATA,
-not a live endpoint (see the deferred names from [issue #28](regional-reports.md#upstream-comparison-28)).
+Use DoH rather than your filtering resolver. Status 3 is a dated NXDOMAIN
+finding; Status 0 alone does not prove an address. Inspect answers and follow
+CNAMEs to A/AAAA records as appropriate. NOERROR without an A record does not
+establish delegation, retirement or AAAA reachability.
+`scripts/verify.py` is A-only; its optional second provider is attempted only
+for non-LIVE findings, and failures/disagreements remain inconclusive.
 
-Clusters are not countries. A two-letter prefix can be a market; cluster
-prefixes include `eic`, `aic`, `kic` and `ruc`. Both need enumerating, and
-neither implies the other.
+Clusters are not countries. Probe relevant candidates, record the results
+and justify each admitted name under the policy above. DNS-only twins stay
+weak, even when their siblings are non-weak. Do not import resolving names
+automatically or promote them from contact alone. Existing issue #28 additions
+and its seven [deferrals](regional-reports.md#upstream-comparison-28) retain
+their attributed scope.
 
 ## Submitting your data
 
@@ -215,11 +234,10 @@ What counts as evidence:
 - A querylog line with domain + client + timestamp. Boot-burst or heartbeat
   beats a single hit.
 - A capture line with `dns.qry.name` or TLS SNI.
-- **A live domain.** Verify the hostname still resolves before submitting:
-  `dig +short <domain> @1.1.1.1` (or `nslookup <domain> 1.1.1.1`). Dead
-  names return NXDOMAIN — or only an empty delegated apex — and upstream
-  lists reject them, so a query-log line for a domain that no longer exists
-  is not evidence for a new entry.
+- **Dated DNS findings** using the DoH recipe above, including provider,
+  query type and actual answers. These complement, not replace, device
+  evidence. NXDOMAIN does not erase historical contact or establish permanent
+  retirement; an apex result says nothing conclusive about every descendant.
 - Repro steps: what you did to trigger it.
 - Device + webOS version (include your firmware build if you have it — see
   limitations).
@@ -239,5 +257,6 @@ Certificate evidence for the datacentre-cluster endpoints
 - **Exact-name semantics.** `-domains.txt` and `-hosts.txt` block exact
   names only — no subdomain coverage. Use `-adblock.txt` for zone coverage
   (see [Format semantics](../CONTRIBUTING.md#format-semantics)).
-- **Region endpoints are enumerated only where observed.** If your region's
-  endpoint is missing, it wasn't seen in the audit — submit it.
+- **Incomplete regional evidence.** Some names are observed, others are
+  explicitly inferred. A missing region is not an instruction to generate
+  every country twin; submit attributed evidence.

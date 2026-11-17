@@ -136,7 +136,17 @@ Format details: [CONTRIBUTING](../CONTRIBUTING.md#format-semantics).
 
 ## Is it actually blocking?
 
-Pick a domain from the tier you installed and look it up against your resolver:
+Pick a candidate below, then first confirm a **fresh external A answer**
+through independent DoH, not your filtering resolver:
+
+```sh
+curl -fsS 'https://dns.google/resolve?name=eic.lgtviot.com&type=A'
+```
+
+Require Status 0 with a real type-1 A address (follow a CNAME if needed).
+NOERROR alone, no-A and NXDOMAIN are not suitable blocking canaries.
+The names below were checked on 2026-09-16, not guaranteed live today.
+Then query your selected resolver and a control:
 
 | Canary | Tier | Expected answer |
 |---|---|---|
@@ -150,15 +160,15 @@ nslookup eic.lgtviot.com 192.168.1.53
 dig +short eic.lgtviot.com @192.168.1.53
 ```
 
-If the canary is sinkholed or NXDOMAIN while the control resolves, blocking
-works for that device. Blocker defaults differ on the block answer (null IP vs
-NXDOMAIN); both are fine. The canaries above were live-verified on 2026-09-16.
+If the externally address-resolving canary is locally sinkholed or NXDOMAIN
+while the control resolves, that supports A-record blocking **at that
+resolver**. It does not prove the TV uses it or that AAAA is blocked.
+Confirm new TV queries in your blocker's log separately.
 
-Two notes. The lists deliberately keep a few dead hosts (annotated
-`DECOMMISSIONED` in `src/`); they are NXDOMAIN everywhere and prove nothing, so
-always test a live name like the canaries above. And a device that ignores your
-DNS shows a normal public IP for the canary; that is the bypass from step 3,
-not a list problem.
+Historical NXDOMAIN annotations are dated snapshots, not permanent retirement
+claims. Such names prove nothing about blocking without a fresh external
+address. A public local answer can indicate an unenforced rule or bypass;
+check the queried resolver and TV routing before drawing a conclusion.
 
 Prefer a script? [`scripts/check_blocking.py`](../scripts/check_blocking.py)
 checks IPv4 A-record answers at your selected resolver and cross-checks

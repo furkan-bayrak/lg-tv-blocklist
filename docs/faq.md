@@ -1,19 +1,19 @@
 # FAQ
 
-Answers to the questions that come up most often. See the [README](../README.md) for tier descriptions, the [install guide](install.md) for step-by-step setup, and [CONTRIBUTING.md](../CONTRIBUTING.md#format-semantics) for format semantics.
+Start with the [project overview](overview.md) for the canonical tier, compatibility and format-scope tables; use the [install guide](install.md) for setup and [CONTRIBUTING](../CONTRIBUTING.md) for evidence requirements.
 
 ## Which tier should I use?
 
-- **SAFE** — blocks ads, ACR, and telemetry while keeping everything functional (Content Store, app updates, OTA, ThinQ, streaming apps). The right choice for almost everyone. No root required: these are DNS lists — they work in Pi-hole, AdGuard Home, NextDNS, and similar.
-- **STRICT** — SAFE's entries plus firmware OTA, ThinQ cloud sync, and LG Channels kill rows, plus zone anchors (whole-subtree blocks) and weak/unknown observations. It assumes you want the TV to stop talking to LG, not just stop being tracked. The Content Store may degrade — see the carve-out below.
+- **SAFE** — lower-disruption ad/ACR/telemetry coverage; intended to preserve features, not universally compatible. Includes explicit historical exceptions.
+- **STRICT** — SAFE plus feature-affecting services, weak/inferred candidates and anchors. Accept functional loss and broader collateral risk; it does not guarantee silence. See [scoped compatibility](overview.md#compatibility) before choosing.
 
 Root is only required for the `/etc/hosts` install path on the TV itself. DNS-level blocking never needs root.
 
 ## Will this break Netflix / Prime / HBO / YouTube?
 
-No. SAFE's promise — verified on an LG G1 — is that these keep working while ads, ACR, and telemetry die. STRICT keeps streaming working too; what it breaks by design is firmware OTA updates, ThinQ cloud sync, and LG Channels. The functional risks in STRICT are the Content Store and LG account login (see the README breakage matrix); the carve-out below addresses the store.
+They worked in the historical German G1 app audit, not a test of today's enlarged lists or every TV. [The compatibility table](overview.md#compatibility) records that scope, SAFE's exceptions and the unresolved Netflix/UniFi report #21. STRICT is not guaranteed to preserve streaming.
 
-Disney+ and other streaming apps were not part of the G1 smoke test: SAFE is expected to leave them working (they use their own infrastructure, none of which is on the list), but that is inference, not tested evidence.
+Disney+ and other untested apps remain unverified; separate infrastructure alone does not prove compatibility.
 
 ## AirPlay says "Unable to Connect" after the pairing code
 
@@ -113,9 +113,9 @@ STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ..
 
 Confidence varies — that is why this is a starting point, not gospel. STRICT annotates `de.lgeapi.com` as *store/billing interplay unproven* and `de.ibs.nextlgsdp.com` as *store risk* (both are caught by their zone anchors), and `a.lgappstv.com` as *app-update function unproven*. External sources fill the rest: `lgeapi.com` is the region App Store backend (public reverse-engineering, e.g. webos-unclutter); `lgtvsdp.com` is LG's Service Delivery Platform ("responsible for Content Store communication among others" — webosbrew wiki) — our lists no longer block its apex (dropped 2026-09-16: `||lgtvsdp.com^` also covered every country's time-sync host), so `@@||de.lgtvsdp.com^` is belt-and-braces now, useful only against other lists; `nextlgsdp.com` may carry in-app billing and STRICT blocks it as a whole zone (`||nextlgsdp.com^` covers `de.ibs.nextlgsdp.com`), so those exceptions are the ones store comms rely on; `lgappstv.com` is the store CDN apex.
 
-**Keep these blocked** even if the store keeps working: the `snu`/`su`/`su-ssl`/`ngfts`/`gfts` firmware-OTA and file-transfer family (not required for store function — if store thumbnails ever break, whitelist only the exact host from your log), `lss.lgthinq.com`, `bss.lgechannel.com`, plus the ad/telemetry hosts that STRICT already includes from SAFE: `cdpbeacon.lgtvcommon.com` (ACR beacon, ~6-minute heartbeat), `ads.lgtvcommon.com`, and the `homeprv`/`recommend`/`eic.nudge`/`eic.wiseconfig` family.
+**Keep unrelated protection in place:** narrow store diagnostics should not automatically allow the whole OTA/ThinQ/Channels or ad/telemetry families. Their purpose annotations are not proof that every store path on every model is independent. Change only a correlated rule and record the outcome and rollback.
 
-**ACR beacon:** the bare `cdpbeacon.lgtvcommon.com` is dead (NXDOMAIN, annotated DECOMMISSIONED) — its live successor twins, `eic.`/`aic.`/`kic.cdpbeacon.lgtvcommon.com`, are STRICT-only and tagged `weak`, so SAFE currently has no ACR-beacon coverage. It returns to SAFE if and when traffic observation lands.
+**ACR beacon:** the bare `cdpbeacon.lgtvcommon.com` returned NXDOMAIN in the 2026-09-12 snapshot. Cluster candidates remain weak STRICT; DNS alone does not establish migration or the original heartbeat on those twins. New SAFE promotion needs established purpose and an actual-scope blocking test, not just a traffic observation.
 
 **How to verify on your network (AdGuard Home):**
 
@@ -123,12 +123,12 @@ Confidence varies — that is why this is a starting point, not gospel. STRICT a
 2. Query log → filter by the TV's IP → clear.
 3. On the TV: open the store, browse, install a new app, update an app, reboot.
 4. Look for blocked entries under `lge.com` / `lgeapi.com` / `nextlgsdp.com` / `lgappstv.com` / `lgtvcommon.com` that coincide with something failing — whitelist only those exact hosts.
-5. Let it run for a day and confirm `cdpbeacon.lgtvcommon.com` stays blocked and the store still works.
+5. Retest store behavior, then follow the [independently resolvable-canary procedure](install.md#is-it-actually-blocking): require a fresh external A answer before treating a negative local answer as blocking proof. The historical bare beacon is not a blocking canary.
 6. Report your final set via the issue tracker — verified sets get folded into this recipe with credit.
 
 ## Why doesn't SAFE block all of lge.com instead of individual hosts?
 
-Because `lge.com` is an umbrella zone: blocking it kills the Content Store, firmware updates, and account login along with the telemetry. SAFE only blocks hosts with observed ad/telemetry behavior (exact-name semantics). Whole-zone blocking is the STRICT philosophy — stronger, with documented collateral damage.
+Because the umbrella includes functional store/update/account services, not only telemetry. SAFE uses narrower evidence-backed decisions and explicit exceptions; see [policy and format scope](overview.md). Suffix-consuming formats still reach descendants of each listed name.
 
 ## My TV ignores my Pi-hole / AdGuard. Why?
 
@@ -229,14 +229,14 @@ That writes `lists-regions/fr/` (all 8 non-regex lists plus `SHA256SUMS`), rewri
 
 | Your blocker | What to do |
 |---|---|
-| Pi-hole / AdGuard Home | Subscribe to the normal list and add the `-wildcard.txt` regex lines; they cover every country, so there is nothing to re-run. |
+| Pi-hole / AdGuard Home | Choose the normal subscription; optional regex extends explicitly tagged families only. Re-paste updated regex rules manually; it does not cover every LG family or region endpoint. |
 | Exact-name only (hosts files, plain domains, some routers) | Localize and serve the output, and repeat after every list update. |
 | NextDNS | No regex and no list URLs: add zone anchors as plain denylist entries, then canary-test. |
 | Rooted TV `/etc/hosts` | The localized `-hosts.txt` must be redeployed to the TV, which resets on reboot; keep your copy somewhere persistent. |
 
-**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.info\.lgsmartad\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels stay reachable. The bare `nextlgsdp.com` region hosts are STRICT-only and never generalised via regional tags: shared clock/apps/AirPlay dependencies make them unsuitable for SAFE. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, including the whole `nextlgsdp.com` family, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
+**Regex extends only explicitly tagged families.** The SAFE regex includes audited two-letter families such as `emp.lgsmartplatform.com`; it does not generalize every country-looking hostname. STRICT also includes its zone anchors. SDP regional families are deliberately never generalized through tags. These are pasted rules, not subscriptions; [refresh them manually](install.md#keeping-the-lists-up-to-date).
 
-Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores every line and reports no error. In AdGuard Home the same lines work, wrapped in slashes (`/^[a-z][a-z]\.info\.lgsmartad\.com$/`) and added as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest comes from. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file.
+Both files go in Pi-hole's **Regex filters**, never an adlist. In AdGuard Home wrap each line in slashes and add it as a custom rule. SAFE adblock/dnsmasq already cover descendants of `lgsmartad.com`, including country names there; regex is not needed for that existing apex coverage. Regex supplements subscriptions because untagged, unanchored hosts have no regex line. See the canonical [format-scope table](overview.md#format-scope).
 
 **NextDNS** can't use them at all (no regex support). For whole-family reach, add a zone anchor itself as a plain denylist entry (`lgtvcommon.com`), because subdomains are blocked automatically, with the same widening caveat as STRICT. For the full list, [`scripts/nextdns_sync.py`](../scripts/nextdns_sync.py) bulk-adds a list file to your NextDNS denylist. It dry-runs by default and only writes with `--apply`; the API key goes in the `NEXTDNS_API_KEY` environment variable. See the [install guide](install.md#nextdns).
 

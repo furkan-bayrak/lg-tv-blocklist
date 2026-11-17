@@ -3,10 +3,10 @@
 **What this is:** two webosbrew `init.d` boot hooks, shipped as copy-me
 examples:
 
-- **`02-block-dns-egress.sh`** — forces all TV-originated DNS through *your*
-  resolver. webOS daemons hardcode public resolvers (`8.8.8.8` / `1.1.1.1`),
-  so those queries never reach your LAN DNS — this hook DNATs udp/tcp 53 to
-  your resolver and drops DoT/DoQ (853) at the kernel, closing the bypass.
+- **`02-block-dns-egress.sh`** — redirects TV-originated IPv4 UDP/TCP port 53
+  to your resolver and drops port-853 DoT/DoQ where supported. It addresses
+  hardcoded public IPv4 DNS, not every bypass: DoH and unsupported IPv6 remain.
+  Existing DNAT targets are not reconciled when the resolver changes.
 - **`04-sync-clock.sh`** — sets the TV clock from an HTTP `Date:` header
   after cold boot. Blocking LG's time-sync domains can leave the TV stuck at
   `2021-01-01` after power loss, and a wrong clock breaks strict-TLS fetches
@@ -15,11 +15,18 @@ examples:
 
 **What these are not:** a blocklist. The blocking still comes from your
 resolver's rules — this list, AdGuard Home, Pi-hole, NextDNS, etc. The
-DNS-egress hook only makes sure the TV cannot route around them.
+DNS-egress hook narrows supported DNS paths; it is not complete enforcement.
 
 **Root required** (webosbrew / Homebrew Channel). Most ISP routers
 (FRITZ!Box, Vodafone station, Comcast gateways) cannot do custom NAT
 redirects — that is exactly why the DNS hook runs on the TV.
+
+For an optional `/etc/hosts` deployment, use the generated
+[`safe-hosts.txt`](../../lists/safe-hosts.txt) or
+[`strict-hosts.txt`](../../lists/strict-hosts.txt), not `src/strict.txt`:
+that source is only the annotated delta, missing SAFE and anchors.
+The TV's hosts file resets on reboot and some daemons ignore it. This
+directory does not install or maintain a hosts-file mirror.
 
 ## The DNS-egress hook
 

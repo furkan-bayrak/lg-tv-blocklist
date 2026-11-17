@@ -7,18 +7,35 @@ assignees: ''
 ---
 
 **Domain(s)**
-<!-- e.g. eic.example.lgtviot.com -->
 
-**Device / webOS version**
+**Environment**
+- TV model:
+- Exact firmware / webOS build (or unknown):
+- TV service country / region:
+- Blocker and version:
+- Exact list URL / tier / format:
+- `# Updated:` header or source revision:
+- Localized lists, regex, hosts file, other filters / exceptions:
 
-**Evidence** (one of)
-- [ ] AdGuard/Pi-hole querylog snippet (domain + timestamp + client)
-- [ ] Packet capture (dns.qry.name or TLS SNI line)
-- [ ] Other (describe)
+**Contact evidence**
+What activity triggered the query? Include minimal sanitized hostname/timestamp
+text and how you attributed it to the TV (or “unknown”).
 
-**Suggested tier**
-- [ ] SAFE — telemetry/ad, store-safe
-- [ ] STRICT — update/ThinQ/Channels/feature-affecting
-- [ ] Not sure — please classify
+**Purpose evidence**
+What identifies its function? Link the evidence; DNS/TLS and a query log alone
+do not prove tracking, harmlessness or SAFE eligibility. Unknown is acceptable.
 
-**Symptom if you block it** (what you tested still worked / broke)
+**Actual blocking test**
+- Rules and matching scope tested (or not tested):
+- Features exercised and result:
+- Test date:
+- Cache clear / retest, cold boot versus standby if relevant:
+- Rollback result:
+
+**Suggested tier / rationale** (SAFE, STRICT, or unknown)
+New SAFE admissions need established ad/telemetry purpose plus a documented
+blocking test for the actual matching scope.
+
+**Before posting:** provide minimal sanitized text, not full raw captures or
+credentials. Remove tokens, MACs, SSIDs, public IPs and identifiable client
+details. Do not upload private logs or packet captures wholesale.
