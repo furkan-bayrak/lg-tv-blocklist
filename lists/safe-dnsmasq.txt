@@ -1,25 +1,25 @@
 # Title: LG TV Blocklist (safe)
-# Updated: 2026-11-17 16:31 UTC
+# Updated: 2026-11-17 17:17 UTC
 # Entries: 20
 # License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
-address=/ad.lgappstv.com/0.0.0.0
-address=/ads.lgtvcommon.com/0.0.0.0
-address=/adsdtvc.com/0.0.0.0
-address=/ae.info.lgsmartad.com/0.0.0.0
-address=/alphonso.tv/0.0.0.0
-address=/au.ad.lgsmartad.com/0.0.0.0
-address=/au.info.lgsmartad.com/0.0.0.0
-address=/cdpbeacon.lgtvcommon.com/0.0.0.0
-address=/de.emp.lgsmartplatform.com/0.0.0.0
-address=/de.info.lgsmartad.com/0.0.0.0
-address=/eic.api.lgtviot.com/0.0.0.0
-address=/eic.lgtviot.com/0.0.0.0
-address=/eic.nudge.lgtvcommon.com/0.0.0.0
-address=/eic.wiseconfig.lgtvcommon.com/0.0.0.0
-address=/homeprv.lgtvcommon.com/0.0.0.0
-address=/info.lgsmartad.com/0.0.0.0
-address=/initscr.lge.com/0.0.0.0
-address=/lgsmartad.com/0.0.0.0
-address=/recommend.lgtvcommon.com/0.0.0.0
-address=/smart.adtvc.app/0.0.0.0
+address=/ad.lgappstv.com/#
+address=/ads.lgtvcommon.com/#
+address=/adsdtvc.com/#
+address=/ae.info.lgsmartad.com/#
+address=/alphonso.tv/#
+address=/au.ad.lgsmartad.com/#
+address=/au.info.lgsmartad.com/#
+address=/cdpbeacon.lgtvcommon.com/#
+address=/de.emp.lgsmartplatform.com/#
+address=/de.info.lgsmartad.com/#
+address=/eic.api.lgtviot.com/#
+address=/eic.lgtviot.com/#
+address=/eic.nudge.lgtvcommon.com/#
+address=/eic.wiseconfig.lgtvcommon.com/#
+address=/homeprv.lgtvcommon.com/#
+address=/info.lgsmartad.com/#
+address=/initscr.lge.com/#
+address=/lgsmartad.com/#
+address=/recommend.lgtvcommon.com/#
+address=/smart.adtvc.app/#
