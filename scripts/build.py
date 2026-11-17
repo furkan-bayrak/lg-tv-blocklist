@@ -43,6 +43,15 @@ LG_SUFFIXES = (
     "ueiwsp.com",
     "meethue.com",
     "alphonso.tv",
+    # Issue #28: LG Ad Solutions and selected third-party service endpoints.
+    # Keep shared CDN/platform parents (pluto.tv, xumo.com, tiqcdn.com) out.
+    "lgads.tv",
+    "smartclip.com",
+    "yumenetworks.com",
+    "sp.pluto.tv",
+    "app-lgwebos.pluto.tv",
+    "lg-channelplus-eu-beacons.xumo.com",
+    "tags.tiqcdn.com",
 )
 
 LICENSE_LINE = "# License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"

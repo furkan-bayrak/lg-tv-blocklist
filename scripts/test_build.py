@@ -132,6 +132,30 @@ class TestParseSrc(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "not an LG family hostname"):
                     build.parse_src("strict.txt")
 
+    def test_issue_28_service_names_and_boundaries(self):
+        accepted = (
+            "lgads.tv",
+            "smartclip.com",
+            "yumenetworks.com",
+            "sp.pluto.tv",
+            "app-lgwebos.pluto.tv",
+            "lg-channelplus-eu-beacons.xumo.com",
+            "tags.tiqcdn.com",
+        )
+        self.write("strict.txt", "\n".join(accepted) + "\n")
+        self.assertEqual(build.parse_src("strict.txt"), sorted(accepted))
+        rejected = (
+            "pluto.tv", "other.pluto.tv", "xumo.com", "other.xumo.com",
+            "tiqcdn.com", "other.tiqcdn.com",
+            *(f"not{host}" for host in accepted),
+            *(f"{host}.evil.example" for host in accepted),
+        )
+        for host in rejected:
+            with self.subTest(host=host):
+                self.write("strict.txt", f"{host}\n")
+                with self.assertRaisesRegex(ValueError, "not an LG family hostname"):
+                    build.parse_src("strict.txt")
+
     def test_malformed_rejected(self):
         self.write("safe.txt", "not a hostname!! # nope\n")
         with self.assertRaises(ValueError):

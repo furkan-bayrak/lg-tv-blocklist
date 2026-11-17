@@ -31,9 +31,11 @@ offline by `scripts/test_verify.py`.
 evidence from your region — regional coverage is the main gap in this list.
 
 **Datacentre clusters.** `eic` (Europe), `aic` (Americas) and `kic` (Korea)
-front the same service from three continents, independently of country codes.
-When you add or verify a clustered host, probe all three and include every one
-that resolves — submitting only the cluster your own TV uses is how this list
+are established cluster prefixes; issue #28 also documents live `ruc` endpoints
+without establishing that prefix's geographic meaning. These are independent
+of country codes. When adding or verifying a clustered host, probe all four
+and include every one that resolves to an address — submitting only the
+cluster your own TV uses is how this list
 came to be missing 53 live endpoints. A twin found by probing is DNS-existence
 evidence, so it belongs in `strict.txt` tagged `weak` even where its sibling is
 SAFE — unless the twin's sibling is a non-weak STRICT entry, in which case the
