@@ -79,6 +79,12 @@ jobs:
         run: python3 scripts/test_nextdns_sync.py
       - name: Run check_blocking tests
         run: python3 scripts/test_check_blocking.py
+      - name: Install offline resolver test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y dnsmasq-base dnsutils
+      - name: Prove dnsmasq A and AAAA filtering offline
+        run: python3 scripts/test_dnsmasq.py
 
   publish:
     if: github.event_name != 'pull_request' && needs.check.outputs.src_changed == 'true'

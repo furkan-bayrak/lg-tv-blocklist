@@ -46,38 +46,52 @@ FAQ](faq.md#im-not-in-germany--do-the-lists-still-work-for-me).
 
 ## dnsmasq
 
-The dnsmasq files are dnsmasq config snippets: every line is a complete
-`address=/<domain>/0.0.0.0` rule, and dnsmasq already reads the `#` header
-lines as comments. No conversion step.
+The dnsmasq files are dnsmasq config snippets: every rule is a complete
+`address=/<domain>/#` line, and dnsmasq reads the `#` header lines as
+comments. The `#` rule target is not a comment. No conversion step.
+Use a dnsmasq build accepting this syntax; see the
+[official manual](https://dnsmasq.org/docs/dnsmasq-man.html).
 
-1. Download the raw file for your tier:
+1. Download the raw file for your tier to a staging location outside the
+   live configuration directory:
    - SAFE: `https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt`
    - STRICT: `https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt`
-2. Save it where dnsmasq reads config (for example `/etc/dnsmasq.d/` on a
-   router or Pi), then point one `conf-file` line at it, for example
-   `conf-file=/etc/dnsmasq.d/lg-tv-safe.conf`. Pasting the file's lines into
-   an existing config works the same way.
-3. Reload: `service dnsmasq restart` (or the equivalent on your router).
+2. Before replacing live router configuration, syntax-check the staged
+   snippet with `dnsmasq --test --conf-file=/path/to/staged-lg-tv.conf`.
+   Use the router's full-configuration validation as well: a snippet-only
+   check cannot check interactions with other configuration. Keep the live
+   file unchanged if validation fails. Syntax checks do not start a resolver
+   or establish TV compatibility.
+3. After the checks pass, save it where dnsmasq reads config (for example
+   `/etc/dnsmasq.d/lg-tv-safe.conf` on a router or Pi). Use the router's
+   existing include mechanism or a `conf-file` line pointing at it, not both.
+4. Reload: `service dnsmasq restart` (or the equivalent on your router).
 
 Check the download against [SHA256SUMS](../lists/SHA256SUMS)
 (`sha256sum -c SHA256SUMS` from a full checkout of the repo; compare the
 single line for your file if you keep only one list).
 
-`address=/name/0.0.0.0` answers `0.0.0.0` for the name **and every
-subdomain**, the same reach as the adblock `||name^` format. STRICT is
-therefore region-complete here too, and its zone anchors
-(`address=/lge.com/0.0.0.0`, ...) are whole-zone blocks by nature; for
-exact-host blocking use `-domains.txt` or `-hosts.txt` instead. Read the
+`address=/name/#` answers null `0.0.0.0` for A and `::` for AAAA queries
+for the name **and every subdomain**, the same matching reach as adblock
+`||name^`. This changes answer-family coverage, not list membership or
+descendant scope. STRICT's anchored families are therefore region-complete
+here too, and its zone anchors (`address=/lge.com/#`, ...) are whole-zone
+blocks by nature; for exact-host blocking use `-domains.txt` or `-hosts.txt`
+instead. Hosts output still contains only IPv4 mappings. Read the
 [store carve-out](faq.md#i-want-strict-but-keep-the-lg-content-store) before
 installing STRICT.
 
-**IPv6 limitation:** These rules specify only an IPv4 address. In dnsmasq
-2.86 and later, AAAA queries for a listed name can be forwarded upstream
-instead of being blocked, even when the query reaches dnsmasq. An upstream
-IPv6 answer can therefore bypass this list. An AAAA query can travel over
-IPv4, so IPv4-only DNS transport does not prevent this. Check your resolver's
-IPv6 filtering separately; see the [dnsmasq manual](https://dnsmasq.org/docs/dnsmasq-man.html)
-and the separate [IPv6 DNS-egress caveat](faq.md#can-ipv6-bypass-my-blocklist).
+**Replace older downloads:** `address=/name/0.0.0.0` snippets retain their
+IPv4 limitation; AAAA can be forwarded upstream on dnsmasq 2.86 and later.
+Download the new snippet, syntax-check before replacing the live copy, and
+reload dnsmasq. Closing this gap can disable features that previously
+escaped over IPv6; it is not a new compatibility guarantee.
+
+**Separate query-path limitation:** dual-stack answers only apply when the
+query reaches this resolver. IPv6 DNS transport can bypass an IPv4-only
+redirect, and DoH can bypass ordinary DNS filtering. See the
+[IPv6 DNS-egress caveat](faq.md#can-ipv6-bypass-my-blocklist).
+The diagnostic scripts below remain A-only.
 
 ## NextDNS
 

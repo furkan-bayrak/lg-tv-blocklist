@@ -101,16 +101,18 @@ class TestReadEntries(unittest.TestCase):
 
     def test_accepts_all_four_built_formats(self):
         for text in ("snu.lge.com\n", "0.0.0.0 snu.lge.com\n", "||snu.lge.com^\n",
-                     "address=/snu.lge.com/0.0.0.0\n"):
+                     "address=/snu.lge.com/#\n"):
             with self.subTest(text=text):
                 self.assertEqual(self.parse(text), ["snu.lge.com"])
 
     def test_dnsmasq_lines_parse_to_the_domain_between_the_slashes(self):
-        # Without this parse the whole rule ("address=/name/0.0.0.0") would be
+        # Without this parse the whole rule ("address=/name/#") would be
         # resolved as if it were a hostname and every entry would report ERROR.
-        text = ("address=/snu.lge.com/0.0.0.0\n"
-                "address=/de.lgeapi.com/0.0.0.0\n")
-        self.assertEqual(self.parse(text), ["de.lgeapi.com", "snu.lge.com"])
+        for target in ("#", "0.0.0.0"):
+            text = (f"address=/snu.lge.com/{target}\n"
+                    f"address=/de.lgeapi.com/{target}\n")
+            with self.subTest(target=target):
+                self.assertEqual(self.parse(text), ["de.lgeapi.com", "snu.lge.com"])
 
     def test_dedupes_and_sorts(self):
         self.assertEqual(self.parse("b.lge.com\na.lge.com\nb.lge.com\n"),

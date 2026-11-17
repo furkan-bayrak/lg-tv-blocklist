@@ -302,7 +302,7 @@ class TestRegionalReports(unittest.TestCase):
         "domains": "{host}",
         "hosts": "0.0.0.0 {host}",
         "adblock": "||{host}^",
-        "dnsmasq": "address=/{host}/0.0.0.0",
+        "dnsmasq": "address=/{host}/#",
     }
 
     def test_reported_ad_hosts_ship_in_both_tiers_all_formats(self):
@@ -345,7 +345,7 @@ class TestCompileTier(unittest.TestCase):
                 ("domains", "alphonso.tv"),
                 ("hosts", "0.0.0.0 alphonso.tv"),
                 ("adblock", "||alphonso.tv^"),
-                ("dnsmasq", "address=/alphonso.tv/0.0.0.0"),
+                ("dnsmasq", "address=/alphonso.tv/#"),
             ):
                 with self.subTest(tier=tier, fmt=fmt):
                     body = out[f"{tier}-{fmt}.txt"].splitlines()
@@ -360,7 +360,7 @@ class TestCompileTier(unittest.TestCase):
         )
         self.assertIn("0.0.0.0 a.lge.com", out["safe-hosts.txt"])
         self.assertIn("||a.lge.com^", out["safe-adblock.txt"])
-        self.assertIn("address=/a.lge.com/0.0.0.0", out["safe-dnsmasq.txt"])
+        self.assertIn("address=/a.lge.com/#", out["safe-dnsmasq.txt"])
         self.assertIn("a.lge.com", out["safe-domains.txt"])
         body = [
             l for l in out["safe-domains.txt"].splitlines() if not l.startswith("#")
@@ -373,7 +373,7 @@ class TestCompileTier(unittest.TestCase):
         )
         self.assertIn("0.0.0.0 lge.com", out["strict-hosts.txt"])
         self.assertIn("||lge.com^", out["strict-adblock.txt"])
-        self.assertIn("address=/lge.com/0.0.0.0", out["strict-dnsmasq.txt"])
+        self.assertIn("address=/lge.com/#", out["strict-dnsmasq.txt"])
 
     def test_dnsmasq_wraps_every_domain_including_zones(self):
         out = build.compile_tier(
@@ -385,7 +385,7 @@ class TestCompileTier(unittest.TestCase):
             if l and not l.startswith("#")
         ]
         self.assertEqual(
-            body, ["address=/lge.com/0.0.0.0", "address=/snu.lge.com/0.0.0.0"]
+            body, ["address=/lge.com/#", "address=/snu.lge.com/#"]
         )
 
     def test_headers_shape_and_counts(self):
@@ -798,7 +798,7 @@ class TestWildcard(unittest.TestCase):
 
 
 class TestDnsmasqOutputs(unittest.TestCase):
-    """The dnsmasq format: one address=/<domain>/0.0.0.0 line per entry.
+    """The dnsmasq format: one dual-stack address=/<domain>/# line per entry.
 
     These run against the real src/ tree, so the assertions hold for the
     shipped files: header counts, per-line shape, and cross-format parity
@@ -826,8 +826,8 @@ class TestDnsmasqOutputs(unittest.TestCase):
                 for line in body:
                     with self.subTest(line=line):
                         self.assertTrue(line.startswith("address=/"), line)
-                        self.assertTrue(line.endswith("/0.0.0.0"), line)
-                        domain = line[len("address=/") : -len("/0.0.0.0")]
+                        self.assertTrue(line.endswith("/#"), line)
+                        domain = line[len("address=/") : -len("/#")]
                         self.assertIsNotNone(build.HOSTNAME_RE.match(domain), line)
 
     def test_lines_parity_with_domains_output(self):
@@ -842,7 +842,7 @@ class TestDnsmasqOutputs(unittest.TestCase):
                     if l and not l.startswith("#")
                 ]
                 dnsmasq = [
-                    l[len("address=/") : -len("/0.0.0.0")]
+                    l[len("address=/") : -len("/#")]
                     for l in out[f"{tier}-dnsmasq.txt"].splitlines()
                     if l and not l.startswith("#")
                 ]
@@ -952,7 +952,7 @@ class TestInventoryAndWriter(unittest.TestCase):
             self.assertEqual(body("domains"), expected)
             self.assertEqual([line.removeprefix("0.0.0.0 ") for line in body("hosts")], expected)
             self.assertEqual([line[2:-1] for line in body("adblock")], expected)
-            self.assertEqual([line[len("address=/"):-len("/0.0.0.0")]
+            self.assertEqual([line[len("address=/"):-len("/#")]
                               for line in body("dnsmasq")], expected)
 
     def test_one_artifact_set_shares_a_timestamp_even_when_clock_changes(self):

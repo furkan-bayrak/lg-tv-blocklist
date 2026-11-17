@@ -7,7 +7,7 @@ Usage:
 Reads the eight built files from lists/ and rewrites entries whose first
 hostname label is a known source region label to the target region,
 preserving each line's format (plain / "0.0.0.0 name" / "||name^" /
-"address=/name/0.0.0.0"). Output goes to lists-regions/<cc>/ by default;
+"address=/name/#"). Output goes to lists-regions/<cc>/ by default;
 lists/ is never modified.
 
 Region detection is an explicit label set, NOT a generic two-letter-prefix

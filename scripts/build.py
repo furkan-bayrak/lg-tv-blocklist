@@ -363,7 +363,7 @@ def compile_tier(
     outputs[f"{tier}-dnsmasq.txt"] = (
         "\n".join(
             make_headers(title, len(domains), updated_at=updated_at)
-            + [f"address=/{d}/0.0.0.0" for d in domains]
+            + [f"address=/{d}/#" for d in domains]
         )
         + "\n"
     )

@@ -9,6 +9,18 @@ Start with the [project overview](overview.md) for the canonical tier, compatibi
 
 Root is only required for the `/etc/hosts` install path on the TV itself. DNS-level blocking never needs root.
 
+Current dnsmasq snippets use `address=/name/#` for null A (`0.0.0.0`) and
+AAAA (`::`) answers for each name and its descendants. Membership and
+matching scope are unchanged; hosts output remains IPv4-only.
+Older downloaded `address=/name/0.0.0.0` snippets retain the IPv4 limitation:
+replace and reload them. Use a build accepting `#`, documented in the
+[official manual](https://dnsmasq.org/docs/dnsmasq-man.html), and run
+`dnsmasq --test` on staged configuration before replacing live router
+configuration; follow the [install steps](install.md#dnsmasq).
+Previously escaping features may now be blocked. Dual-stack answers do
+not solve IPv6 DNS-transport bypass or DoH, and the diagnostic scripts
+remain A-only.
+
 ## Will this break Netflix / Prime / HBO / YouTube?
 
 They worked in the historical German G1 app audit, not a test of today's enlarged lists or every TV. [The compatibility table](overview.md#compatibility) records that scope, SAFE's exceptions and the unresolved Netflix/UniFi report #21. STRICT is not guaranteed to preserve streaming.

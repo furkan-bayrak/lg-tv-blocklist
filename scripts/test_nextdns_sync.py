@@ -95,9 +95,9 @@ class TestParseEntries(unittest.TestCase):
 
     def test_dnsmasq_unwraps_only_supported_single_domain_rules(self):
         domains, skipped = nextdns_sync.parse_entries(
-            "address=/A.LGE.COM/0.0.0.0\n"
+            "address=/A.LGE.COM/#\n"
             "address=/b.lge.com/#\n"
-            "address=/a.lge.com/#\n"
+            "address=/a.lge.com/0.0.0.0\n"
             "address=/one.lge.com/two.lge.com/#\n"
             "address=/other.lge.com/127.0.0.1\n"
             "address=/missing.lge.com/\n"
@@ -372,7 +372,7 @@ class TestMain(unittest.TestCase):
 
     def test_standard_formats_have_identical_offline_preview(self):
         for entry in ("a.lge.com", "0.0.0.0 a.lge.com", "||a.lge.com^",
-                      "address=/a.lge.com/0.0.0.0", "address=/a.lge.com/#"):
+                      "address=/a.lge.com/#", "address=/a.lge.com/0.0.0.0"):
             with self.subTest(entry=entry):
                 write_list(self.path, entry + "\n")
                 rc, out, _, calls = self.run_main(
