@@ -13,7 +13,6 @@ recommend.lgtvcommon.com # SAFE: recommendations/promos | DECOMMISSIONED 2026-09
 eic.wiseconfig.lgtvcommon.com # SAFE: cloud-config telemetry (blocked live, apps fine)
 eic.lgtviot.com # SAFE: IoT telemetry (largest observed family, ~5.1k queries)
 eic.api.lgtviot.com # SAFE: IoT telemetry API
-de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry — never generalised to a region regex: the two-letter region hosts carry TV time/apps traffic on some models (hagezi/dns-blocklists#11438)
 lgsmartad.com # SAFE: dedicated ad zone apex (whole family is ads)
 de.info.lgsmartad.com # SAFE: ad info endpoint [REGION-SCOPED]
 au.ad.lgsmartad.com # SAFE: regional ad endpoint in the dedicated lgsmartad.com ad zone — repo issue #22 (@Merloko), LG C2 Australia, firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; live-block test not performed
@@ -25,5 +24,4 @@ adsdtvc.com # SAFE: ad zone | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Clou
 ad.lgappstv.com # SAFE: ad delivery on the lgappstv store CDN family (store unaffected) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 initscr.lge.com # SAFE: initial-setup telemetry (boot-time only) | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
 info.lgsmartad.com # SAFE: ad info endpoint (admanager poll ~60s); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1 | DECOMMISSIONED 2026-09-12: NXDOMAIN on Google+Cloudflare DoH. No cluster successor found. Kept for the audit record; harmless to block.
-ca.nextlgsdp.com # SAFE: SDP Canada region endpoint, telemetry — observed live on LG C1 (Canada), ~1/min after power-on + playback; querylog.json attached to PR #9
 alphonso.tv # SAFE: owner-directed exception; LG TV Alphonso subdomains reported in https://www.reddit.com/r/pihole/comments/scsg2w/lg_tv_has_changed_ad_providers_january_2022/ and OLED65BX blocking reported functional in https://gist.github.com/mcrumm/972070dfe67d44ed61c4247563cbf07c; included in https://github.com/hagezi/dns-blocklists/blob/main/wildcard/native.lgwebos-onlydomains.txt; not independently smoke-tested by this project; compatibility unverified, may move to STRICT if breakage is reported

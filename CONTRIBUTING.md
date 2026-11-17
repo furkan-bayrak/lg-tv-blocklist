@@ -119,7 +119,7 @@ One further tag is structural rather than evidential. `[REGION-SCOPED]`
 anywhere in the annotation marks an entry whose family LG also serves behind
 two-letter country prefixes (`de.lgeapi.com`, `br.lgeapi.com`, …):
 
-    de.nextlgsdp.com # SAFE: SDP region endpoint, telemetry [REGION-SCOPED]
+    de.info.lgsmartad.com # SAFE: ad info endpoint [REGION-SCOPED]
 
 It feeds the optional `lists/*-wildcard.txt` regex files and nothing else. The
 eight shipped lists are byte-identical with every tag deleted, and a test asserts

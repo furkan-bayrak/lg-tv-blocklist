@@ -28,6 +28,7 @@ Built by watching a real LG G1's network traffic and DNS logs, cross-checked aga
 | ThinQ app / voice assistant cloud sync | works | blocked |
 | LG Channels | works | blocked |
 | LG account login | works | may fail |
+| AirPlay pairing after power-on | not independently tested | can fail ([evidence and options](docs/faq.md#airplay-says-unable-to-connect-after-the-pairing-code)) |
 
 ## Install
 

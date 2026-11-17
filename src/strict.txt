@@ -1,6 +1,7 @@
 # LG TV Blocklist — STRICT tier DELTA (compiled as safe + this file).
 # Rooted/privacy-max users: zero LG communication intended. Breaks BY DESIGN:
-# firmware OTA updates, ThinQ cloud sync, LG Channels. Store may degrade.
+# firmware OTA updates, ThinQ cloud sync, LG Channels. Store may degrade;
+# AirPlay's first pairing after power-on can fail (issue #29; see docs/faq.md).
 # Weak-evidence entries are kept here by policy (never risk SAFE on a guess).
 # License: CC BY 4.0.
 
@@ -38,6 +39,11 @@ ueiwsp.com # STRICT: weak — interop: QuickSet Cloud (UEI) discovery API; commu
 www.ueiwsp.com # STRICT: interop: QuickSet Cloud (UEI) discovery API; community report 2026-09-11 (repo issue #3 querylog); observed on G1 2026-09-12 (11 queries / 48 min; AGH querylog via Fritz relay); breakage untested
 lgshopsvc.lgappstv.com # STRICT: weak — LG Shop service (SDX); community report: Level1Techs "LG TV Block Mini-How-to" #255178 (wendell, 2026-09-05; observed live on G5); not observed on G1
 
+# Shared SDP region endpoints moved from SAFE after issue #29. AirPlay failure
+# is evidenced on UAE B4 and upstream G4, not independently tested in DE/CA.
+de.nextlgsdp.com # STRICT: weak — shared SDP endpoint, previously labelled telemetry; possible clock/store/AirPlay dependency by family (issue #29); no DE AirPlay block test; never generalise to a region regex (hagezi/dns-blocklists#11438)
+ca.nextlgsdp.com # STRICT: weak — shared SDP endpoint; observed live on LG C1 Canada (~1/min after power-on + playback; PR #9 querylog.json), not proof of telemetry-only purpose; possible clock/store/AirPlay dependency by family (issue #29), no CA AirPlay block test
+
 # --- AU/UAE community observations (repo issues #23 and #24) ---------------
 # Capture/log observation proves contact, not payload purpose or SAFE status.
 # New uncertain services stay STRICT; no new whole-zone anchors are introduced.
@@ -48,7 +54,7 @@ au.rdx2.nextlgsdp.com # STRICT: weak — SDP endpoint, function unverified; repo
 au.nextlgsdp.com # STRICT: weak — SDP region endpoint, possible clock/store dependency (issue #6); repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; no live-block test, allowlist if time sync fails
 au.elastic.lgwebostv.com # STRICT: weak — webOS regional endpoint, function unverified; repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; encrypted payload, no live-block test
 au.app.lgwebostv.com # STRICT: weak — webOS regional app endpoint, app/store risk unverified; repo issue #23 (@Merloko), LG C2 AU firmware 33.31.68; DNS + TLS SNI capture 2026-10-28; encrypted payload, no live-block test
-ae.nextlgsdp.com # STRICT: SDP region endpoint, CLOCK DEPENDENCY — repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway logs (~3-minute cadence); reporter must allowlist this host for clock sync, not SAFE
+ae.nextlgsdp.com # STRICT: shared SDP region endpoint, clock dependency (issue #24) and AirPlay online MFi-key-check dependency (issue #29, @kdeldycke, LG B4 UAE webOS 25 10.3.2-33); blocked downloadKey returns -5 with ~10 s delay; rooted skip-check workaround tested, unblocking not yet tested for AirPlay; not SAFE
 ae.rdx2.nextlgsdp.com # STRICT: weak — SDP endpoint, function unverified; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway log observation; no isolated block test
 ae.lgeapi.com # STRICT: weak — region API, store/billing interplay unproven; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway log observation, reporter runs STRICT; inherits de.lgeapi.com tier
 eic-gfts.tv.wiselg.com # STRICT: weak — file-transfer sibling, payload purpose unverified; repo issue #24 (@kdeldycke), LG B4 UAE webOS 25 10.3.2-33; gateway blocked-query observation at power-on; no isolated block test
