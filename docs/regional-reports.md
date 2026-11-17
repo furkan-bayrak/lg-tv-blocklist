@@ -120,3 +120,32 @@ leaves it untouched, as it does `aic`/`eic`/`kic`. The existing `us` country
 label already handles `us.ibs.lgappstv.com`. The 517 country twins and 72
 Content Store hosts explicitly excluded by the reporter remain outside this
 change; their absence is not an endorsement to block them.
+
+## AirPlay report #29
+
+[#29](https://github.com/furkan-bayrak/lg-tv-blocklist/issues/29) documents
+first-pairing failure after power-on on @kdeldycke's UAE B4, webOS 25
+`10.3.2-33`, with STRICT at the gateway and `ae.nextlgsdp.com` blocked in the
+TV hosts file. Unlike their earlier clock setup in #24, they now use NTP
+and keep that host blocked. A correct clock does not avoid this failure.
+
+The supplied `sdp_airplay` configuration points to `nextlgsdp.com`;
+`downloadKey` returns `-5` and logs show an approximately ten-second wait.
+The existing MFi key reports valid. A rooted marker-directory workaround
+skips the online check and restored iPhone pairing after cold boot and standby.
+[LGWSS #71](https://github.com/lewisdoesstuff/lifesgoodwithoutspying/pull/71)
+also reports reproduced failure and successful MacBook pairing on a G4,
+webOS 9.2.4. [Glasshouse #1434](https://github.com/rorygallagher2024/glasshouse/issues/1434)
+contains the B4 reporter's confirmation of that project's workaround.
+These are upstream device reports, not this project's independent TV tests.
+Unblocking the regional host has not yet been tested by the reporter.
+
+**Disposition:** preserve STRICT's SDP zone anchor and existing coverage;
+annotate the UAE host's AirPlay dependency. Move `de.nextlgsdp.com` and
+`ca.nextlgsdp.com` from SAFE to weak STRICT conservatively: their traffic
+observations do not prove telemetry-only purpose, and the family has shared
+functional dependencies. This is not evidence of AirPlay breakage in DE/CA.
+No new domains, zone anchors, regional regexes or bypass scripts are added.
+See the [AirPlay FAQ](faq.md#airplay-says-unable-to-connect-after-the-pairing-code)
+for narrow exception diagnostics, layered-blocker caveats and upstream
+rooted alternatives. Allowlisting remains unverified as an AirPlay fix.

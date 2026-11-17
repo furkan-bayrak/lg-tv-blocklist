@@ -15,6 +15,70 @@ No. SAFE's promise — verified on an LG G1 — is that these keep working while
 
 Disney+ and other streaming apps were not part of the G1 smoke test: SAFE is expected to leave them working (they use their own infrastructure, none of which is on the list), but that is inference, not tested evidence.
 
+## AirPlay says "Unable to Connect" after the pairing code
+
+**Reported with STRICT:** the first AirPlay pairing after power-on can fail
+even when the clock is correct. The TV asks LG's shared SDP service to check
+its MFi (Apple accessory) key. With that service blocked, the online request
+fails and the TV waits about ten seconds; the sender gives up first.
+This is not fixed merely by setting the clock or installing our clock hook.
+
+**Evidence:** [issue #29](https://github.com/furkan-bayrak/lg-tv-blocklist/issues/29)
+reports a UAE B4, webOS 25 `10.3.2-33`, using `ae.nextlgsdp.com`.
+The reporter supplied service configuration and logs, and tested a rooted
+skip-check workaround after cold boot and standby. An upstream maintainer
+[reproduced the failure and tested that workaround on a G4, webOS 9.2.4](https://github.com/lewisdoesstuff/lifesgoodwithoutspying/pull/71).
+The reporter has **not tested unblocking the host** as an AirPlay fix.
+Neither outcome establishes compatibility on every model or region.
+
+**Without changing the TV's credential-check behavior:** try allowing only
+the actual SDP host your TV queries. For the reported UAE host, an AdGuard
+Home custom exception is:
+
+```text
+@@||ae.nextlgsdp.com^
+```
+
+This allows that hostname and its descendants, not the whole `nextlgsdp.com`
+zone. It also allows other services sharing that hostname: this is a privacy
+tradeoff, not an AirPlay-only exception. Do not allowlist the entire SDP zone.
+Use your TV's query log to identify its actual regional host rather than
+copying `ae.` blindly.
+
+- **Pi-hole / NextDNS:** add the specific hostname to the allowlist and check
+  the query log to confirm it overrides the parent-zone block.
+- **dnsmasq / regex filtering:** use your resolver's supported per-host
+  exception or adjust the conflicting zone/regex rule; AdGuard's `@@` syntax
+  is not portable. Confirm that the target resolves without opening the zone.
+- **TV hosts file / layered blockers:** remove that hostname's sinkhole
+  mappings from both IPv4 and IPv6 entries and from any boot-time source that
+  recreates them. A router exception cannot override `/etc/hosts`, and a TV
+  change cannot override your gateway or another blocker.
+
+After DNS caches expire or are cleared, test the first code-based pairing
+after a cold boot, then after standby/wake. Record the queried host and the
+result. This exception is a diagnostic starting point, **not a verified fix**.
+To undo it, remove the exception and restore any removed blocking entries.
+
+**Rooted alternative while keeping SDP blocked:** LGWSS 0.12.1 and
+[Glasshouse's implementation](https://github.com/rorygallagher2024/glasshouse/pull/1441)
+keep a non-empty `/tmp/mfi_key_requested` directory so the daemon skips its
+online MFi-key request. The B4 reporter confirmed pairing with these
+workarounds; the TV still reads its existing key from secure storage.
+This changes credential-check behavior and is not a DNS-list fix.
+We do not install or ship a bypass hook. If you choose an upstream
+implementation, follow its current installation and rollback instructions;
+do not delete another tool's marker directory or assume disabling one blocker
+removes blocks applied by others.
+
+**SAFE correction:** `de.nextlgsdp.com` and `ca.nextlgsdp.com` are now STRICT-only
+as a precaution for shared-service dependencies. Earlier traffic observations
+did not prove telemetry-only purpose. AirPlay breakage on those DE/CA hosts
+has not been demonstrated; SAFE AirPlay compatibility is not independently
+tested by this project. Refresh old lists and remove stale manually imported
+entries if you switch to SAFE.
+
+
 ## I want STRICT but keep the LG Content Store
 
 STRICT blocks whole zones (`||lge.com^`, `||lgeapi.com^`, `||nextlgsdp.com^`, ...) because store, update, telemetry, and account services all live inside those trees. To keep the store, carve out exceptions for the specific hosts it needs.
@@ -145,7 +209,7 @@ AdGuard Home evaluates `@@` exceptions at the engine level, but the official doc
 
 Depends on your tier and format. In the **adblock** and **dnsmasq** formats, **STRICT is region-complete for its anchored families**: its zone anchors (`||lgeapi.com^`, `||nextlgsdp.com^`, ...) and apex entries (`||lgsmartad.com^`, ...) match every subdomain, including region-prefixed hosts like `fr.lgeapi.com` and `fr.nextlgsdp.com`. The newly reported `au.app.lgwebostv.com` and `au.elastic.lgwebostv.com` are STRICT-only exact entries, with no `lgwebostv.com` zone anchor: other countries in that family are not automatically covered. One deliberate exception since 2026-09-16: the `lgtvsdp.com` time-sync family carries no zone or apex entry in any tier, so its `<cc>.` hosts stay reachable (see the clock entry above).
 
-**SAFE's adblock and dnsmasq lists only cover region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` family wholesale (`||lgsmartad.com^`), so `fr.info.lgsmartad.com` is caught, and it no longer blocks the `lgtvsdp.com` family at all (the time-sync apex was removed 2026-09-16). But `nextlgsdp.com` and `lgsmartplatform.com` are STRICT-only zones: SAFE has no `||nextlgsdp.com^` or `||lgsmartplatform.com^`, so `fr.nextlgsdp.com` and `fr.emp.lgsmartplatform.com` are **not** covered by SAFE's adblock or dnsmasq lists — SAFE keeps only the audited exact `de.`/`ca.nextlgsdp.com` entries.
+**SAFE's adblock and dnsmasq lists only cover region siblings under the apexes it actually contains.** It blocks the `lgsmartad.com` family wholesale (`||lgsmartad.com^`), and it no longer blocks the `lgtvsdp.com` family. The bare regional `nextlgsdp.com` hosts are now STRICT-only, including the former SAFE `de.`/`ca.` entries (see the [AirPlay evidence](#airplay-says-unable-to-connect-after-the-pairing-code)). SAFE also has no `lgsmartplatform.com` zone anchor: its exact `de.emp.lgsmartplatform.com` entry does not cover `fr.emp.lgsmartplatform.com`.
 
 The **domains/hosts formats are exact-name** for everyone: `de.lgeapi.com` does not block `fr.lgeapi.com`, and hosts files cannot wildcard subdomains — so those formats only cover the region prefixes present in the lists, and they are where `localize.py` matters most.
 
@@ -170,7 +234,7 @@ That writes `lists-regions/fr/` (all 8 non-regex lists plus `SHA256SUMS`), rewri
 | NextDNS | No regex and no list URLs: add zone anchors as plain denylist entries, then canary-test. |
 | Rooted TV `/etc/hosts` | The localized `-hosts.txt` must be redeployed to the TV, which resets on reboot; keep your copy somewhere persistent. |
 
-**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.info\.lgsmartad\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels stay reachable. The `nextlgsdp.com` region hosts are deliberately not generalised — they are the TV's time/apps channel on some models, so only the audited exact entries are blocked. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, which block whole families by design, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
+**If your blocker does regex, there is regional coverage the exact-name lists cannot give you.** `lists/safe-wildcard.txt` generalises audited region-prefixed hosts to any country code (`^[a-z][a-z]\.info\.lgsmartad\.com$` covers `fr.`, `br.` and `jp.` alike) and matches two-letter prefixes only, so the family apex and longer labels stay reachable. The bare `nextlgsdp.com` region hosts are STRICT-only and never generalised via regional tags: shared clock/apps/AirPlay dependencies make them unsuitable for SAFE. `lists/strict-wildcard.txt` adds the `src/zones.txt` anchors in regex form, including the whole `nextlgsdp.com` family, exactly as STRICT already does in the adblock format. These are pasted rules, not subscriptions; re-paste them after list updates (see the [install guide](install.md#keeping-the-lists-up-to-date)).
 
 Both files go in Pi-hole's **Regex filters**, never an adlist: an adlist ignores every line and reports no error. In AdGuard Home the same lines work, wrapped in slashes (`/^[a-z][a-z]\.info\.lgsmartad\.com$/`) and added as a custom filtering rule. In STRICT the adblock list already covers the same families; in SAFE it only carries the audited countries, so these lines are where the rest comes from. They supplement a list subscription rather than replacing it: audited hosts with no region prefix and no zone anchor have no line in either file.
 
