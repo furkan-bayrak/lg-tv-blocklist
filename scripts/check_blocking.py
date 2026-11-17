@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check whether a DNS blocker actually blocks the shipped list entries.
+"""Check A-record blocking at the selected DNS resolver.
 
 Usage:
     python scripts/check_blocking.py --server 192.168.1.53
@@ -10,9 +10,10 @@ Usage:
 
 "The list is on my Pi-hole, but the TV still shows ads" has three possible
 layers: the blocker is not filtering, the TV bypasses the blocker, or the TV
-answers from its own cache. This tool checks the first layer only: it queries
-the resolver the TV is supposed to use, over plain UDP DNS, and compares the
-answer with ground truth from an independent DoH resolver.
+answers from its own cache. This tool checks IPv4 address answers at the
+selected resolver over plain UDP DNS, compared with an independent DoH
+resolver. It is A-record-only: it does not test AAAA filtering, TV routing,
+or TV caches.
 
 Verdicts (one per domain):
 
@@ -22,15 +23,15 @@ Verdicts (one per domain):
                  applies on this resolver.
     DEAD         the resolver failed to produce a usable address (NXDOMAIN,
                  no A record, or only a null/loopback sinkhole) and the
-                 cross-check agrees the name does not resolve. A stale list
-                 entry, not evidence of blocking.
-    RESOLVES     the resolver returned a real address. Not blocked by DNS.
+                 cross-check returns NXDOMAIN. This is not evidence of
+                 blocking, nor proof of permanent retirement.
+    RESOLVES     the resolver returned a real IPv4 address for this A query.
     UNREACHABLE  the resolver did not answer within --timeout. This is
                  never reported as BLOCKED: a silent resolver may be down,
                  firewalled, or slow, and silence says nothing about filtering.
     ERROR        no verdict: SERVFAIL/REFUSED, a malformed packet, an
-                 inconclusive cross-check, or a name without an A record on
-                 either side (delegated apex / AAAA-only).
+                 inconclusive cross-check, or NOERROR without an A record
+                 on both sides.
 
 The DoH cross-check is what makes BLOCKED and DEAD distinguishable, so it is
 ON by default (dns.google). Use --cross-check cloudflare (or 1.1.1.1) to
@@ -49,6 +50,7 @@ of `build.py check`. scripts/test_check_blocking.py runs fully offline.
 import argparse
 import ipaddress
 import json
+import math
 import os
 import socket
 import struct
@@ -86,7 +88,7 @@ L_FAILED = "failed"         # SERVFAIL/REFUSED/... or an unparseable packet
 
 # DoH cross-check outcomes (ground truth from an independent resolver).
 X_RESOLVES = "resolves"     # NOERROR with an A record
-X_EXISTS = "exists"         # NOERROR without an A record (apex/CNAME-only)
+X_EXISTS = "exists"         # NOERROR without an A record
 X_NXDOMAIN = "nxdomain"
 X_ERROR = "error"
 
@@ -157,6 +159,10 @@ def parse_response(data: bytes, txid: int) -> tuple[int, list[str]]:
     rid, flags, qdcount, ancount = struct.unpack(">HHHH", data[:8])
     if rid != txid:
         raise ValueError(f"transaction id mismatch ({rid:#06x} != {txid:#06x})")
+    if not flags & 0x8000:
+        raise ValueError("QR flag is clear: packet is not a DNS response")
+    if flags & 0x0200:
+        raise ValueError("TC flag is set: DNS response is truncated")
     rcode = flags & 0x000F
     offset = 12
     for _ in range(qdcount):
@@ -260,10 +266,11 @@ def classify_local(local: tuple[str, str],
         return BLOCKED, f"{detail} locally; resolves to {xdetail} via cross-check"
     if xstate == X_EXISTS:
         if state == L_NO_ANSWER:
-            return ERROR, ("no A record from the resolver or the cross-check "
-                           "(delegated apex or AAAA-only); not a blocking verdict")
+            return ERROR, ("no A record from the resolver or the cross-check; "
+                           "not a blocking verdict")
         if state == L_SINKHOLED:
-            return DEAD, f"{detail} locally; no A record via cross-check"
+            return ERROR, (f"{detail} locally; {xdetail} via cross-check; "
+                           "inconclusive, not a blocking verdict")
         return BLOCKED, f"{detail} locally; name exists via cross-check"
     if xstate == X_NXDOMAIN:
         if state == L_NXDOMAIN:
@@ -293,7 +300,7 @@ def cross_classify(payload: object) -> tuple[str, str]:
         return X_ERROR, "malformed DoH answer section"
     if addrs:
         return X_RESOLVES, addrs[0]
-    return X_EXISTS, "no A record (delegated apex or CNAME-only)"
+    return X_EXISTS, "NOERROR without an A record"
 
 
 def cross_lookup(name: str, provider: str = "google",
@@ -437,8 +444,8 @@ def positive_seconds(value: str) -> float:
         seconds = float(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"not a number: {value!r}") from None
-    if seconds <= 0:
-        raise argparse.ArgumentTypeError(f"must be > 0, got {seconds:g}")
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise argparse.ArgumentTypeError(f"must be finite and > 0, got {seconds:g}")
     return seconds
 
 
@@ -454,7 +461,8 @@ def cross_provider(value: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Check whether a DNS blocker actually blocks list entries",
+        description="Check A-record blocking: IPv4 address answers at the "
+                    "selected resolver, not AAAA filtering, TV routing, or TV caches.",
         epilog="Exit codes: 0 the check ran, 1 --expect-blocked and a domain "
                "was not confirmed BLOCKED, 2 usage/config error.")
     parser.add_argument("--server", type=resolver_address, default=None,
@@ -504,8 +512,10 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
 
-    print(f"checking {len(domains)} domain(s) against {server}:{args.port} "
-          f"(cross-check: {args.cross_check})...", file=sys.stderr)
+    print(f"checking A records for {len(domains)} domain(s) against "
+          f"{server}:{args.port} (cross-check: {args.cross_check}); "
+          "IPv4 answers only, not AAAA filtering, TV routing, or TV caches...",
+          file=sys.stderr)
     results = check_many(domains, server, args.port, args.timeout, args.cross_check)
     counts = count_verdicts(results)
 
@@ -513,6 +523,7 @@ def main(argv: list[str] | None = None) -> int:
         json.dump({
             "server": server,
             "port": args.port,
+            "query_type": "A",
             "cross_check": args.cross_check,
             "counts": counts,
             "results": [{"domain": domain,
@@ -521,6 +532,8 @@ def main(argv: list[str] | None = None) -> int:
         }, sys.stdout, indent=2)
         print()
     else:
+        print("# A-record-only check: IPv4 answers at the selected resolver; "
+              "not AAAA filtering, TV routing, or TV caches.")
         for domain in domains:
             verdict, detail = results[domain]
             print(f"{verdict:<11} {domain:<45} {detail}")

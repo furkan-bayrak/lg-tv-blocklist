@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Bulk-add list domains to a NextDNS profile denylist, via the NextDNS API.
 
-NextDNS's web UI takes one domain per entry, so the 116-entry strict list is
-not realistically pasteable by hand -- the API is the only bulk path. This
-script syncs a local list file into one profile's denylist and is
-ADDITIVE-ONLY: it never removes, disables or reorders anything already there,
+NextDNS's web UI takes one domain per entry; this script bulk-adds a local
+domains, hosts, adblock or single-domain dnsmasq list to one profile's denylist.
+It is ADDITIVE-ONLY: it never removes, disables or reorders existing entries,
 and there is no prune. Dry-run is the default.
 
 Verified against the official API documentation (https://nextdns.github.io/api/,
@@ -37,6 +36,7 @@ Stdlib only, like the rest of scripts/. Install guide: docs/install.md.
 """
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -117,9 +117,9 @@ def parse_entries(text: str) -> tuple[list[str], list[tuple[int, str, str]]]:
     domains: valid FQDNs, lowercased, deduplicated, in file order.
     skipped: (line number, raw line, reason) for every line not used.
 
-    Blank lines and #/! comments are ignored silently -- same rules as the
-    built lists. The repo's other built formats ("0.0.0.0 name", "||name^")
-    are unwrapped too, so -hosts.txt and -adblock.txt files work as --file.
+    Blank lines and #/! comments are ignored silently. Domains, hosts
+    ("0.0.0.0 name"), adblock ("||name^"), and single-domain dnsmasq
+    ("address=/name/0.0.0.0" or "address=/name/#") are supported.
     """
     domains: list[str] = []
     skipped: list[tuple[int, str, str]] = []
@@ -132,6 +132,10 @@ def parse_entries(text: str) -> tuple[list[str], list[tuple[int, str, str]]]:
             line = line[len("0.0.0.0 "):].strip()
         elif line.startswith("||") and line.endswith("^"):
             line = line[2:-1]
+        elif line.startswith("address="):
+            match = re.fullmatch(r"address=/([^/]+)/(?:0\.0\.0\.0|#)", line)
+            if match:
+                line = match[1]
         name = line.lower()
         if not is_domain(name):
             skipped.append((lineno, raw.strip(), "not a domain name"))
@@ -324,8 +328,8 @@ def positive_float(value: str) -> float:
         number = float(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"not a number: {value!r}") from None
-    if number <= 0:
-        raise argparse.ArgumentTypeError(f"must be > 0, got {number}")
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError(f"must be finite and > 0, got {number}")
     return number
 
 
@@ -335,8 +339,8 @@ def non_negative_float(value: str) -> float:
         number = float(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"not a number: {value!r}") from None
-    if number < 0:
-        raise argparse.ArgumentTypeError(f"must be >= 0, got {number}")
+    if not math.isfinite(number) or number < 0:
+        raise argparse.ArgumentTypeError(f"must be finite and >= 0, got {number}")
     return number
 
 
@@ -361,7 +365,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="NextDNS profile ID (required with --apply; "
                              "my.nextdns.io, Setup tab)")
     parser.add_argument("--file", type=Path, default=DEFAULT_FILE,
-                        help=f"list file to sync (default: {DEFAULT_FILE.name})")
+                        help="domains, hosts, adblock or single-domain dnsmasq "
+                             f"list (default: {DEFAULT_FILE.name}); not regex")
     parser.add_argument("--apply", action="store_true",
                         help="actually write to NextDNS; without it nothing is sent")
     parser.add_argument("--no-fetch", action="store_true",

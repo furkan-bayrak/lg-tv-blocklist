@@ -91,10 +91,12 @@ Two practical paths:
   [keeping the Content
   Store](faq.md#i-want-strict-but-keep-the-lg-content-store) before adding one.
 - **The full list:** run [`scripts/nextdns_sync.py`](../scripts/nextdns_sync.py)
-  from a clone of this repo. It bulk-adds the domains from a list file to your
-  profile's denylist through the free NextDNS API. It dry-runs by default and
-  only writes with `--apply`; the API key goes in the `NEXTDNS_API_KEY`
-  environment variable. Run it with `--help` for the profile and file options.
+  from a clone of this repo. It accepts the generated domains, hosts, adblock
+  and single-domain dnsmasq formats, not regex files. It bulk-adds missing
+  names to your profile's denylist through the NextDNS API. It dry-runs by
+  default and only writes with `--apply`; the API key goes in the
+  `NEXTDNS_API_KEY` environment variable. Use `--no-fetch` for an entirely
+  offline preview. Run it with `--help` for the profile and file options.
 
 ## Unbound (and similar resolvers)
 
@@ -159,8 +161,15 @@ DNS shows a normal public IP for the canary; that is the bypass from step 3,
 not a list problem.
 
 Prefer a script? [`scripts/check_blocking.py`](../scripts/check_blocking.py)
-queries your resolver for a sample of list domains and prints which are
-blocked, which are dead, and which still resolve.
+checks IPv4 A-record answers at your selected resolver and cross-checks
+negative/sinkhole answers over DoH. An external NXDOMAIN supports DEAD;
+NOERROR without an A record is inconclusive, not proof of retirement.
+This does not check AAAA filtering, the TV's routing or its DNS cache.
+
+[`scripts/verify.py`](../scripts/verify.py) checks external A-record answers,
+not blocking or service purpose. With `--cross-check`, it attempts a second
+provider only for non-LIVE findings. NO_A means NOERROR without an A record;
+review evidence before changing a rule, including when a name returns NXDOMAIN.
 
 ## Keeping the lists up to date
 

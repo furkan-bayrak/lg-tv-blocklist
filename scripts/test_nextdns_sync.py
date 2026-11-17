@@ -93,6 +93,22 @@ class TestParseEntries(unittest.TestCase):
         self.assertEqual(domains, [])
         self.assertEqual(len(skipped), 2)
 
+    def test_dnsmasq_unwraps_only_supported_single_domain_rules(self):
+        domains, skipped = nextdns_sync.parse_entries(
+            "address=/A.LGE.COM/0.0.0.0\n"
+            "address=/b.lge.com/#\n"
+            "address=/a.lge.com/#\n"
+            "address=/one.lge.com/two.lge.com/#\n"
+            "address=/other.lge.com/127.0.0.1\n"
+            "address=/missing.lge.com/\n"
+            "server=/example.com/1.1.1.1\n"
+            "address=/b.lge.com/# extra\n")
+        self.assertEqual(domains, ["a.lge.com", "b.lge.com"])
+        self.assertEqual([line for line, _, _ in skipped], [3, 4, 5, 6, 7, 8])
+        self.assertIn("duplicate", skipped[0][2])
+        self.assertTrue(all(reason == "not a domain name"
+                            for _, _, reason in skipped[1:]))
+
 
 class TestErrorHelpers(unittest.TestCase):
     def test_api_error_detail_prefers_detail_then_code(self):
@@ -354,6 +370,27 @@ class TestMain(unittest.TestCase):
         self.assertIn("WOULD ADD b.lge.com", out)
         self.assertIn("summary: 2 to add", out)
 
+    def test_standard_formats_have_identical_offline_preview(self):
+        for entry in ("a.lge.com", "0.0.0.0 a.lge.com", "||a.lge.com^",
+                      "address=/a.lge.com/0.0.0.0", "address=/a.lge.com/#"):
+            with self.subTest(entry=entry):
+                write_list(self.path, entry + "\n")
+                rc, out, _, calls = self.run_main(
+                    ["--file", str(self.path), "--no-fetch", "--delay", "0"],
+                    self.no_api)
+                self.assertEqual(rc, 0)
+                self.assertEqual(calls, [])
+                self.assertEqual(
+                    [line for line in out.splitlines() if "WOULD ADD" in line],
+                    ["WOULD ADD a.lge.com"])
+
+    def test_regex_only_input_is_rejected_offline(self):
+        write_list(self.path, r"^[a-z]{2}\.example\.com$" + "\n")
+        rc, _, _, calls = self.run_main(
+            ["--file", str(self.path), "--no-fetch"], self.no_api)
+        self.assertEqual(rc, 2)
+        self.assertEqual(calls, [])
+
     def test_dry_run_with_key_diffs_but_still_never_writes(self):
         write_list(self.path, "a.lge.com\nnew.lge.com\n")
 
@@ -553,12 +590,18 @@ class TestMain(unittest.TestCase):
     def test_flag_validation_errors_exit_2(self):
         write_list(self.path, "a.lge.com\n")
         for flag, value in (("--delay", "-1"), ("--timeout", "0"),
-                            ("--max-retries", "-1"), ("--delay", "x")):
+                            ("--max-retries", "-1"), ("--delay", "x"),
+                            *((flag, value) for flag in ("--timeout", "--delay")
+                              for value in ("nan", "inf", "-inf"))):
             with self.subTest(flag=flag, value=value):
                 with contextlib.redirect_stderr(io.StringIO()), \
+                     mock.patch.object(nextdns_sync, "api_request") as request, \
+                     mock.patch.object(nextdns_sync.time, "sleep") as sleep, \
                      self.assertRaises(SystemExit) as caught:
-                    nextdns_sync.main(["--file", str(self.path), flag, value])
+                    nextdns_sync.main(["--file", str(self.path), f"{flag}={value}"])
                 self.assertEqual(caught.exception.code, 2)
+                request.assert_not_called()
+                sleep.assert_not_called()
 
 
 if __name__ == "__main__":
