@@ -17,6 +17,7 @@ gains a new region-prefixed entry, add its label to SOURCE_REGION_LABELS.
 import argparse
 import hashlib
 import re
+import stat
 import sys
 from pathlib import Path
 
@@ -105,7 +106,8 @@ def rewrite_content(text: str, region: str) -> tuple[str, int]:
 
 def localize(lists_dir: Path, out_dir: Path, region: str) -> dict[str, int]:
     """Rewrite the eight built lists into out_dir; return per-file change counts."""
-    if lists_dir.resolve() in (out_dir.resolve(), *out_dir.resolve().parents):
+    resolved_out = out_dir.resolve()
+    if lists_dir.resolve() in (resolved_out, *resolved_out.parents):
         raise ValueError(f"refusing to write inside the source lists directory: {lists_dir}")
     if not lists_dir.is_dir():
         raise FileNotFoundError(
@@ -116,6 +118,15 @@ def localize(lists_dir: Path, out_dir: Path, region: str) -> dict[str, int]:
             f"missing built list files in {lists_dir}: {', '.join(missing)}")
     if out_dir.exists() and not out_dir.is_dir():
         raise ValueError(f"output path exists and is not a directory: {out_dir}")
+    # Check all destinations before changing any file, including the manifest.
+    for name in (*EXPECTED_FILES, "SHA256SUMS"):
+        destination = out_dir / name
+        try:
+            info = destination.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink > 1:
+            raise ValueError(f"refusing unsafe output destination: {destination}")
     out_dir.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}
     for name in EXPECTED_FILES:

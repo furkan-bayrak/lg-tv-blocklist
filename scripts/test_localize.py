@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Test suite for localize.py. Run: python scripts/test_localize.py (stdlib only)."""
+import errno
 import hashlib
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -279,11 +281,65 @@ class TestCli(unittest.TestCase):
 
 
 class TestLocalizeFiles(unittest.TestCase):
+    def assert_refuses_destination(self, name, make_destination):
+        with tempfile.TemporaryDirectory() as td:
+            src = make_lists_dir(Path(td) / "lists", entries=REGION_HOSTS)
+            (src / "SHA256SUMS").write_bytes(b"original manifest\n")
+            out = Path(td) / "out"
+            out.mkdir()
+            keep = out / "safe-adblock.txt"
+            keep.write_bytes(b"existing output\n")
+            dest = out / name
+            make_destination(src, dest)
+            source_bytes = {path.name: path.read_bytes() for path in src.iterdir()}
+            out_names = {path.name for path in out.iterdir()}
+            with self.assertRaises(ValueError) as failure:
+                localize.localize(src, out, "fr")
+            self.assertIn(str(dest), str(failure.exception))
+            self.assertEqual(source_bytes, {path.name: path.read_bytes() for path in src.iterdir()})
+            self.assertEqual(out_names, {path.name for path in out.iterdir()})
+            self.assertEqual(b"existing output\n", keep.read_bytes())
+
+    def make_link(self, target, destination, *, symbolic):
+        try:
+            if symbolic:
+                destination.symlink_to(target)
+            else:
+                os.link(target, destination)
+        except NotImplementedError:
+            self.skipTest("this platform does not implement the requested link type")
+        except OSError as exc:
+            if exc.errno in (errno.ENOSYS, errno.ENOTSUP) or (
+                    symbolic and getattr(exc, "winerror", None) == 1314):
+                self.skipTest(f"cannot create this link type: {exc}")
+            raise
+
+    def test_symlink_to_built_list_is_refused_before_any_write(self):
+        self.assert_refuses_destination("strict-hosts.txt", lambda src, dest:
+                                        self.make_link(src / dest.name, dest, symbolic=True))
+
+    def test_dangling_symlink_is_refused_without_creating_its_target(self):
+        self.assert_refuses_destination("strict-hosts.txt", lambda src, dest:
+                                        self.make_link(src / "missing.txt", dest, symbolic=True))
+
+    def test_manifest_symlink_is_refused_before_rewriting_any_lists(self):
+        self.assert_refuses_destination("SHA256SUMS", lambda src, dest:
+                                        self.make_link(src / dest.name, dest, symbolic=True))
+
+    def test_hardlink_to_built_list_is_refused_before_any_write(self):
+        self.assert_refuses_destination("strict-hosts.txt", lambda src, dest:
+                                        self.make_link(src / dest.name, dest, symbolic=False))
+
+    def test_directory_destination_is_refused_before_any_write(self):
+        self.assert_refuses_destination("strict-hosts.txt", lambda _src, dest: dest.mkdir())
+
     def test_output_sha256sums_match_written_files(self):
         with tempfile.TemporaryDirectory() as td:
             src = make_lists_dir(Path(td) / "lists", entries=REGION_HOSTS)
             out = Path(td) / "out"
+            localize.localize(src, out, "us")
             counts = localize.localize(src, out, "fr")
+            self.assertIn("fr.nextlgsdp.com", (out / "safe-domains.txt").read_text(encoding="utf-8"))
             self.assertEqual(sorted(counts), sorted(ALL_FILES))
             sums = (out / "SHA256SUMS").read_text(encoding="utf-8")
             lines = sums.splitlines()
