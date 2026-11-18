@@ -11,8 +11,8 @@
 # Requirements: root (webosbrew / Homebrew Channel).
 # Install WITHOUT the .sh extension - webOS run-parts ignores dotted names:
 #   /var/lib/webosbrew/init.d/02-block-dns-egress
-# Rollback: rollback-dns-egress.sh (loops -D), or remove this file from
-# /var/lib/webosbrew/init.d and reboot.
+# Rollback: rollback-dns-egress.sh verifies targeted rule removal; for
+# permanent removal, remove this file from /var/lib/webosbrew/init.d and reboot.
 # License: MIT — see LICENSE-MIT.
 #
 # Hardening: after apply, every expected rule is re-verified with `-C`; a
@@ -76,21 +76,25 @@ log() {
 # detect_dns_cm: print the first usable IPv4 DNS server (dns1) reported by
 # com.webos.service.connectionmanager/getStatus, else print nothing.
 # Disconnected interfaces omit the dns keys entirely; IPv6 values and 0.0.0.0
-# are skipped (invalid iptables DNAT targets). awk split() on '"' keeps the
-# boot path free of extra tooling (no jq); the timeout guard keeps a stuck
-# Luna call from hanging init - on failure the gateway fallback applies.
+# are skipped (invalid iptables DNAT targets). Probe both BusyBox timeout
+# interfaces before running Luna once; never call it without a bound.
 detect_dns_cm() {
-    if command -v timeout >/dev/null 2>&1; then
-        LUNA_JSON="$(timeout -t 5 "$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+    if timeout -t 1 true >/dev/null 2>&1; then
+        set -- -t 5
+    elif timeout 1 true >/dev/null 2>&1; then
+        set -- 5
     else
-        LUNA_JSON="$("$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+        echo "WARNING: no usable timeout; skipping connectionmanager DNS discovery" >&2
+        return 0
     fi
+    LUNA_JSON="$(timeout "$@" "$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)" || return 0
     [ -n "$LUNA_JSON" ] || return 0
     printf '%s\n' "$LUNA_JSON" | awk '
-        {
-            n = split($0, part, "\"")
-            for (i = 1; i <= n; i++) {
-                if (part[i] == "dns1" && part[i + 1] == ":") {
+        { json = json $0 "\n" }
+        END {
+            n = split(json, part, "\"")
+            for (i = 1; i + 2 <= n; i++) {
+                if (part[i] == "dns1" && part[i + 1] ~ /^[[:space:]]*:[[:space:]]*$/) {
                     value = part[i + 2]
                     if (value ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && value != "0.0.0.0") {
                         print value
@@ -157,7 +161,7 @@ ensure_v6_out() {
     if ! "$IP6TABLES" -C OUTPUT "$@" 2>/dev/null; then
         "$IP6TABLES" -A OUTPUT "$@" 2>/dev/null && log "INFO: added ip6tables OUTPUT rule: $*"
     fi
-    "$IP6TABLES" -C OUTPUT "$@" 2>/dev/null || { log "ERROR: ip6tables OUTPUT rule missing after apply: $*"; FAIL=1; }
+    "$IP6TABLES" -C OUTPUT "$@" 2>/dev/null || { log "ERROR: ip6tables OUTPUT rule missing after apply: $*"; V6_FAIL=1; }
 }
 
 if [ ! -x "$IPTABLES" ]; then
@@ -211,11 +215,17 @@ ensure_v4_out -p udp --dport 853 -j DROP
 # --- IPv6 guard (state-dependent) ---
 V6_DEFAULT="$(ip -6 route show default 2>/dev/null | head -n 1)"
 if [ -x "$IP6TABLES" ] && "$IP6TABLES" -L -n >/dev/null 2>&1; then
+    V6_FAIL=0
     ensure_v6_out ! -d ::1/128 -p udp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p tcp --dport 53 -j DROP
     ensure_v6_out ! -d ::1/128 -p udp --dport 853 -j DROP
     ensure_v6_out ! -d ::1/128 -p tcp --dport 853 -j DROP
-    log "INFO: IPv6 DNS egress blocked (udp/tcp 53+853 DROP); IPv4 DNS unaffected"
+    if [ "$V6_FAIL" -eq 0 ]; then
+        log "INFO: IPv6 DNS egress blocked (udp/tcp 53+853 DROP); IPv4 DNS unaffected"
+    else
+        FAIL=1
+        log "ERROR: IPv6 DNS egress protection incomplete"
+    fi
 elif [ -n "$V6_DEFAULT" ]; then
     log "WARNING: IPv6 default route present ($V6_DEFAULT), ip6tables unusable (kernel lacks ip6_tables) - IPv6 udp/tcp 53+853 NOT filtered; a future global IPv6 prefix could bypass enforcement"
 fi
@@ -224,7 +234,7 @@ fi
 if [ "$FAIL" -eq 0 ]; then
     log "OK: all DNS-egress rules verified active (dnat 53 -> $RESOLVER_IP, drop 853)"
 elif [ "$APPLY_DNAT" -eq 0 ]; then
-    log "ERROR: DNAT refused (invalid or non-local resolver) - DNS redirect is NOT active; resolver-independent 853 DROP rules were still applied"
+    log "ERROR: DNAT refused (invalid or non-local resolver) - DNS redirect is NOT active; resolver-independent 853 DROP rules were attempted"
 else
     log "ERROR: one or more DNS-egress rules are missing - DNS leak may be open"
 fi

@@ -49,8 +49,11 @@ resolved target is refused (see the non-local resolver guard below).
 
 ### Rollback
 
-One command: `sh rollback-dns-egress.sh` — it deletes every rule in a loop
-until gone and prints `iptables -S` / `iptables -t nat -S` as a post-check.
+One command: `sh rollback-dns-egress.sh` — it removes the targeted rules and
+duplicates, verifies their absence for the selected resolver and prints the
+inspected OUTPUT chains. Incomplete or unverified rollback (including a
+missing firewall tool or unknown resolver) exits 1. Other available cleanup
+still runs, including IPv6 cleanup when `iptables` is missing.
 Permanent removal: `rm /var/lib/webosbrew/init.d/02-block-dns-egress`, then
 reboot.
 
@@ -61,10 +64,10 @@ reboot.
 - **DoH over 443 cannot be blocked** without breaking streaming; a daemon that
   ships its own DoH client can still escape.
 - **The auto-detected resolver must actually serve DNS.** The hook reads the
-  TV's configured DNS server from `connectionmanager` and only falls back to
-  the default gateway when that fails — if neither is your resolver, hardcode
-  it; see [how the hook picks its resolver, and how to override
-  it][faq-resolver].
+  TV's configured DNS server from `connectionmanager` with a five-second
+  timeout, then falls back to the default gateway if discovery fails or no
+  supported timeout is available. If neither is your resolver, hardcode it;
+  see [how the hook picks its resolver, and how to override it][faq-resolver].
 - **Non-local resolver guard.** The DNAT target must be a private, loopback or
   link-local address. If the detected DNS is public (a DHCP-pushed `8.8.8.8`,
   a VPN resolver), the hook skips the DNAT rules, logs an ERROR and exits 1
@@ -82,6 +85,8 @@ reboot.
   only logs a WARNING and IPv6 DNS stays **unfiltered**, so a global IPv6
   prefix can bypass enforcement. Check `/var/log/02-block-dns-egress.log`
   (the IPv6 line) to see which case you are in.
+  If `ip6tables` is usable but a rule is missing after apply, the hook exits
+  1 and reports incomplete IPv6 protection.
 - **Portability:** needs an `iptables` that supports `-C` (very old builds
   re-add duplicates on every boot and the hook exits 1); if `iptables` isn't
   found, the hook exits without applying anything.
@@ -105,6 +110,8 @@ the Homebrew Channel repo download dies with error `(0)`. Symptom write-up:
    year is already sane (2024–2100) is left alone without any network fetch.
 3. Nothing else — every boot now self-corrects the clock; a failed sync is
    logged and never blocks boot.
+   The hook reports a successful set only if clock readback is within five
+   seconds of the chosen time.
 
 Failures are visible: the hook logs `OK:`/`WARN:` lines to
 `/tmp/webosbrew_hook.log` (prefixed `04-sync-clock:`). Force specific URLs

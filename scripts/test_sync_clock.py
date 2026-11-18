@@ -31,10 +31,40 @@ class ClockHookTests(unittest.TestCase):
         self.sentinel = self.root / "sentinel"
         self.sentinel.mkdir()
         (self.sentinel / "keep").write_text("untouched", encoding="utf-8")
-        self.stub(
-            "date",
-            'case "$1" in +%Y) echo 2021;; +%s) echo 0;; -d) echo "2026-09-16 07:34:45";; -s) echo date-set >> "$SANDBOX/events";; *) exit 1;; esac',
-        )
+        self.stub("date", '''
+            case "$1" in
+                +%Y) echo 2021 ;;
+                +%s)
+                    if [ -f "$SANDBOX/clock-set" ]; then
+                        case "$CLOCK_MODE" in
+                            no-readback) exit 1 ;;
+                            invalid-readback) echo invalid; exit 0 ;;
+                        esac
+                    fi
+                    if [ -f "$SANDBOX/clock-epoch" ]; then
+                        IFS= read -r epoch < "$SANDBOX/clock-epoch"
+                        echo "$epoch"
+                    else
+                        echo 0
+                    fi
+                    ;;
+                -d)
+                    echo "${2#@}" > "$SANDBOX/target-epoch"
+                    echo "2026-09-16 07:34:45"
+                    ;;
+                -s)
+                    echo date-set >> "$SANDBOX/events"
+                    case "$CLOCK_MODE" in
+                        setter-error) exit 1 ;;
+                        unchanged) exit 0 ;;
+                    esac
+                    IFS= read -r target < "$SANDBOX/target-epoch" || exit 1
+                    echo "$(( target + CLOCK_OFFSET ))" > "$SANDBOX/clock-epoch"
+                    : > "$SANDBOX/clock-set"
+                    ;;
+                *) exit 1 ;;
+            esac
+        ''')
         self.stub(
             "curl",
             'echo curl >> "$SANDBOX/events"; echo "Date: Wed, 16 Sep 2026 07:34:45 GMT"',
@@ -52,7 +82,9 @@ class ClockHookTests(unittest.TestCase):
         path.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8", newline="\n")
         path.chmod(0o755)
 
-    def run_hook(self):
+    def run_hook(self, *, clock_mode="normal", clock_offset=0):
+        for name in ("clock-set", "clock-epoch", "target-epoch", "webosbrew_hook.log"):
+            (self.root / name).unlink(missing_ok=True)
         text = HOOK.read_text(encoding="utf-8")
         # Relocate only fixed process boundaries; the lifecycle logic is unchanged.
         self.assertEqual(text.count("PATH=/usr/sbin:/usr/bin:/sbin:/bin"), 1)
@@ -67,6 +99,8 @@ class ClockHookTests(unittest.TestCase):
             os.environ,
             SANDBOX=self.root_sh,
             SYNC_URLS_OVERRIDE="http://offline.invalid/",
+            CLOCK_MODE=clock_mode,
+            CLOCK_OFFSET=str(clock_offset),
         )
         result = subprocess.run(
             [SH, shell_path(script)],
@@ -120,6 +154,26 @@ class ClockHookTests(unittest.TestCase):
         self.assertFalse((self.root / "events").exists())
         self.assertFalse((self.root / "removals").exists())
         self.assertEqual(sorted(p.name for p in self.root.glob("04-sync-clock.*")), [])
+
+    def test_ok_requires_readback_within_five_seconds_of_the_selected_time(self):
+        self.stub("mktemp", 'd="$SANDBOX/owned-1"; /usr/bin/mkdir "$d" || exit 1; echo "$d"')
+        for offset in (-6, -5, 5, 6):
+            with self.subTest(offset=offset):
+                log = self.run_hook(clock_offset=offset)
+                if abs(offset) <= 5:
+                    self.assertIn("OK: clock synced", log)
+                    self.assertNotIn("could not set the clock", log)
+                else:
+                    self.assertIn("could not set the clock", log)
+                    self.assertNotIn("OK: clock synced", log)
+
+    def test_failed_set_or_unavailable_readback_warns_without_blocking_boot(self):
+        self.stub("mktemp", 'd="$SANDBOX/owned-1"; /usr/bin/mkdir "$d" || exit 1; echo "$d"')
+        for mode in ("unchanged", "setter-error", "no-readback", "invalid-readback"):
+            with self.subTest(mode=mode):
+                log = self.run_hook(clock_mode=mode)
+                self.assertIn("could not set the clock", log)
+                self.assertNotIn("OK: clock synced", log)
 
 
 if __name__ == "__main__":

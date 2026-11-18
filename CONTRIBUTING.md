@@ -183,6 +183,7 @@ and `sha256sum` installed. It uses disposable local repositories, not GitHub.
 For hook changes and applicable script CI:
 
 ```sh
+python3 scripts/test_dns_egress.py
 python3 scripts/test_sync_clock.py
 shellcheck -s sh examples/webos-hooks/*.sh
 ```
