@@ -8,8 +8,21 @@ LG TV Blocklist aims to reduce LG webOS advertising, ACR (Automatic Content Reco
 - [`lists/`](../lists/) contains generated subscriptions and `SHA256SUMS`.
 - [`scripts/`](../scripts/) contains the stdlib builder, source inventory, localizer and A-record diagnostics.
 - [`examples/webos-hooks/`](../examples/webos-hooks/) contains optional rooted-TV DNS-egress and clock tools, with separate operational limitations.
+- Historical [design](2026-09-09-lg-tv-blocklist-design.md) and [implementation plan](2026-09-09-lg-tv-blocklist-plan.md) are archival. Use this overview, the [contribution policy](../CONTRIBUTING.md), and the [install guide](install.md) for current behavior.
 
-For a reproducible inventory, run `python3 scripts/build.py inventory` from a checkout. It reports explicit names, explicit weak annotations and anchors without DNS or device testing. Suffix formats cover more than those enumerated names; an entry without `weak` is not necessarily independently compatibility-tested.
+Run `python3 scripts/build.py inventory` from a checkout. It reports explicit
+source names, explicitly weak annotations and STRICT anchors without any DNS
+or device testing. Under **Effective matching scope**, the root count shows
+how many listed suffixes have no broader listed parent. The covered-name
+count shows how many other explicit names fall beneath those roots. The
+report also shows STRICT-delta coverage by STRICT anchors and lists every
+STRICT-delta name already covered by SAFE suffix rules, alongside its SAFE
+parents.
+
+Use these counts to understand adblock, dnsmasq and NextDNS matching, not
+as a list of rules to remove. Domains/hosts still need explicit entries;
+optional regex has its own tagged reach. None of these counts certify
+evidence quality or compatibility.
 
 ## Choose a tier
 

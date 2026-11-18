@@ -404,11 +404,26 @@ def _tier_region_families(
     return safe_families, strict_families
 
 
+def _listed_parents(name: str, listed: set[str]) -> list[str]:
+    """Listed strict ancestors, from the nearest parent to the broadest."""
+    parents = []
+    boundary = name.find(".")
+    while boundary != -1:
+        parent = name[boundary + 1:]
+        if parent in listed:
+            parents.append(parent)
+        boundary = name.find(".", boundary + 1)
+    return parents
+
+
 def source_inventory() -> str:
     """Describe the current sources reproducibly, without DNS or device tests."""
     sources = _load_annotated_sources()
-    safe, strict_delta, zones = (sorted(sources[name]) for name in SOURCE_TAGS)
-    _tier_region_families(strict_delta, zones)
+    safe = set(sources["safe.txt"])
+    strict_delta = sorted(sources["strict.txt"])
+    anchors = set(sources["zones.txt"])
+    strict = safe | set(strict_delta) | anchors
+    _tier_region_families(strict_delta, sorted(anchors))
     lines = [
         "# Source inventory",
         "",
@@ -424,17 +439,49 @@ def source_inventory() -> str:
         lines.append(f"| `src/{name}` | {len(annotations)} | {weak} |")
     lines += [
         "",
-        f"Compiled SAFE names (deduplicated): {len(set(safe))}",
-        f"Compiled STRICT names (deduplicated): {len(set(safe) | set(strict_delta) | set(zones))}",
+        f"Compiled SAFE names (deduplicated): {len(safe)}",
+        f"Compiled STRICT names (deduplicated): {len(strict)}",
         "",
-        f"## STRICT anchors ({len(zones)})",
+        f"## STRICT anchors ({len(anchors)})",
         "",
     ]
-    for zone in zones:
+    for zone in sorted(anchors):
         lines.append(f"- `{zone}` — {sources['zones.txt'][zone]}")
     lines += [
         "",
-        "Suffix-matching formats widen coverage to unenumerated descendants.",
+        "## Effective matching scope",
+        "",
+        "In adblock, dnsmasq and NextDNS denylist imports, a listed name also matches its descendants.",
+        "A suffix root has no broader listed parent in its tier. Covered names remain explicit",
+        "rules for domains/hosts, which match exact names. The optional regex lists have",
+        "separate reach from tagged families and STRICT anchors.",
+        "",
+        "| Tier | Explicit compiled names | Nonredundant suffix roots | Names covered by a broader listed root |",
+        "| --- | ---: | ---: | ---: |",
+    ]
+    for tier, names in (("SAFE", safe), ("STRICT", strict)):
+        covered = sum(bool(_listed_parents(name, names)) for name in names)
+        lines.append(f"| {tier} | {len(names)} | {len(names) - covered} | {covered} |")
+    anchored = sum(name in anchors or bool(_listed_parents(name, anchors)) for name in strict_delta)
+    safe_overlap = [(name, sorted(parents)) for name in strict_delta
+                    if (parents := _listed_parents(name, safe))]
+    lines += [
+        "",
+        f"STRICT-delta names reached by STRICT anchors: {anchored}",
+        "",
+        "## STRICT-delta names reached by SAFE suffix rules",
+        "",
+    ]
+    if safe_overlap:
+        lines.append(f"{len(safe_overlap)} names:")
+        lines.append("")
+        for name, parents in safe_overlap:
+            lines.append(f"- `{name}` — {', '.join(f'`{parent}`' for parent in parents)}")
+    else:
+        lines.append("None.")
+    lines += [
+        "",
+        "These counts describe matching scope, not evidence quality or compatibility.",
         "Entries without an explicit weak classification are not necessarily independently tested.",
         "Source validation is structural, not a claim that evidence is semantically true.",
         "No DNS or device tests were performed by this inventory command.",

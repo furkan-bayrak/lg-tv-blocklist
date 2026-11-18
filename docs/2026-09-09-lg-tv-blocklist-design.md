@@ -1,6 +1,10 @@
 # LG TV Blocklist — Design Spec
 
-Date: 2026-09-09. Status: approved for planning.
+> **Historical, superseded design (2026-09-09). Not an implementation guide.**
+> The original compatibility claims, list counts and format assumptions below
+> are not current guarantees. Use the [project overview](overview.md),
+> [contribution policy](../CONTRIBUTING.md) and [install guide](install.md).
+
 Origin: two-week empirical audit of an LG G1 (webOS) TV — root access, service kills, iptables, 44.8k-packet capture, 267k-query AdGuard log analysis. Authored from audit data; not scraped from other lists.
 
 ## 1. Goal

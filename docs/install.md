@@ -67,9 +67,12 @@ Use a dnsmasq build accepting this syntax; see the
    existing include mechanism or a `conf-file` line pointing at it, not both.
 4. Reload: `service dnsmasq restart` (or the equivalent on your router).
 
-Check the download against [SHA256SUMS](../lists/SHA256SUMS)
-(`sha256sum -c SHA256SUMS` from a full checkout of the repo; compare the
-single line for your file if you keep only one list).
+Check the download against [SHA256SUMS](../lists/SHA256SUMS). From the root
+of a full checkout, run `(cd lists && sha256sum -c SHA256SUMS)`.
+If you download a single list, get the list and the manifest from the same
+immutable commit (use its commit SHA instead of `main` in both URLs).
+Compare the downloaded file's SHA-256 with its manifest line. Two separate
+downloads from `main` can straddle a publication.
 
 `address=/name/#` answers null `0.0.0.0` for A and `::` for AAAA queries
 for the name **and every subdomain**, the same matching reach as adblock
@@ -107,8 +110,10 @@ Two practical paths:
 - **The full list:** run [`scripts/nextdns_sync.py`](../scripts/nextdns_sync.py)
   from a clone of this repo. It accepts the generated domains, hosts, adblock
   and single-domain dnsmasq formats, not regex files. It bulk-adds missing
-  names to your profile's denylist through the NextDNS API. It dry-runs by
-  default and only writes with `--apply`; the API key goes in the
+  names to your profile's denylist through the NextDNS API.
+  **Every denylist entry matches the name and its descendants**, even if
+  imported from a domains or hosts file that is otherwise exact-name.
+  The script dry-runs by default and only writes with `--apply`; the API key goes in the
   `NEXTDNS_API_KEY` environment variable. Use `--no-fetch` for an entirely
   offline preview. Run it with `--help` for the profile and file options.
   An unreadable or inconclusive profile response stops `--apply` before any

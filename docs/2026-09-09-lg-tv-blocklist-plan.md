@@ -1,6 +1,9 @@
 # LG TV Blocklist Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Historical, superseded plan (2026-09-09). Do not execute its steps.**
+> Preserved as a record of the original implementation. For current requirements
+> and verification, use the [project overview](overview.md),
+> [contribution policy](../CONTRIBUTING.md) and [install guide](install.md).
 
 **Goal:** Publish `github.com/furkan-bayrak/lg-tv-blocklist` — a curated, evidence-based LG TV/webOS telemetry blocklist with two tiers (safe/strict), compiled to three formats (plain domains, hosts, adblock) by a pure-stdlib build script, validated by CI, seeded from the G1 audit data.
 

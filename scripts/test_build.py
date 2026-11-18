@@ -892,12 +892,40 @@ class TestInventoryAndWriter(unittest.TestCase):
         self.assertFalse(self.lists.exists())
         self.assertEqual(report, build.source_inventory())
 
+    def test_inventory_distinguishes_strict_ancestry_anchor_equality_and_near_misses(self):
+        for source, tag, names in (
+            ("safe.txt", "SAFE", ["ad.lgsmartad.com", "beacon.ad.lgsmartad.com"]),
+            ("strict.txt", "STRICT", ["snu.lge.com", "ota.snu.lge.com",
+                "child.ota.snu.lge.com", "nsnu.lge.com", "a.beacon.ad.lgsmartad.com",
+                "b.ad.lgsmartad.com", "bad.lgsmartad.com"]),
+            ("zones.txt", "ZONE", ["snu.lge.com", "ota.snu.lge.com"]),
+        ):
+            (self.sources / source).write_text(
+                "".join(f"{name} # {tag}: synthetic evidence\n" for name in names), encoding="utf-8")
+        report = build.source_inventory()
+        self.assertIn("| SAFE | 2 | 1 | 1 |", report)
+        self.assertIn("| STRICT | 9 | 4 | 5 |", report)
+        self.assertIn("STRICT-delta names reached by STRICT anchors: 3", report)
+        overlaps = report.split("## STRICT-delta names reached by SAFE suffix rules\n", 1)[1]
+        self.assertIn("2 names:", overlaps)
+        self.assertEqual([line for line in overlaps.splitlines() if line.startswith("- ")], [
+            "- `a.beacon.ad.lgsmartad.com` — `ad.lgsmartad.com`, `beacon.ad.lgsmartad.com`",
+            "- `b.ad.lgsmartad.com` — `ad.lgsmartad.com`",
+        ])
+
     def test_empty_sources_are_a_valid_zero_inventory(self):
         for source in self.sources.iterdir():
             source.write_text("# no entries\n", encoding="utf-8")
         report = build.source_inventory()
-        self.assertEqual(report.count("| 0 | 0 |"), 3)
+        self.assertEqual(
+            [line for line in report.splitlines() if line.startswith("| `src/")],
+            [f"| `src/{name}` | 0 | 0 |" for name in ("safe.txt", "strict.txt", "zones.txt")],
+        )
         self.assertIn("Compiled STRICT names (deduplicated): 0", report)
+        self.assertIn("| SAFE | 0 | 0 | 0 |", report)
+        self.assertIn("| STRICT | 0 | 0 | 0 |", report)
+        self.assertIn("STRICT-delta names reached by STRICT anchors: 0", report)
+        self.assertIn("## STRICT-delta names reached by SAFE suffix rules\n\nNone.", report)
 
     def test_inventory_rejects_invalid_annotations_and_cross_source_overlap(self):
         for source_text, diagnostic in (
