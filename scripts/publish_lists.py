@@ -82,17 +82,14 @@ def prepare_commit(tip: str, current_head: str) -> str | None:
 
 
 def push_rejected_for_movement(result: subprocess.CompletedProcess[str], ref: str, tip: str) -> bool:
-    for line in result.stdout.splitlines():
-        if not line.startswith("!\t"):
-            continue
-        reason = line.rsplit("\t", 1)[-1]
-        if reason in {"[rejected] (fetch first)", "[rejected] (non-fast-forward)"}:
-            return True
-        if reason == "[remote rejected] (failed to update ref)":
-            # The server may have raced after advertising the old ref.
-            lock_error = rf"cannot lock ref '{re.escape(ref)}': is at [0-9a-f]{{40}} but expected {tip}\b"
-            return re.search(lock_error, result.stderr) is not None
-    return False
+    if any(line.startswith("!\t") and line.rsplit("\t", 1)[-1] in {
+        "[rejected] (fetch first)", "[rejected] (non-fast-forward)",
+    } for line in result.stdout.splitlines()):
+        return True
+    # The server may race after advertising the old ref. Git versions use
+    # different porcelain labels for this exact stale-ref lock diagnostic.
+    lock_error = rf"^remote: error: cannot lock ref '{re.escape(ref)}': is at [0-9a-f]{{40}} but expected {tip}[ \t]*$"
+    return re.search(lock_error, result.stderr, re.MULTILINE) is not None
 
 
 def publish(validated_head: str, branch: str) -> int:
