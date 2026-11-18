@@ -2,9 +2,9 @@
 
 # LG TV Blocklist
 
-**Less telemetry. Clear trade-offs.**
+**Your TV. Your network. Your rules.**
 
-Evidence-annotated DNS blocklists for LG webOS advertising, Automatic Content Recognition (ACR), and telemetry.
+Reduce unwanted advertising and tracking-related traffic from LG webOS TVs with community-maintained DNS blocklists.
 
 [![Build blocklists](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/workflows/build.yml) [![Lists: CC BY 4.0](https://img.shields.io/badge/lists-CC%20BY%204.0-586069)](#license)
 
@@ -18,8 +18,8 @@ Evidence-annotated DNS blocklists for LG webOS advertising, Automatic Content Re
 
 | | SAFE | STRICT |
 | :--- | :--- | :--- |
-| **Goal** | Limit tracking with less disruption | Block more LG services |
-| **Targets** | Ads, ACR, and telemetry | SAFE plus firmware updates, ThinQ cloud, LG Channels, and broader rules |
+| **Goal** | Block ad and telemetry endpoints while prioritizing compatibility | Block more LG services |
+| **Targets** | Ads, automatic content recognition (ACR), and telemetry | SAFE plus firmware updates, ThinQ cloud, LG Channels, and broader rules |
 | **Risk** | Aims to preserve apps and updates | Store, streaming, time sync, and AirPlay can break |
 | **For** | Most TV owners | Users who can troubleshoot feature loss |
 
@@ -30,7 +30,7 @@ STRICT includes some lower-confidence entries. Check the
 
 ## Install
 
-Copy or download **one** list for your blocker and follow its setup steps.
+Choose your blocker below and follow its setup guide to add the matching list.
 If you're new to the project, use the SAFE column.
 
 | Blocker & setup | SAFE | STRICT |
@@ -51,13 +51,12 @@ and [uninstalling](docs/install.md#uninstall). Downloads have a
 [SHA256 manifest](lists/SHA256SUMS); verify files from the same commit.
 When switching to SAFE, remove any manually imported STRICT rules.
 
-## From traffic to rules
+<a name="from-traffic-to-rules"></a>
 
-> **Original audit · LG G1 in Germany**
->
-> About **44,800 packets** and **267,000 DNS queries** over two weeks.
-> These are historical capture totals, not live metrics or proof that every
-> current rule has been tested.
+## How we build the lists
+
+The first lists grew out of a two-week audit of an LG G1 in Germany:
+about **44,800 packets** and **267,000 DNS queries**.
 
 1. **Observe.** Correlate per-device DNS logs with packet captures to see what
    the TV contacts, including traffic the resolver log misses.
@@ -67,9 +66,13 @@ When switching to SAFE, remove any manually imported STRICT rules.
    established ad or telemetry purpose and a blocking test of the actual
    rule. Record the evidence and its limits in [`src/`](src/).
 
+The audit didn't test every rule in today's lists.
+
 [Read or reproduce the methodology →](docs/methodology.md)
 
-## The two caveats
+<a name="the-two-caveats"></a>
+
+## Limitations and compatibility
 
 1. **A blocklist can only filter DNS it sees.** Hardcoded resolvers, DoH,
    IPv6 DNS bypass, cached answers, and direct IP connections can evade
