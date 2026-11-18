@@ -194,9 +194,18 @@ now=$(date +%s)
 drift=$(( FIRST - now ))
 [ "$drift" -lt 0 ] && drift=$(( 0 - drift ))
 localstr=$(date -d "@$FIRST" +'%Y-%m-%d %H:%M:%S' 2>/dev/null)
-if [ -n "$localstr" ] && date -s "$localstr" >/dev/null 2>&1; then
-    log "OK: clock synced from ${COUNT} source(s) (spread ${SPREAD}s; was off by ${drift}s; set ${localstr} local)"
-    exit 0
+if [ -n "$localstr" ] && date -s "$localstr" >/dev/null 2>&1 &&
+   readback=$(date +%s 2>/dev/null); then
+    case "$readback" in
+        ''|*[!0-9]*) ;;
+        *)
+            if [ "$readback" -ge "$(( FIRST - 5 ))" ] 2>/dev/null &&
+               [ "$readback" -le "$(( FIRST + 5 ))" ] 2>/dev/null; then
+                log "OK: clock synced from ${COUNT} source(s) (spread ${SPREAD}s; was off by ${drift}s; set ${localstr} local)"
+                exit 0
+            fi
+            ;;
+    esac
 fi
 
 log "WARN: parsed a plausible time (${FIRST}) but could not set the clock"

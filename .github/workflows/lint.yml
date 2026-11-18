@@ -31,5 +31,7 @@ jobs:
           fi
           echo "checking: ${files[*]}"
           shellcheck -s sh "${files[@]}"
+      - name: Test DNS-egress hooks offline
+        run: python3 scripts/test_dns_egress.py
       - name: Test clock hook lifecycle
         run: python3 scripts/test_sync_clock.py

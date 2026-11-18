@@ -1,13 +1,12 @@
 #!/bin/sh
 # rollback-dns-egress.sh - undo 02-block-dns-egress.
 #
-# Removes ALL live DNS-egress rules: each -D runs in a loop until it fails,
-# so duplicates (if any) are removed too. Prints iptables post-checks at end.
-# The DNAT rules are matched by resolver IP: the configured DNS is
-# auto-detected via connectionmanager when available, else the default route
-# (or pass RESOLVER_IP=... if you hardcoded one in the hook). If your resolver
-# changed since install, remove any leftover nat-OUTPUT rule shown in the
-# post-check: iptables -t nat -D OUTPUT <line-number>
+# Removes and verifies the targeted OUTPUT rules, including duplicates.
+# The DNAT rules are matched by the selected resolver IP. Resolver discovery
+# uses the same priority as the apply hook. If your resolver changed since
+# install, pass RESOLVER_IP=<old-resolver>; this script only removes DNAT
+# rules for the selected address. Prints the inspected OUTPUT chains.
+# Unverifiable or incomplete removal exits 1, including unavailable tooling.
 # Permanent removal: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot
 # License: MIT — see LICENSE-MIT.
 # IPTABLES / IP6TABLES / LUNA_SEND may be env overrides; resolve bare names via
@@ -27,24 +26,29 @@ case "$LUNA_SEND" in
     */*) ;;
     *) LUNA_SEND="$(command -v "$LUNA_SEND" 2>/dev/null || echo "/usr/bin/$LUNA_SEND")" ;;
 esac
-[ -x "$IPTABLES" ] || exit 0
+FAIL=0
 
 # detect_dns_cm: print the first usable IPv4 DNS server (dns1) reported by
 # com.webos.service.connectionmanager/getStatus, else print nothing. Same
 # parsing (and priority) as 02-block-dns-egress.sh so the rollback matches
 # the exact rule the hook installed.
 detect_dns_cm() {
-    if command -v timeout >/dev/null 2>&1; then
-        LUNA_JSON="$(timeout -t 5 "$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+    if timeout -t 1 true >/dev/null 2>&1; then
+        set -- -t 5
+    elif timeout 1 true >/dev/null 2>&1; then
+        set -- 5
     else
-        LUNA_JSON="$("$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)"
+        echo "WARNING: no usable timeout; skipping connectionmanager DNS discovery" >&2
+        return 0
     fi
+    LUNA_JSON="$(timeout "$@" "$LUNA_SEND" -n 1 luna://com.webos.service.connectionmanager/getStatus '{}' 2>/dev/null)" || return 0
     [ -n "$LUNA_JSON" ] || return 0
     printf '%s\n' "$LUNA_JSON" | awk '
-        {
-            n = split($0, part, "\"")
-            for (i = 1; i <= n; i++) {
-                if (part[i] == "dns1" && part[i + 1] == ":") {
+        { json = json $0 "\n" }
+        END {
+            n = split(json, part, "\"")
+            for (i = 1; i + 2 <= n; i++) {
+                if (part[i] == "dns1" && part[i + 1] ~ /^[[:space:]]*:[[:space:]]*$/) {
                     value = part[i + 2]
                     if (value ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && value != "0.0.0.0") {
                         print value
@@ -55,35 +59,99 @@ detect_dns_cm() {
         }'
 }
 
-# Resolver matching the hook's live rule, in priority order: RESOLVER_IP env >
-# configured DNS (connectionmanager dns1) > default-route gateway.
-RESOLVER_IP="${RESOLVER_IP:-}"
-if [ -z "$RESOLVER_IP" ]; then
-    RESOLVER_IP="$(detect_dns_cm)"
-fi
-[ -n "$RESOLVER_IP" ] || RESOLVER_IP="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
-if [ -n "$RESOLVER_IP" ]; then
-    while "$IPTABLES" -t nat -D OUTPUT ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
-    while "$IPTABLES" -t nat -D OUTPUT ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53" 2>/dev/null; do :; done
-else
-    echo "WARNING: resolver not detected - DNAT rules (if any) not removed; see the nat post-check below"
-fi
-while "$IPTABLES" -D OUTPUT -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
-while "$IPTABLES" -D OUTPUT -p udp --dport 853 -j DROP 2>/dev/null; do :; done
+# Match the same dotted-quad format as apply, including explicit public
+# overrides that might have been installed with ALLOW_NON_LOCAL_RESOLVER=1.
+is_dotted_quad() {
+    case "$1" in
+        *[!0-9.]*|.*|*.) return 1 ;;
+    esac
+    old_ifs="$IFS"
+    IFS=.
+    # shellcheck disable=SC2086
+    set -- $1
+    IFS="$old_ifs"
+    [ $# -eq 4 ] || return 1
+    for octet in "$@"; do
+        case "$octet" in
+            ''|*[!0-9]*|0[0-9]*) return 1 ;;
+        esac
+        [ "$octet" -le 255 ] || return 1
+    done
+    return 0
+}
 
-# v6 rules (present only if the hook found a usable ip6tables)
-if [ -x "$IP6TABLES" ] && "$IP6TABLES" -L -n >/dev/null 2>&1; then
-    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p udp --dport 53 -j DROP 2>/dev/null; do :; done
-    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p tcp --dport 53 -j DROP 2>/dev/null; do :; done
-    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p udp --dport 853 -j DROP 2>/dev/null; do :; done
-    while "$IP6TABLES" -D OUTPUT ! -d ::1/128 -p tcp --dport 853 -j DROP 2>/dev/null; do :; done
+inspect_output() {
+    if [ -x "$1" ] && "$1" -t "$2" -S OUTPUT 2>/dev/null; then
+        return 0
+    fi
+    echo "WARNING: cannot inspect $1 $2 OUTPUT; rollback unverified" >&2
+    FAIL=1
+    return 1
+}
+
+remove_rule() {
+    tool=$1
+    table=$2
+    shift 2
+    while :; do
+        "$tool" -t "$table" -C OUTPUT "$@" 2>/dev/null
+        case "$?" in
+            0)
+                if ! "$tool" -t "$table" -D OUTPUT "$@" 2>/dev/null; then
+                    echo "ERROR: failed to delete $tool $table OUTPUT rule: $*" >&2
+                    FAIL=1
+                    return
+                fi
+                ;;
+            1)
+                # A missing rule is established only if the table is readable.
+                inspect_output "$tool" "$table" >/dev/null
+                return
+                ;;
+            *)
+                echo "ERROR: cannot verify $tool $table OUTPUT rule: $*" >&2
+                FAIL=1
+                return
+                ;;
+        esac
+    done
+}
+
+if inspect_output "$IPTABLES" nat >/dev/null; then
+    RESOLVER_IP="${RESOLVER_IP:-}"
+    [ -n "$RESOLVER_IP" ] || RESOLVER_IP="$(detect_dns_cm)"
+    [ -n "$RESOLVER_IP" ] || RESOLVER_IP="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+    if is_dotted_quad "$RESOLVER_IP"; then
+        remove_rule "$IPTABLES" nat ! -d 127.0.0.0/8 -p udp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
+        remove_rule "$IPTABLES" nat ! -d 127.0.0.0/8 -p tcp --dport 53 -j DNAT --to-destination "$RESOLVER_IP:53"
+    else
+        echo "WARNING: no valid IPv4 resolver; DNAT removal unverified (pass RESOLVER_IP=<installed-resolver>)" >&2
+        FAIL=1
+    fi
+    echo "--- iptables -t nat -S OUTPUT ---"
+    inspect_output "$IPTABLES" nat
+fi
+
+if inspect_output "$IPTABLES" filter >/dev/null; then
+    remove_rule "$IPTABLES" filter -p tcp --dport 853 -j DROP
+    remove_rule "$IPTABLES" filter -p udp --dport 853 -j DROP
+    echo "--- iptables -S OUTPUT ---"
+    inspect_output "$IPTABLES" filter
+fi
+
+if inspect_output "$IP6TABLES" filter >/dev/null; then
+    remove_rule "$IP6TABLES" filter ! -d ::1/128 -p udp --dport 53 -j DROP
+    remove_rule "$IP6TABLES" filter ! -d ::1/128 -p tcp --dport 53 -j DROP
+    remove_rule "$IP6TABLES" filter ! -d ::1/128 -p udp --dport 853 -j DROP
+    remove_rule "$IP6TABLES" filter ! -d ::1/128 -p tcp --dport 853 -j DROP
     echo "--- ip6tables -S OUTPUT ---"
-    "$IP6TABLES" -S OUTPUT
+    inspect_output "$IP6TABLES" filter
 fi
 
-echo "$(date) rollback-dns-egress: rules removed (all duplicates)"
-echo "--- iptables -S ---"
-"$IPTABLES" -S
-echo "--- iptables -t nat -S ---"
-"$IPTABLES" -t nat -S
-echo "Permanent: rm /var/lib/webosbrew/init.d/02-block-dns-egress && reboot"
+if [ "$FAIL" -eq 0 ]; then
+    echo "OK: targeted DNS-egress rules absent (including duplicates for resolver $RESOLVER_IP)"
+else
+    echo "ERROR: DNS-egress rollback incomplete or unverified" >&2
+fi
+echo "For permanent removal, remove the init.d hook and reboot."
+exit "$FAIL"
