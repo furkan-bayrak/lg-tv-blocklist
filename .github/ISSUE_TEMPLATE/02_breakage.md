@@ -15,7 +15,9 @@ assignees: ''
 - Blocker and version:
 - Exact list URL / tier / format:
 - `# Updated:` header or source revision:
+- Downloaded artifact commit permalink or SHA-256 (optional, or unknown):
 - Localized lists, regex, hosts file, other filters / exceptions:
+- For localized files: target region and input artifact commit or SHA-256 (if known):
 
 **Reproduction**
 - Activity and time of failure:
