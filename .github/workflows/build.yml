@@ -2,19 +2,16 @@ name: Build blocklists
 
 on:
   pull_request:
-    paths: ['src/**', 'scripts/**', 'lists/**', '.github/workflows/build.yml']
+    paths: ['src/**', 'scripts/**', '.github/workflows/**', '.gitattributes', 'lists/**']
   push:
     branches: [main]
-    paths: ['src/**', 'scripts/**', '.github/workflows/build.yml']
+    paths: ['src/**', 'scripts/**', '.github/workflows/**', '.gitattributes']
   workflow_dispatch:
 
 concurrency:
-  group: lists
+  group: blocklists-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
   cancel-in-progress: false
-
-# Workflow-file edits are covered by the paths filters above. publish is gated
-# on actual src/ or scripts/ changes so workflow-only pushes don't churn lists
-# (the Updated timestamp would otherwise create a bot commit every run).
+  queue: max
 
 permissions:
   contents: read
@@ -22,35 +19,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    outputs:
-      src_changed: ${{ steps.changed.outputs.src_changed }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Detect src/scripts changes
-        id: changed
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "src_changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          before="$BEFORE_SHA"
-          # Fail-open: empty/all-zeros base SHA (ref creation) assumes changed,
-          # as does a force-push whose unreachable base fails the diff below.
-          # Worst case is one redundant publish run (timestamp-only bot commit).
-          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
-            echo "src_changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if git diff --quiet "$before" "$GITHUB_SHA" -- src/ scripts/; then
-            echo "src_changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "src_changed=true" >> "$GITHUB_OUTPUT"
-          fi
       - name: Reject direct lists/ edits in PRs
         if: github.event_name == 'pull_request'
         env:
@@ -79,6 +51,8 @@ jobs:
         run: python3 scripts/test_nextdns_sync.py
       - name: Run check_blocking tests
         run: python3 scripts/test_check_blocking.py
+      - name: Test list publication with local Git repositories
+        run: python3 scripts/test_publish.py
       - name: Install offline resolver test prerequisites
         run: |
           sudo apt-get update
@@ -87,23 +61,17 @@ jobs:
         run: python3 scripts/test_dnsmasq.py
 
   publish:
-    if: github.event_name != 'pull_request' && needs.check.outputs.src_changed == 'true'
+    if: github.event_name != 'pull_request'
     needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - name: Compile lists
-        run: python3 scripts/build.py build
-      - name: Verify checksums
-        run: cd lists && sha256sum -c SHA256SUMS
-      - name: Commit generated lists
-        run: |
-          if ! git diff --quiet -- lists; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add lists/
-            git commit -m "chore: regenerate blocklists [skip ci]"
-            git push
-          fi
+        with:
+          fetch-depth: 0
+      - name: Publish validated lists
+        env:
+          VALIDATED_HEAD: ${{ github.sha }}
+          PUBLICATION_BRANCH: ${{ github.ref_name }}
+        run: python3 scripts/publish_lists.py --validated-head "$VALIDATED_HEAD" --branch "$PUBLICATION_BRANCH"
