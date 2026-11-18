@@ -195,6 +195,9 @@ not blocking or service purpose. With `--cross-check`, it attempts a second
 provider only for non-LIVE findings. NO_A means NOERROR without an A record;
 review evidence before changing a rule, including when a name returns NXDOMAIN.
 
+If either tool reports `ERROR` for malformed or incomplete DNS evidence, do
+not count that result as a confirmed block or use it to change list policy.
+
 ## Keeping the lists up to date
 
 | Item | How it refreshes |

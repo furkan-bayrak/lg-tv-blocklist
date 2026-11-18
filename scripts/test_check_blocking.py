@@ -7,13 +7,14 @@ use hand-built golden bytes instead of a live resolver.
 """
 import argparse
 import contextlib
+import http.client
 import io
-import ipaddress
 import json
 import struct
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -165,6 +166,12 @@ class TestParseResponse(unittest.TestCase):
         with self.assertRaises(ValueError):
             check_blocking.parse_response(packet, TXID)
 
+    def test_all_truncated_question_field_lengths_are_malformed(self):
+        packet = response_bytes(addrs=())
+        for missing_bytes in range(1, 5):
+            with self.subTest(missing_bytes=missing_bytes), self.assertRaises(ValueError):
+                check_blocking.parse_response(packet[:-missing_bytes], TXID)
+
     def test_too_many_labels_is_malformed(self):
         question = b"\x01a" * 128 + b"\x00" + b"\x00\x01\x00\x01"
         packet = struct.pack(">HHHHHH", TXID, 0x8180, 1, 0, 0, 0) + question
@@ -177,12 +184,36 @@ class TestSkipName(unittest.TestCase):
         self.assertEqual(check_blocking.skip_name(b"\x03abc\x00", 0), 5)
         self.assertEqual(check_blocking.skip_name(b"\x00\x03abc\x00", 1), 6)
 
-    def test_pointer(self):
-        self.assertEqual(check_blocking.skip_name(b"\xc0\x0c", 0), 2)
+    def test_labels_and_chained_backward_pointers(self):
+        data = b"\x03abc\x00\xc0\x00\x01d\xc0\x05"
+        self.assertEqual(check_blocking.skip_name(data, 5), 7)
+        self.assertEqual(check_blocking.skip_name(data, 7), 11)
 
     def test_truncated_pointer(self):
         with self.assertRaises(ValueError):
             check_blocking.skip_name(b"\xc0", 0)
+
+    def test_rejects_bad_label_and_pointer_encodings(self):
+        for data, offset in (
+            (b"\x40" + b"a" * 64 + b"\x00", 0),
+            (b"\x80" + b"a" * 128 + b"\x00", 0),
+            (b"\x03ab", 0),
+            (b"\xc0\xff", 0),
+            (b"\xc0\x00", 0),
+            (b"\x01a\xc0\x00", 0),
+        ):
+            with self.subTest(data=data, offset=offset), self.assertRaises(ValueError):
+                check_blocking.skip_name(data, offset)
+
+    def test_expanded_name_length_limit_includes_referenced_labels(self):
+        suffix = (b"\x3f" + b"a" * 63) * 3 + b"\x00"
+        for length in (61, 62):
+            data = suffix + bytes([length]) + b"b" * length + b"\xc0\x00"
+            if length == 61:
+                self.assertEqual(check_blocking.skip_name(data, len(suffix)), len(data))
+            else:
+                with self.assertRaises(ValueError):
+                    check_blocking.skip_name(data, len(suffix))
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +323,21 @@ class TestQueryLocal(unittest.TestCase):
                             check_blocking.classify_local(local, cross)[0],
                             check_blocking.ERROR)
 
+    def test_bad_name_or_question_is_not_blocked_even_if_external_a_is_valid(self):
+        header = struct.pack(">HHHHHH", TXID, 0x8180, 1, 0, 0, 0)
+        fields = b"\x00\x01\x00\x01"
+        for packet in (
+            response_bytes(addrs=())[:-1],
+            header + b"\x40" + b"a" * 64 + b"\x00" + fields,
+            header + b"\xc0\xff" + fields,
+            header + b"\x01a\xc0\x0c" + fields,
+        ):
+            with self.subTest(packet=packet):
+                local, _ = self.query([packet, packet])
+                verdict, _ = check_blocking.classify_local(
+                    local, (check_blocking.X_RESOLVES, "192.0.2.1"))
+                self.assertEqual(verdict, check_blocking.ERROR)
+
     def test_send_oserror_is_a_failure(self):
         fake = FakeSocket([])
         fake.sendto = mock.Mock(side_effect=OSError("network down"))
@@ -337,6 +383,7 @@ class TestCrossClassify(unittest.TestCase):
 
     def test_noerror_without_a_record_exists(self):
         for payload in ({"Status": 0}, {"Status": 0, "Answer": []},
+                        {"Status": 0, "Answer": None},
                         {"Status": 0, "Answer": [{"type": 6, "data": "soa"}]},
                         {"Status": 0, "Answer": [{"type": 5, "data": "alias.example"}]}):
             with self.subTest(payload=payload):
@@ -347,9 +394,9 @@ class TestCrossClassify(unittest.TestCase):
                 self.assertNotIn("delegat", detail.lower())
 
     def test_unexpected_status_is_an_error(self):
-        for payload in ({"Status": 2}, {"Status": None}, {}):
-            with self.subTest(payload=payload):
-                state, _ = check_blocking.cross_classify(payload)
+        for status in (2, None, False, 0.0, 3.0, "3"):
+            with self.subTest(status=status):
+                state, _ = check_blocking.cross_classify({"Status": status})
                 self.assertEqual(state, check_blocking.X_ERROR)
 
     def test_non_dict_payload_is_an_error(self):
@@ -361,10 +408,21 @@ class TestCrossClassify(unittest.TestCase):
                 self.assertEqual(state, check_blocking.X_ERROR)
 
     def test_malformed_answer_section_is_an_error(self):
-        for answers in ([1, 2], {"type": 1}, "answer"):
+        for answers in ([1, 2], {"type": 1}, "answer", {}, "", False,
+                        [{}], [{"type": True}], [{"type": 1.0}], [{"type": "1"}]):
             with self.subTest(answers=answers):
                 state, _ = check_blocking.cross_classify(
                     {"Status": 0, "Answer": answers})
+                self.assertEqual(state, check_blocking.X_ERROR)
+
+    def test_one_bad_a_record_invalidates_the_entire_answer(self):
+        good = {"type": 1, "data": "93.184.216.34"}
+        bad_records = [{"type": 1}] + [
+            {"type": 1, "data": value} for value in (None, 123, "not an IP", "", "2001:db8::1")
+        ]
+        for bad in bad_records:
+            with self.subTest(bad=bad):
+                state, _ = check_blocking.cross_classify({"Status": 0, "Answer": [good, bad]})
                 self.assertEqual(state, check_blocking.X_ERROR)
 
 
@@ -406,10 +464,18 @@ class TestCrossLookup(unittest.TestCase):
 
     def test_network_error_is_an_error(self):
         with mock.patch.object(check_blocking.urllib.request, "urlopen",
-                               side_effect=check_blocking.urllib.error.URLError("boom")):
+                               side_effect=urllib.error.URLError("boom")):
             state, detail = check_blocking.cross_lookup("example.com", "google", 1.0)
         self.assertEqual(state, check_blocking.X_ERROR)
         self.assertIn("URLError", detail)
+
+    def test_truncated_http_body_becomes_an_error(self):
+        response = FakeHTTPResponse(b"")
+        with mock.patch.object(response, "read", side_effect=http.client.IncompleteRead(b"{")), \
+             mock.patch.object(check_blocking.urllib.request, "urlopen", return_value=response):
+            state, detail = check_blocking.cross_lookup("example.com")
+        self.assertEqual(state, check_blocking.X_ERROR)
+        self.assertIn("IncompleteRead", detail)
 
 
 # ---------------------------------------------------------------------------
@@ -681,11 +747,39 @@ class TestSystemResolver(unittest.TestCase):
             self.assertIsNone(
                 check_blocking._posix_resolver(Path(td) / "missing.conf"))
 
-    @unittest.skipUnless(sys.platform == "win32", "Windows registry only")
-    def test_windows_resolver_is_an_ip_or_none(self):
-        result = check_blocking._windows_resolver()
-        if result is not None:
-            ipaddress.ip_address(result)  # raises if not a valid IP
+    def test_windows_resolver_uses_global_then_accessible_interface_dns(self):
+        base = r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+        interfaces = base + r"\Interfaces"
+        adapter = interfaces + r"\{working-adapter}"
+        values = {
+            base: {"NameServer": "bad", "DhcpNameServer": "192.0.2.23"},
+            adapter: {"NameServer": "bad; 2001:0db8::0053", "DhcpNameServer": "192.0.2.53"},
+        }
+
+        def open_key(_root, path):
+            if path != interfaces and path not in values:
+                raise PermissionError(path)
+            return contextlib.nullcontext(path)
+
+        def enumerate_key(_key, index):
+            if index == 0:
+                raise PermissionError("inaccessible subkey")
+            return (None, "{blocked-adapter}", "{working-adapter}")[index]
+
+        def query_value(key, name):
+            if name not in values[key]:
+                raise FileNotFoundError(name)
+            return values[key][name], 1
+
+        registry = mock.Mock(HKEY_LOCAL_MACHINE=object(), OpenKey=open_key,
+                             QueryInfoKey=lambda key: (3, 0, 0) if key == interfaces else (0, 0, 0),
+                             EnumKey=enumerate_key, QueryValueEx=query_value)
+        with mock.patch.object(check_blocking, "winreg", registry, create=True):
+            self.assertEqual(check_blocking._windows_resolver(), "192.0.2.23")
+            values[base].clear()
+            self.assertEqual(check_blocking._windows_resolver(), "2001:db8::53")
+            values[adapter].pop("NameServer")
+            self.assertEqual(check_blocking._windows_resolver(), "192.0.2.53")
 
 
 # ---------------------------------------------------------------------------
@@ -759,6 +853,28 @@ class TestMain(unittest.TestCase):
                          check_blocking.ERROR)
         self.assertIn("not confirmed BLOCKED", err.getvalue())
 
+    def test_expect_blocked_rejects_malformed_local_and_external_evidence(self):
+        for packet, response in (
+            (response_bytes(addrs=())[:-1],
+             b'{"Status":0,"Answer":[{"type":1,"data":"192.0.2.1"}]}'),
+            (response_bytes(rcode=3, addrs=()), b'{"Status":0,"Answer":[{"type":1}]}'),
+        ):
+            with self.subTest(packet=packet, response=response):
+                out, err = io.StringIO(), io.StringIO()
+                fake = FakeSocket([packet] * check_blocking.ATTEMPTS)
+                with mock.patch.object(check_blocking, "new_txid", return_value=TXID), \
+                     mock.patch.object(check_blocking.socket, "socket", return_value=fake), \
+                     mock.patch.object(check_blocking.urllib.request, "urlopen",
+                                       return_value=FakeHTTPResponse(response)), \
+                     contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    rc = check_blocking.main([
+                        "--domains", "example.com", "--server", SERVER,
+                        "--expect-blocked", "--json"])
+                self.assertEqual(rc, 1)
+                self.assertEqual(json.loads(out.getvalue())["results"][0]["classification"],
+                                 check_blocking.ERROR)
+                self.assertIn("not confirmed BLOCKED", err.getvalue())
+
     def test_without_expect_blocked_not_blocked_still_exits_zero(self):
         rc, out, _, _ = self.run_main(
             ["--file", str(self.list_file)],
@@ -823,6 +939,19 @@ class TestMain(unittest.TestCase):
             ["--file", str(self.list_file) + ".nope"], {})
         self.assertEqual(rc, 2)
         self.assertIn("no such file", err)
+
+    def test_unreadable_or_invalid_utf8_inputs_fail_before_dns(self):
+        invalid = self.list_file.with_name("invalid.txt")
+        invalid.write_bytes(b"example.com\n\xff")
+        for path, read_error in ((invalid, None), (self.list_file, PermissionError("denied"))):
+            with self.subTest(path=path), contextlib.ExitStack() as stack:
+                if read_error:
+                    stack.enter_context(mock.patch.object(Path, "read_text", side_effect=read_error))
+                check = stack.enter_context(mock.patch.object(check_blocking, "check_many"))
+                err = stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+                self.assertEqual(check_blocking.main(["--file", str(path)]), 2)
+                self.assertIn(f"ERROR: cannot read {path}", err.getvalue())
+                check.assert_not_called()
 
     def test_empty_file_is_a_config_error(self):
         empty = self.list_file.parent / "empty.txt"

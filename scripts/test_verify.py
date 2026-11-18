@@ -6,6 +6,7 @@ mock resolve() to exercise provider agreement, disagreement, and failures.
 Nothing here makes a request.
 """
 import contextlib
+import http.client
 import io
 import sys
 import tempfile
@@ -38,6 +39,7 @@ class TestClassify(unittest.TestCase):
         # None alone establishes delegation, retirement, or AAAA reachability.
         for payload in ({"Status": 0},
                         {"Status": 0, "Answer": []},
+                        {"Status": 0, "Answer": None},
                         {"Status": 0, "Answer": [{"type": 6, "data": "soa..."}]},
                         {"Status": 0, "Answer": [{"type": 5, "data": "cname.only"}]}):
             with self.subTest(payload=payload):
@@ -52,8 +54,28 @@ class TestClassify(unittest.TestCase):
                 cls, _ = verify.classify({"Status": status})
                 self.assertEqual(cls, verify.ERROR)
 
-    def test_missing_status_is_an_error(self):
+    def test_status_must_be_an_actual_integer(self):
         self.assertEqual(verify.classify({})[0], verify.ERROR)
+        for status in (False, 0.0, 3.0, "3", None):
+            with self.subTest(status=status):
+                self.assertEqual(verify.classify({"Status": status})[0], verify.ERROR)
+
+    def test_malformed_answer_shapes_are_errors(self):
+        for answers in ({}, "", False, 0, [1], [{}], [{"type": True}],
+                        [{"type": 1.0}], [{"type": "1"}]):
+            with self.subTest(answers=answers):
+                self.assertEqual(verify.classify({"Status": 0, "Answer": answers})[0],
+                                 verify.ERROR)
+
+    def test_one_bad_a_record_invalidates_even_an_answer_with_a_valid_address(self):
+        good = {"type": 1, "data": "192.0.2.1"}
+        bad_records = [{"type": 1}] + [
+            {"type": 1, "data": value} for value in (None, 123, "not an IP", "", "2001:db8::1")
+        ]
+        for bad in bad_records:
+            with self.subTest(bad=bad):
+                self.assertEqual(verify.classify({"Status": 0, "Answer": [good, bad]})[0],
+                                 verify.ERROR)
 
 
 class TestResolveMalformedJson(unittest.TestCase):
@@ -76,8 +98,7 @@ class TestResolveMalformedJson(unittest.TestCase):
                 self.assertIn("non-object", detail)
 
     def test_other_malformed_shapes_do_not_abort(self):
-        # "Answer" as an object instead of a list raises AttributeError inside
-        # classify(); the resolve() backstop must classify it, not propagate.
+        # Non-list Answer sections are inconclusive, not NO_A or crashes.
         cls, _ = self.resolve_with_body(b'{"Status": 0, "Answer": {"type": 1}}')
         self.assertEqual(cls, verify.ERROR)
 
@@ -85,6 +106,15 @@ class TestResolveMalformedJson(unittest.TestCase):
         cls, detail = self.resolve_with_body(b'{"Status": 3}')
         self.assertEqual(cls, verify.NXDOMAIN)
         self.assertIn("does not exist", detail)
+
+    def test_truncated_http_body_becomes_an_error_entry(self):
+        resp = mock.MagicMock()
+        resp.__enter__.return_value = resp
+        resp.read.side_effect = http.client.IncompleteRead(b"{")
+        with mock.patch.object(verify.urllib.request, "urlopen", return_value=resp):
+            cls, detail = verify.resolve("example.com")
+        self.assertEqual(cls, verify.ERROR)
+        self.assertIn("IncompleteRead", detail)
 
 
 class TestReadEntries(unittest.TestCase):
@@ -273,6 +303,31 @@ class TestMainExitCodes(unittest.TestCase):
                            {"no-a.lge.com": (verify.NO_A, "NOERROR without an A record"),
                             "error.lge.com": (verify.ERROR, "rcode 2")})
         self.assertEqual(rc, 0)
+
+    def test_unreadable_or_invalid_utf8_inputs_fail_before_dns(self):
+        invalid = self.list_file.with_name("invalid.txt")
+        invalid.write_bytes(b"example.com\n\xff")
+        for path, read_error in ((invalid, None), (self.list_file, PermissionError("denied"))):
+            with self.subTest(path=path), contextlib.ExitStack() as stack:
+                if read_error:
+                    stack.enter_context(mock.patch.object(Path, "read_text", side_effect=read_error))
+                check = stack.enter_context(mock.patch.object(verify, "verify"))
+                err = stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+                self.assertEqual(verify.main(["--file", str(path)]), 2)
+                self.assertIn(f"ERROR: cannot read {path}", err.getvalue())
+                check.assert_not_called()
+
+    def test_report_write_failure_is_a_config_error(self):
+        directory = self.list_file.parent / "report.md"
+        directory.mkdir()
+        err = io.StringIO()
+        with mock.patch.object(verify, "verify", return_value={
+                "live.lge.com": (verify.LIVE, "192.0.2.1"),
+        }), contextlib.redirect_stderr(err):
+            code = verify.main(["--file", str(self.list_file), "--out", str(directory)])
+        self.assertEqual(code, 2)
+        self.assertIn(f"ERROR: cannot write {directory}", err.getvalue())
+        self.assertNotIn("wrote", err.getvalue())
 
     def test_help_states_a_only_and_non_live_cross_check_without_lookup(self):
         stdout = io.StringIO()

@@ -48,6 +48,7 @@ Pure stdlib, and network access is required, so this is deliberately NOT part
 of `build.py check`. scripts/test_check_blocking.py runs fully offline.
 """
 import argparse
+import http.client
 import ipaddress
 import json
 import math
@@ -55,7 +56,6 @@ import os
 import socket
 import struct
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -134,22 +134,35 @@ def build_query(name: str, txid: int) -> bytes:
 
 
 def skip_name(data: bytes, offset: int) -> int:
-    """Offset just past a DNS name (labels and/or a compression pointer)."""
-    labels = 0
-    while True:
-        if offset >= len(data):
-            raise ValueError("truncated name")
+    """Validate a DNS name, then return the offset past its wire encoding."""
+    end = None
+    limit = len(data)
+    expanded_length = 0
+    while 0 <= offset < limit:
         length = data[offset]
-        if length & 0xC0 == 0xC0:  # compression pointer: 2 bytes
-            if offset + 2 > len(data):
+        if length & 0xC0 == 0xC0:
+            if offset + 2 > limit:
                 raise ValueError("truncated compression pointer")
-            return offset + 2
-        if length == 0:
-            return offset + 1
+            target = ((length & 0x3F) << 8) | data[offset + 1]
+            if target >= offset:
+                raise ValueError("compression pointer must refer to an earlier offset")
+            if end is None:
+                end = offset + 2
+            # The prior name must end before the pointer itself. Shrinking
+            # this bound at each jump also prevents cycles through labels.
+            limit, offset = offset, target
+            continue
+        if length & 0xC0:
+            raise ValueError("reserved DNS label encoding")
         offset += length + 1
-        labels += 1
-        if labels > 127:
-            raise ValueError("name has too many labels")
+        expanded_length += length + 1
+        if offset > limit:
+            raise ValueError("truncated DNS label")
+        if expanded_length > 255:
+            raise ValueError("expanded DNS name exceeds 255 bytes")
+        if length == 0:
+            return offset if end is None else end
+    raise ValueError("truncated name")
 
 
 def parse_response(data: bytes, txid: int) -> tuple[int, list[str]]:
@@ -166,7 +179,10 @@ def parse_response(data: bytes, txid: int) -> tuple[int, list[str]]:
     rcode = flags & 0x000F
     offset = 12
     for _ in range(qdcount):
-        offset = skip_name(data, offset) + 4  # + QTYPE + QCLASS
+        offset = skip_name(data, offset)
+        if offset + 4 > len(data):
+            raise ValueError("truncated question fields")
+        offset += 4  # QTYPE and QCLASS
     addrs = []
     for _ in range(ancount):
         offset = skip_name(data, offset)
@@ -280,26 +296,38 @@ def classify_local(local: tuple[str, str],
 
 
 def cross_classify(payload: object) -> tuple[str, str]:
-    """Map a parsed DoH JSON payload to (state, detail). Pure.
-
-    A payload that is not a dict, or whose Answer section has the wrong
-    shape, is an ERROR -- it must not abort the run (same discipline as
-    verify.py's classify()).
-    """
+    """Map a DoH payload to (state, detail) without treating errors as evidence."""
     if not isinstance(payload, dict):
         return X_ERROR, f"malformed DoH payload ({type(payload).__name__})"
     status = payload.get("Status")
+    if type(status) is not int:
+        return X_ERROR, f"malformed DoH status {status!r}"
     if status == RCODE_NXDOMAIN:
         return X_NXDOMAIN, "NXDOMAIN"
     if status != RCODE_NOERROR:
         return X_ERROR, f"unexpected DoH status {status!r}"
-    answers = payload.get("Answer") or []
-    try:
-        addrs = [a.get("data", "") for a in answers if a.get("type") == QTYPE_A]
-    except (AttributeError, TypeError):
+    answers = payload.get("Answer")
+    if answers is None:
+        return X_EXISTS, "NOERROR without an A record"
+    if not isinstance(answers, list):
         return X_ERROR, "malformed DoH answer section"
-    if addrs:
-        return X_RESOLVES, addrs[0]
+    first_address = None
+    for answer in answers:
+        if not isinstance(answer, dict) or type(answer.get("type")) is not int:
+            return X_ERROR, "malformed DoH answer record"
+        if answer["type"] != QTYPE_A:
+            continue
+        address = answer.get("data")
+        if not isinstance(address, str):
+            return X_ERROR, "malformed DoH A-record address"
+        try:
+            ipaddress.IPv4Address(address)
+        except ValueError:
+            return X_ERROR, "malformed DoH A-record address"
+        if first_address is None:
+            first_address = address
+    if first_address is not None:
+        return X_RESOLVES, first_address
     return X_EXISTS, "NOERROR without an A record"
 
 
@@ -313,8 +341,7 @@ def cross_lookup(name: str, provider: str = "google",
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError, UnicodeDecodeError,
-            json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, http.client.HTTPException) as exc:
         return X_ERROR, f"{type(exc).__name__}: {exc}"
     return cross_classify(payload)
 
@@ -396,12 +423,16 @@ def _posix_resolver(path: Path = Path("/etc/resolv.conf")) -> str | None:
 def _windows_resolver() -> str | None:
     """First configured DNS server from the registry (best effort)."""
     base = r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+    interfaces = base + r"\Interfaces"
     paths = [base]
     try:
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as key:
-            subkeys = [winreg.EnumKey(key, index)
-                       for index in range(winreg.QueryInfoKey(key)[0])]
-        paths += [base + rf"\Interfaces\{name}" for name in subkeys]
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, interfaces) as key:
+            for index in range(winreg.QueryInfoKey(key)[0]):
+                try:
+                    name = winreg.EnumKey(key, index)
+                except OSError:
+                    continue
+                paths.append(interfaces + "\\" + name)
     except OSError:
         pass
     for path in paths:
@@ -497,11 +528,15 @@ def main(argv: list[str] | None = None) -> int:
             print("ERROR: --domains contained no domain names", file=sys.stderr)
             return 2
     else:
-        if not args.file.is_file():
-            print(f"ERROR: no such file: {args.file} (run build.py build first)",
-                  file=sys.stderr)
+        try:
+            if not args.file.is_file():
+                print(f"ERROR: no such file: {args.file} (run build.py build first)",
+                      file=sys.stderr)
+                return 2
+            domains = read_domains(args.file)
+        except (OSError, UnicodeError) as exc:
+            print(f"ERROR: cannot read {args.file}: {exc}", file=sys.stderr)
             return 2
-        domains = read_domains(args.file)
         if not domains:
             print(f"ERROR: no entries parsed from {args.file}", file=sys.stderr)
             return 2
