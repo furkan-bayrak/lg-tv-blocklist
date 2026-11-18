@@ -111,6 +111,9 @@ Two practical paths:
   default and only writes with `--apply`; the API key goes in the
   `NEXTDNS_API_KEY` environment variable. Use `--no-fetch` for an entirely
   offline preview. Run it with `--help` for the profile and file options.
+  An unreadable or inconclusive profile response stops `--apply` before any
+  writes. An inconclusive response to an individual add is reported as failed
+  and is not retried; check the profile before rerunning an interrupted import.
 
 ## Unbound (and similar resolvers)
 
@@ -212,6 +215,9 @@ not count that result as a confirmed block or use it to change list policy.
 
 Every list file starts with `# Updated:` and `# Entries:` headers, so you can
 always tell how old the copy you are looking at is.
+
+The localizer can regenerate ordinary output files but refuses symlinks,
+hard-linked files, and non-file destinations before writing any output.
 
 ## Uninstall
 

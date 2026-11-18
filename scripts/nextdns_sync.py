@@ -35,6 +35,7 @@ error (missing key or profile for --apply, unreadable/empty list file).
 Stdlib only, like the rest of scripts/. Install guide: docs/install.md.
 """
 import argparse
+import http.client
 import json
 import math
 import os
@@ -164,7 +165,7 @@ def api_error_detail(payload: object) -> str | None:
             parts.append(str(item.get("detail") or item.get("code") or item))
         else:
             parts.append(str(item))
-    return "; ".join(parts) or None
+    return "; ".join(parts) or "unspecified API error"
 
 
 def http_error_text(exc: urllib.error.HTTPError) -> str:
@@ -175,7 +176,7 @@ def http_error_text(exc: urllib.error.HTTPError) -> str:
     body = ""
     try:
         body = exc.read().decode("utf-8", "replace")
-    except (OSError, ValueError):
+    except (OSError, ValueError, http.client.HTTPException):
         pass
     detail = None
     if body:
@@ -219,11 +220,10 @@ _OPENER = urllib.request.build_opener(_NoRedirect)
 
 def api_request(method: str, path: str, *, key: str, body: dict | None = None,
                 timeout: float = 15.0) -> tuple[int, object]:
-    """One API call. Returns (status, parsed JSON body or None).
+    """One API call. Return (status, JSON object or None for an empty body).
 
-    Raises urllib.error.HTTPError for non-2xx and URLError/OSError for
-    transport failures; callers map those to outcomes, so a single bad
-    request never aborts a run.
+    HTTP and transport errors propagate, as does ValueError for nonempty
+    bodies that aren't JSON objects. Callers map these to operation outcomes.
     """
     data = json.dumps(body).encode("utf-8") if body is not None else None
     headers = {"X-Api-Key": key, "User-Agent": "lg-tv-blocklist-nextdns-sync"}
@@ -234,12 +234,14 @@ def api_request(method: str, path: str, *, key: str, body: dict | None = None,
     with _OPENER.open(req, timeout=timeout) as resp:
         raw = resp.read()
         status = resp.status
-    payload = None
-    if raw:
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            payload = None
+    if not raw:
+        return status, None
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"invalid API response body (HTTP {status}): expected a JSON object") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid API response body (HTTP {status}): expected a JSON object")
     return status, payload
 
 
@@ -289,10 +291,8 @@ def add_domain(profile: str, domain: str, key: str, *, timeout: float,
                delay: float, max_retries: int, sleep=None) -> None:
     """POST one domain to the denylist. Raises RuntimeError on failure.
 
-    Success is a 2xx *and* no "errors" key (see api_error_detail). HTTP 429
-    is retried up to max_retries times, waiting retry_after_seconds() between
-    attempts; every other failure is reported immediately so the run moves on
-    and the caller can collect it.
+    Success requires an empty HTTP 204 or a 2xx with a data acknowledgement
+    and no API errors. Only HTTP 429 is retried, up to max_retries times.
     """
     sleep = sleep or time.sleep
     path = f"/profiles/{urllib.parse.quote(profile, safe='')}/denylist"
@@ -310,13 +310,16 @@ def add_domain(profile: str, domain: str, key: str, *, timeout: float,
                 # HTTPError owns a body stream; close it or it lingers until
                 # garbage collection (ResourceWarning on CPython 3.14).
                 exc.close()
-        except (urllib.error.URLError, OSError) as exc:
+        except (OSError, ValueError, http.client.HTTPException) as exc:
             raise RuntimeError(f"{type(exc).__name__}: {exc}") from exc
         if not 200 <= status < 300:
             raise RuntimeError(f"unexpected response (HTTP {status})")
         detail = api_error_detail(payload)
         if detail:
             raise RuntimeError(f"rejected: {detail}")
+        if not ((status == 204 and payload is None)
+                or (isinstance(payload, dict) and "data" in payload)):
+            raise RuntimeError(f"unconfirmed add (HTTP {status}): missing API acknowledgement")
         if delay > 0:
             sleep(delay)  # polite pacing between writes
         return
@@ -388,11 +391,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: --profile {args.profile!r} does not look like a profile "
               "ID (letters/digits, at most 64)", file=sys.stderr)
         return 2
-    if not args.file.is_file():
-        print(f"ERROR: no such file: {args.file} (run build.py build first)",
-              file=sys.stderr)
+    try:
+        if not args.file.is_file():
+            print(f"ERROR: no such file: {args.file} (run build.py build first)",
+                  file=sys.stderr)
+            return 2
+        domains, skipped = parse_entries(args.file.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError) as exc:
+        print(f"ERROR: cannot read {args.file}: {exc}", file=sys.stderr)
         return 2
-    domains, skipped = parse_entries(args.file.read_text(encoding="utf-8"))
     if not domains:
         # Show why every line was rejected: the common miss is pointing --file
         # at a regex/wildcard file, whose entries are not plain domains.
@@ -439,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
             finally:
                 exc.close()
-        except (urllib.error.URLError, OSError, ValueError) as exc:
+        except (OSError, ValueError, http.client.HTTPException) as exc:
             if args.apply:
                 print(f"ERROR: cannot read the existing denylist "
                       f"({type(exc).__name__}: {exc}); nothing was written",

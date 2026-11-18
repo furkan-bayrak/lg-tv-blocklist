@@ -2,8 +2,8 @@
 """Test suite for nextdns_sync.py. Run: python scripts/test_nextdns_sync.py
 (stdlib only).
 
-Deliberately offline: api_request() is the single network gate, and every
-test either mocks it or pins a pure function, so nothing here opens a socket.
+Deliberately offline: API tests fake the transport or mock api_request(),
+so nothing here opens a socket.
 The mocks assert the wire contract from the official API docs: GET to list,
 POST {"id": domain} to add, X-Api-Key auth, and a 200-with-errors body
 treated as failure (the docs' documented way of rejecting a domain).
@@ -36,6 +36,17 @@ def http_error(code, body=b"{}", headers=None):
     return urllib.error.HTTPError(
         "https://api.nextdns.io/profiles/x/denylist", code, "server error",
         hdrs, io.BytesIO(body))
+
+
+class FakeApiResponse(io.BytesIO):
+    def __init__(self, raw, status=200):
+        super().__init__(raw)
+        self.status = status
+
+
+class TruncatedApiResponse(FakeApiResponse):
+    def read(self, *args):
+        raise http.client.IncompleteRead(b"{", 12)
 
 
 def write_list(path, text):
@@ -331,7 +342,7 @@ class TestRedirectRefusal(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
-    """main() with api_request mocked: exit codes, dry-run safety, outcomes."""
+    """Exercise importer exit codes, dry-run safety and per-domain outcomes."""
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -354,6 +365,72 @@ class TestMain(unittest.TestCase):
              contextlib.redirect_stderr(io.StringIO()) as err:
             rc = nextdns_sync.main(argv)
         return rc, out.getvalue(), err.getvalue(), calls
+
+    def run_with_http_responses(self, responses, *, apply=True):
+        argv = ["--file", str(self.path), "--profile", "abc123", "--delay", "0"]
+        if apply:
+            argv.append("--apply")
+        with mock.patch.dict(os.environ, {nextdns_sync.ENV_VAR: TEST_KEY}), \
+             mock.patch.object(nextdns_sync._OPENER, "open", side_effect=responses) as opener, \
+             contextlib.redirect_stdout(io.StringIO()) as out, \
+             contextlib.redirect_stderr(io.StringIO()) as err:
+            code = nextdns_sync.main(argv)
+        requests = [call.args[0] for call in opener.call_args_list]
+        return code, out.getvalue(), err.getvalue(), requests
+
+    def test_unconfirmed_posts_fail_without_replay_and_next_domains_still_run(self):
+        truncated_error = http_error(500)
+        truncated_error.read = mock.Mock(side_effect=http.client.IncompleteRead(b"{", 12))
+        unconfirmed = {
+            "html": FakeApiResponse(b"<html>not an API response</html>"),
+            "utf8": FakeApiResponse(b"\xff"),
+            "json": FakeApiResponse(b"{"),
+            "null": FakeApiResponse(b"null"),
+            "scalar": FakeApiResponse(b"42"),
+            "array": FakeApiResponse(b"[]"),
+            "object": FakeApiResponse(b'{"meta": {}}'),
+            "empty": FakeApiResponse(b""),
+            "api-error": FakeApiResponse(b'{"data": {}, "errors":[{"detail":"invalid domain"}]}'),
+            "unspecified-error": FakeApiResponse(b'{"data": {}, "errors":[""]}'),
+            "truncated": TruncatedApiResponse(b""),
+            "truncated-error": truncated_error,
+        }
+        domains = [f"{prefix}.example.com" for prefix in (*unconfirmed, "no-content", "data")]
+        write_list(self.path, "\n".join(domains) + "\n")
+        code, out, err, requests = self.run_with_http_responses([
+            FakeApiResponse(b'{"data": []}'), *unconfirmed.values(),
+            FakeApiResponse(b"", 204), FakeApiResponse(b'{"data": {}}'),
+        ])
+        self.assertEqual(code, 1)
+        self.assertEqual([request.get_method() for request in requests],
+                         ["GET"] + ["POST"] * len(domains))
+        self.assertEqual([json.loads(request.data)["id"] for request in requests[1:]], domains)
+        self.assertEqual([line.split()[1] for line in out.splitlines() if line.startswith("ADDED")],
+                         domains[-2:])
+        self.assertEqual([line.split()[1] for line in out.splitlines() if line.startswith("ERROR")],
+                         domains[:-2])
+        self.assertIn("ERROR   truncated-error.example.com (HTTP 500)\n", out)
+        self.assertIn("invalid domain", out)
+        self.assertIn(f"{len(unconfirmed)} failed", out)
+        self.assertNotIn(TEST_KEY, out + err)
+
+    def test_malformed_or_truncated_get_stops_apply_but_allows_preview(self):
+        write_list(self.path, "one.example.com\n")
+        for response_type, body in ((FakeApiResponse, b"<html>not JSON</html>"),
+                                    (TruncatedApiResponse, b"")):
+            for apply in (True, False):
+                with self.subTest(response_type=response_type, apply=apply):
+                    code, out, err, requests = self.run_with_http_responses(
+                        [response_type(body)], apply=apply)
+                    self.assertEqual([request.get_method() for request in requests], ["GET"])
+                    if apply:
+                        self.assertEqual(code, 1)
+                        self.assertIn("nothing was written", err)
+                        self.assertNotIn("ADDED", out)
+                    else:
+                        self.assertEqual(code, 0)
+                        self.assertIn("showing the file-side plan only", err)
+                        self.assertIn("WOULD ADD one.example.com", out)
 
     @staticmethod
     def no_api(*args, **kwargs):
@@ -569,6 +646,17 @@ class TestMain(unittest.TestCase):
             ["--file", str(self.path) + ".nope"], self.no_api)
         self.assertEqual(rc, 2)
         self.assertEqual(calls, [])
+
+    def test_unreadable_or_invalid_utf8_list_exits_before_api(self):
+        self.path.write_bytes(b"one.example.com\n\xff")
+        argv = ["--file", str(self.path), "--profile", "abc123", "--apply"]
+        code, _, err, requests = self.run_with_http_responses([])
+        self.assertEqual((code, requests), (2, []))
+        self.assertIn(f"ERROR: cannot read {self.path}", err)
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError("denied")):
+            code, _, err, calls = self.run_main(argv, self.no_api)
+        self.assertEqual((code, calls), (2, []))
+        self.assertIn(f"ERROR: cannot read {self.path}", err)
 
     def test_file_without_valid_domains_is_a_config_error(self):
         write_list(self.path, "# only comments\n\n*.lgtvcommon.com\n")
