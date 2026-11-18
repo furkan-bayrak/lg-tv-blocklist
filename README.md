@@ -1,86 +1,108 @@
+<div align="center">
+
 # LG TV Blocklist
 
-DNS filtering for LG webOS advertising, ACR (Automatic Content Recognition)
-and telemetry, with an optional aggressive service-blocking tier.
-Use it with Pi-hole, AdGuard Home, NextDNS or another compatible blocker.
-Not affiliated with LG Electronics. LG is a trademark of LG Corp.
+**Less telemetry. Clear trade-offs.**
+
+Evidence-annotated DNS blocklists for LG webOS advertising, Automatic Content Recognition (ACR), and telemetry.
+
+[![Build blocklists](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/furkan-bayrak/lg-tv-blocklist/actions/workflows/build.yml) [![Lists: CC BY 4.0](https://img.shields.io/badge/lists-CC%20BY%204.0-586069)](#license)
+
+**[Choose a list](#which-list-should-i-use)** · **[Quick start](#install)** · **[Documentation](#documentation)**
+
+</div>
 
 ## Which list should I use?
 
-**Start with SAFE** for lower-disruption ad/telemetry filtering.
-**Choose STRICT deliberately** to add firmware OTA, ThinQ/cloud and LG Channels
-blocking, weak/inferred entries and broad zone anchors. It can also disrupt
-store, streaming, clock or AirPlay dependencies.
+**Start with SAFE.** STRICT trades compatibility for broader blocking.
 
-Neither tier guarantees compatibility or stops every LG connection.
-The historical German G1 audit, later reports and DNS-only sibling inferences
-are different kinds of evidence. SAFE retains explicit exceptions, including
-untested owner-directed `alphonso.tv`.
-Read the **[project overview](docs/overview.md)** for the canonical
-[compatibility table](docs/overview.md#compatibility), evidence policy,
-[format-scope table](docs/overview.md#format-scope) and repository map.
+| | SAFE | STRICT |
+| :--- | :--- | :--- |
+| **Goal** | Limit tracking with less disruption | Block more LG services |
+| **Targets** | Ads, ACR, and telemetry | SAFE plus firmware updates, ThinQ cloud, LG Channels, and broader rules |
+| **Risk** | Aims to preserve apps and updates | Store, streaming, time sync, and AirPlay can break |
+| **For** | Most TV owners | Users who can troubleshoot feature loss |
+
+SAFE has [documented exceptions](docs/methodology.md#from-data-to-tiers),
+including `alphonso.tv`, which this project has not independently tested.
+STRICT includes some lower-confidence entries. Check the
+[compatibility evidence](docs/overview.md#compatibility) for knowns and unknowns.
 
 ## Install
 
-Pick a tier above, then load the matching file into your blocker. Step-by-step walkthrough per blocker, with checks and uninstall steps: **[docs/install.md](docs/install.md)**.
+Copy or download **one** list for your blocker and follow its setup steps.
+If you're new to the project, use the SAFE column.
 
-| Your blocker | SAFE | STRICT |
-|---|---|---|
-| Pi-hole (v6) | [safe-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [strict-domains.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) |
-| AdGuard Home | [safe-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) | [strict-adblock.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
-| dnsmasq | [safe-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt) | [strict-dnsmasq.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt) |
-| Rooted TV `/etc/hosts` | [safe-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [strict-hosts.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
+| Blocker & setup | SAFE | STRICT |
+| :--- | :--- | :--- |
+| [Pi-hole v6](docs/install.md#pi-hole-v6) | [SAFE domains](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [STRICT domains](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) |
+| [AdGuard Home](docs/install.md#adguard-home) | [SAFE filter](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) | [STRICT filter](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
+| [dnsmasq](docs/install.md#dnsmasq) | [SAFE config](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt) | [STRICT config](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt) |
+| [Rooted TV](examples/webos-hooks/) | [SAFE hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [STRICT hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
 
-**NextDNS:** [additive-only bulk import](docs/install.md#nextdns), not a URL
-subscription. **Unbound:** [convert to local-data](docs/install.md#unbound-and-similar-resolvers).
-**uBlock Origin:** the adblock file filters browser traffic, not your TV.
+[NextDNS](docs/install.md#nextdns) uses an additive denylist import, not a URL
+subscription. [Unbound](docs/install.md#unbound-and-similar-resolvers) needs
+conversion to `local-data`. The filter also works in uBlock Origin, but that
+covers only your browser, not the TV.
 
-Optional regex: [safe-wildcard.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-wildcard.txt)
-and [strict-wildcard.txt](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-wildcard.txt).
-Paste into Pi-hole **Regex filters**, not an adlist; AdGuard Home needs slash-wrapped custom rules.
-These generalize explicitly tagged regional families, not all LG endpoints;
-STRICT also includes zone anchors. [Regional guidance](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me).
+**After setup:** [verify TV queries and blocking](docs/install.md#after-install).
+The install guide covers [updates](docs/install.md#keeping-the-lists-up-to-date)
+and [uninstalling](docs/install.md#uninstall). Downloads have a
+[SHA256 manifest](lists/SHA256SUMS); verify files from the same commit.
+When switching to SAFE, remove any manually imported STRICT rules.
 
-Checksums: [SHA256SUMS](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/SHA256SUMS).
-Follow the [update/uninstall guide](docs/install.md#keeping-the-lists-up-to-date);
-switching to SAFE does not remove stale manually imported STRICT rules.
+## From traffic to rules
+
+> **Original audit · LG G1 in Germany**
+>
+> About **44,800 packets** and **267,000 DNS queries** over two weeks.
+> These are historical capture totals, not live metrics or proof that every
+> current rule has been tested.
+
+1. **Observe.** Correlate per-device DNS logs with packet captures to see what
+   the TV contacts, including traffic the resolver log misses.
+2. **Investigate.** Compare root-level webOS service observations with attributed
+   community reports. A DNS answer or a connection does not establish purpose.
+3. **Test and annotate.** Adding or promoting a SAFE entry requires
+   established ad or telemetry purpose and a blocking test of the actual
+   rule. Record the evidence and its limits in [`src/`](src/).
+
+[Read or reproduce the methodology →](docs/methodology.md)
 
 ## The two caveats
 
-1. **Filtering only works on the path actually used.** Hardcoded DNS, DoH,
-   IP-literal traffic and TV caches can bypass the expected resolver.
-   The optional [rooted hooks](examples/webos-hooks/) redirect IPv4 port 53
-   and drop supported port-853 traffic, but do not solve DoH, unsupported
-   IPv6 or stale DNAT targets. Use generated `*-hosts.txt` for hosts-file
-   deployments, not `src/strict.txt` (only a delta).
-2. **Format changes coverage.** Domains/hosts are exact-name; adblock and
-   dnsmasq reach descendants. Current dnsmasq rules use `address=/name/#`
-   for null A (`0.0.0.0`) and AAAA (`::`) answers, with unchanged names
-   and descendant scope. Hosts output remains IPv4-only. Older downloaded
-   dnsmasq snippets retain their IPv4 limitation: replace and reload them,
-   using a build accepting this syntax and `dnsmasq --test` before replacing
-   live configuration. See the [install steps](docs/install.md#dnsmasq) and
-   [official manual](https://dnsmasq.org/docs/dnsmasq-man.html).
-   STRICT zone/regex rules reach unenumerated descendants, including shared
-   services. Network-wide rules can affect non-TV devices.
-   [Format scope and limitations](docs/overview.md#format-scope).
+1. **A blocklist can only filter DNS it sees.** Hardcoded resolvers, DoH,
+   IPv6 DNS bypass, cached answers, and direct IP connections can evade
+   filtering. A hosts file alone is not enough. The optional rooted
+   [DNS-egress hook](examples/webos-hooks/README.md#the-dns-egress-hook)
+   has [its own limits](examples/webos-hooks/README.md#caveats).
+2. **The format changes what gets blocked.** Domains and hosts files match
+   exact names; adblock, dnsmasq, and NextDNS also match descendants. A
+   network-wide STRICT rule can affect other devices. Current dnsmasq
+   snippets sinkhole A and AAAA. [Validate and replace older IPv4-only copies](docs/install.md#dnsmasq).
+   Hosts files remain IPv4-only. For optional regex and missing regional
+   entries, see the [regional guide](docs/faq.md#im-not-in-germany--do-the-lists-still-work-for-me)
+   and [format scope](docs/overview.md#format-scope).
 
-## Understand and contribute
+## Documentation
 
-- **[Project overview](docs/overview.md):** project map, tier decisions,
-  compatibility evidence and unknowns. Reproduce source counts with
-  `python3 scripts/build.py inventory`; counts are not tested-service counts.
-- **[FAQ](docs/faq.md):** narrow store/AirPlay diagnostics, clock, DNS bypass
-  and localization recipes.
-- **[Methodology](docs/methodology.md):** contact, purpose and actual-scope
-  compatibility evidence; [historical upstream record](docs/upstream.md).
-- **[Contributing](CONTRIBUTING.md):** edit annotated sources, not generated
-  `lists/`; run the relevant checks. [New-domain template](.github/ISSUE_TEMPLATE/01_new_domain.md)
-  / [breakage template](.github/ISSUE_TEMPLATE/02_breakage.md).
+- **[Install guide](docs/install.md)** — blocker setup, verification, and rollback.
+- **[Project overview](docs/overview.md)** — compatibility by feature, rule
+  scope, and the annotated source inventory.
+- **[Troubleshooting FAQ](docs/faq.md)** — Content Store, AirPlay, clock,
+  and DNS bypass.
+- **[Upstream record](docs/upstream.md)** — submissions to other community blocklists.
 
-More entries are not automatically better. Bring attributed evidence,
-uncertainty and reproducible behavior, not a target list size.
+## Contribute
+
+Device logs and reproducible reports help fill gaps across models, firmware,
+and regions. Include the model, firmware build, region, and sanitized evidence.
+Use the [new-domain](.github/ISSUE_TEMPLATE/01_new_domain.md) or
+[breakage](.github/ISSUE_TEMPLATE/02_breakage.md) template, or follow the
+[contribution guide](CONTRIBUTING.md) and edit `src/`, not generated `lists/`.
 
 ## License
 
 Content and generated lists: [CC BY 4.0](LICENSE). Scripts and workflows: [MIT](LICENSE-MIT).
+
+Not affiliated with LG Electronics. LG is a trademark of LG Corp.
