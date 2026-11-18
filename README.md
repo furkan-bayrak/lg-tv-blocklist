@@ -55,8 +55,7 @@ When switching to SAFE, remove any manually imported STRICT rules.
 
 ## How we build the lists
 
-The first lists grew out of a two-week audit of an LG G1 in Germany:
-about **44,800 packets** and **267,000 DNS queries**.
+The lists began with a network audit of an LG G1 in Germany.
 
 1. **Observe.** Correlate per-device DNS logs with packet captures to see what
    the TV contacts, including traffic the resolver log misses.
