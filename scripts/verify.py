@@ -31,9 +31,10 @@ Pure stdlib, like the rest of scripts/. Network access is required, so this is
 deliberately NOT part of `build.py check`.
 """
 import argparse
+import http.client
+import ipaddress
 import json
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -68,14 +69,34 @@ def classify(payload: object) -> tuple[str, str]:
         # verdict about the name.
         return ERROR, f"non-object DoH response: {type(payload).__name__}"
     status = payload.get("Status")
+    if type(status) is not int:
+        return ERROR, f"malformed DoH status {status!r}"
     if status == RCODE_NXDOMAIN:
         return NXDOMAIN, "name does not exist"
     if status != RCODE_NOERROR:
         return ERROR, f"rcode {status}"
-    answers = payload.get("Answer") or []
-    addrs = [a.get("data", "") for a in answers if a.get("type") == A_RECORD]
-    if addrs:
-        return LIVE, addrs[0]
+    answers = payload.get("Answer")
+    if answers is None:
+        return NO_A, "NOERROR without an A record"
+    if not isinstance(answers, list):
+        return ERROR, "malformed DoH answer section"
+    first_address = None
+    for answer in answers:
+        if not isinstance(answer, dict) or type(answer.get("type")) is not int:
+            return ERROR, "malformed DoH answer record"
+        if answer["type"] != A_RECORD:
+            continue
+        address = answer.get("data")
+        if not isinstance(address, str):
+            return ERROR, "malformed DoH A-record address"
+        try:
+            ipaddress.IPv4Address(address)
+        except ValueError:
+            return ERROR, "malformed DoH A-record address"
+        if first_address is None:
+            first_address = address
+    if first_address is not None:
+        return LIVE, first_address
     return NO_A, "NOERROR without an A record"
 
 
@@ -89,14 +110,7 @@ def resolve(name: str, provider: str = "google", rtype: str = "A",
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return classify(json.loads(resp.read().decode("utf-8")))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError,
-            UnicodeDecodeError, AttributeError, TypeError) as exc:
-        # UnicodeDecodeError (a ValueError): a malformed body must not abort
-        # the whole run -- classify this entry as ERROR like any other failure.
-        # AttributeError/TypeError: a JSON payload of an unexpected shape (e.g.
-        # a captive portal returning [] or nested types that are not objects)
-        # must not crash the run either; classify() handles the plain
-        # non-object case, this catch is the backstop for the rest.
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, http.client.HTTPException) as exc:
         return ERROR, f"{type(exc).__name__}: {exc}"
 
 
@@ -221,17 +235,27 @@ def main(argv: list[str] | None = None) -> int:
     # This tool never edits lists: refuse an --out that would overwrite the
     # input file or anything under lists/ before any lookup or write happens.
     if args.out:
-        target = args.out.resolve()
-        if target == args.file.resolve() or (ROOT / "lists").resolve() in target.parents:
+        try:
+            target = args.out.resolve()
+            input_path = args.file.resolve()
+            lists_dir = (ROOT / "lists").resolve()
+        except OSError as exc:
+            print(f"ERROR: cannot resolve input or output path: {exc}", file=sys.stderr)
+            return 2
+        if target == input_path or lists_dir in target.parents:
             print(f"ERROR: refusing --out {args.out}: it would overwrite the input "
                   "file or a shipped list", file=sys.stderr)
             return 2
 
-    if not args.file.is_file():
-        print(f"ERROR: no such file: {args.file} (run build.py build first)",
-              file=sys.stderr)
+    try:
+        if not args.file.is_file():
+            print(f"ERROR: no such file: {args.file} (run build.py build first)",
+                  file=sys.stderr)
+            return 2
+        names = read_entries(args.file)
+    except (OSError, UnicodeError) as exc:
+        print(f"ERROR: cannot read {args.file}: {exc}", file=sys.stderr)
         return 2
-    names = read_entries(args.file)
     if not names:
         print(f"ERROR: no entries parsed from {args.file}", file=sys.stderr)
         return 2
@@ -240,7 +264,11 @@ def main(argv: list[str] | None = None) -> int:
     results = verify(names, args.workers, args.cross_check)
     report = render(results, args.cross_check)
     if args.out:
-        args.out.write_text(report, encoding="utf-8", newline="\n")
+        try:
+            args.out.write_text(report, encoding="utf-8", newline="\n")
+        except (OSError, UnicodeError) as exc:
+            print(f"ERROR: cannot write {args.out}: {exc}", file=sys.stderr)
+            return 2
         print(f"wrote {args.out}", file=sys.stderr)
     else:
         print(report)
