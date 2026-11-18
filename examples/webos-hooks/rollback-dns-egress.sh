@@ -94,22 +94,24 @@ remove_rule() {
     table=$2
     shift 2
     while :; do
-        "$tool" -t "$table" -C OUTPUT "$@" 2>/dev/null
-        case "$?" in
-            0)
+        check_error=$(LC_ALL=C "$tool" -t "$table" -C OUTPUT "$@" 2>&1 >/dev/null)
+        case "$?:${check_error%.}" in
+            0:*)
                 if ! "$tool" -t "$table" -D OUTPUT "$@" 2>/dev/null; then
                     echo "ERROR: failed to delete $tool $table OUTPUT rule: $*" >&2
                     FAIL=1
                     return
                 fi
                 ;;
-            1)
-                # A missing rule is established only if the table is readable.
+            1:*': Bad rule (does a matching rule exist in that chain?)')
+                # Exit 1 also covers operational errors. Accept the explicit
+                # absence diagnostic only while the table remains readable.
                 inspect_output "$tool" "$table" >/dev/null
                 return
                 ;;
             *)
                 echo "ERROR: cannot verify $tool $table OUTPUT rule: $*" >&2
+                [ -z "$check_error" ] || printf '%s\n' "$check_error" >&2
                 FAIL=1
                 return
                 ;;

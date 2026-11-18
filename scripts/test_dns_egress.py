@@ -49,9 +49,13 @@ if (operation, chain) == ("-L", "-n"):
 assert chain == "OUTPUT", args
 for failed_key, failed_operation, failed_rule, status in json.loads(os.environ["FAULTS"]):
     if key == failed_key and operation == failed_operation and (failed_rule is None or rule == failed_rule):
+        print("firewall: simulated operation failure", file=sys.stderr)
         sys.exit(status)
 if operation == "-C":
-    sys.exit(0 if rule in rules else 1)
+    if rule in rules:
+        sys.exit(0)
+    print("firewall: Bad rule (does a matching rule exist in that chain?).", file=sys.stderr)
+    sys.exit(1)
 if operation == "-S":
     print("-P OUTPUT ACCEPT")
     for present in rules:
@@ -249,8 +253,12 @@ class DnsEgressTests(unittest.TestCase):
         self.assertEqual(self.rules(), {"v4:nat": [], "v4:filter": [], "v6:filter": V6_DROP[:1]})
 
     def test_failed_table_inspection_or_rule_check_cannot_claim_complete_rollback(self):
-        for op, rule, status, remaining in (("-S", None, 1, V4_DROP), ("-C", V4_DROP[0], 2, V4_DROP[:1])):
-            with self.subTest(operation=op):
+        for op, rule, status, remaining in (
+            ("-S", None, 1, V4_DROP),
+            ("-C", V4_DROP[0], 2, V4_DROP[:1]),
+            ("-C", V4_DROP[0], 1, V4_DROP[:1]),
+        ):
+            with self.subTest(operation=op, status=status):
                 self.reset_rules(nat=nat_rules(RESOLVER), v4=V4_DROP, v6=V6_DROP)
                 result = self.run_hook(ROLLBACK, override=RESOLVER, faults=[("v4:filter", op, rule, status)])
                 self.assert_incomplete_rollback(result)
