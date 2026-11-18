@@ -161,8 +161,12 @@ exactly that. Rules:
 1. Fork, branch off `main`.
 2. Edit `src/`, scripts or documentation, never generated `lists/`.
 3. With Python 3.10+, run the applicable verification below.
-4. Open the PR; CI regenerates lists after merge. Do not use automatic
-   issue-closing keywords; leave issue closure and public follow-ups to the owner.
+4. Open the PR. After checks pass on `main`, CI publishes any changed list
+   bodies and repairs missing or mismatched checksums. An unchanged publication
+   does not rewrite the timestamps. If generation inputs advance during a run,
+   publication defers to the run that validates those inputs.
+   Do not use automatic issue-closing keywords; leave issue closure and public
+   follow-ups to the owner.
 
 ### Verification
 
@@ -172,6 +176,9 @@ Common structural/offline checks (all five Python suites):
 python3 scripts/build.py check
 python3 -m unittest discover -s scripts -p 'test_[bclnv]*.py'
 ```
+
+For publication changes, also run `python3 scripts/test_publish.py` with Git
+and `sha256sum` installed. It uses disposable local repositories, not GitHub.
 
 For hook changes and applicable script CI:
 
