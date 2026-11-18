@@ -38,7 +38,10 @@ If you're new to the project, use the SAFE column.
 | [Pi-hole v6](docs/install.md#pi-hole-v6) | [SAFE domains](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-domains.txt) | [STRICT domains](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-domains.txt) |
 | [AdGuard Home](docs/install.md#adguard-home) | [SAFE filter](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-adblock.txt) | [STRICT filter](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-adblock.txt) |
 | [dnsmasq](docs/install.md#dnsmasq) | [SAFE config](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-dnsmasq.txt) | [STRICT config](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-dnsmasq.txt) |
-| [Rooted TV](examples/webos-hooks/) | [SAFE hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [STRICT hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
+| Rooted TV (`/etc/hosts`) | [SAFE hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/safe-hosts.txt) | [STRICT hosts](https://raw.githubusercontent.com/furkan-bayrak/lg-tv-blocklist/main/lists/strict-hosts.txt) |
+
+The rooted TV downloads contain hosts-file entries, not installers. The
+[optional webOS hooks](examples/webos-hooks/) do not install or maintain them.
 
 [NextDNS](docs/install.md#nextdns) uses an additive denylist import, not a URL
 subscription. [Unbound](docs/install.md#unbound-and-similar-resolvers) needs
@@ -55,7 +58,9 @@ When switching to SAFE, remove any manually imported STRICT rules.
 
 ## How we build the lists
 
-The lists began with a network audit of an LG G1 in Germany.
+LG TV Blocklist began with a two-week, root-level investigation of an LG G1
+in Germany, combining DNS logs, packet captures, and webOS service analysis.
+The lists continue to evolve through documented research and community reports.
 
 1. **Observe.** Correlate per-device DNS logs with packet captures to see what
    the TV contacts, including traffic the resolver log misses.
@@ -65,7 +70,7 @@ The lists began with a network audit of an LG G1 in Germany.
    established ad or telemetry purpose and a blocking test of the actual
    rule. Record the evidence and its limits in [`src/`](src/).
 
-The audit didn't test every rule in today's lists.
+Not every rule in the current lists has been independently tested on a TV.
 
 [Read or reproduce the methodology →](docs/methodology.md)
 
@@ -73,9 +78,10 @@ The audit didn't test every rule in today's lists.
 
 ## Limitations and compatibility
 
-1. **A blocklist can only filter DNS it sees.** Hardcoded resolvers, DoH,
-   IPv6 DNS bypass, cached answers, and direct IP connections can evade
-   filtering. A hosts file alone is not enough. The optional rooted
+1. **DNS filtering only works when queries reach your configured DNS blocker.**
+   Hardcoded resolvers, DoH, and unfiltered IPv6 DNS can bypass it. Cached
+   answers and direct IP connections can avoid DNS queries altogether.
+   A hosts file alone is not enough. The optional rooted
    [DNS-egress hook](examples/webos-hooks/README.md#the-dns-egress-hook)
    has [its own limits](examples/webos-hooks/README.md#caveats).
 2. **The format changes what gets blocked.** Domains and hosts files match
